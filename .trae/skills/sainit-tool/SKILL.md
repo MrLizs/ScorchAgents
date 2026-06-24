@@ -1,0 +1,204 @@
+---
+name: "sainit-tool"
+description: "初始化一个工具/效率类软件项目的产品原型。Invoke when /sainit 路由到 tool 类型，或用户直接调用 /sainit-tool。会创建 prototype/ 目录、按功能生成多页 HTML 原型（含数据列表、新增/编辑、统计、主题切换等工具专属页面）。"
+---
+
+# /sainit-tool — 工具类项目初始化
+
+## 触发条件
+
+- 由 `/sainit` 主 skill 路由而来（识别到"待办/记账/笔记/工具/效率"等关键词）
+- 用户直接调用：`/sainit-tool <项目描述>`
+
+## 工作流程
+
+### Step 1：解析项目描述 & 创建项目目录
+
+1. 提取项目关键词 → kebab-case 英文名
+2. 创建结构：
+   ```
+   <project-name>/
+   ├── README.md
+   └── prototype/
+       ├── index.html              # 启动 + 登录一体页
+       ├── home.html               # 数据列表（Tab）
+       └── <其他功能页面>.html
+       └── assets/{css,js,img}/
+   ```
+
+### Step 2：反问 UI 风格（5 选 1）
+
+| 选项 | 风格 | 典型色系 |
+|------|------|---------|
+| A | 简约清新风（推荐） | 白底 + 大量留白 |
+| B | 赛博朋克风 | 黑底 + 霓虹紫/青 |
+| C | 温馨治愈风 | 米色 + 暖橙 |
+| D | 商务专业风 | 深蓝 + 灰白 |
+| E | 复古文艺风 | 莫兰迪 |
+
+### Step 3：反问功能需求（多选）
+
+**核心功能**（必选）：
+1. 用户注册 / 登录
+2. 数据列表（如待办/账目/笔记）
+3. 新增 / 编辑
+4. 数据统计
+5. 个人中心
+
+**增值功能**（可选）：
+6. 数据导出
+7. 提醒 / 通知
+8. 标签 / 分类
+9. 多设备同步说明
+10. 主题切换
+
+### Step 4：功能 → 页面映射
+
+| 选中功能 | 生成页面 | Tab |
+|---------|---------|-----|
+| 注册/登录 | `index.html`（内含登录表单） | ❌ |
+| 数据列表 | `home.html` | ✅ |
+| 新增/编辑 | `edit.html` | ❌ |
+| 数据统计 | `stats.html` | ✅ |
+| 个人中心 | `me.html` | ✅ |
+| 数据导出 | `export.html` | ❌ |
+| 提醒 | `notifications.html` | ❌ |
+| 主题切换 | 内嵌到 `me.html` | - |
+
+**Tab 配置**：首页 / 统计 / 我的（3 个）
+
+### Step 5：生成文件
+
+#### 5.1 `assets/css/tokens.css`（工具默认偏 A 简约清新风）
+
+```css
+:root {
+  /* 默认：A 简约清新风 */
+  --primary: #4F46E5;          /* 工具强调色（靛蓝） */
+  --primary-soft: #EEF2FF;
+  --accent: #10B981;           /* 完成绿色 */
+  --accent-soft: #D1FAE5;
+  --warning: #F59E0B;
+  --danger: #EF4444;
+  --bg: #FAFAFC; --surface: #FFFFFF;
+  --text: #1F2937; --text-sub: #6B7280; --border: #F1F1F4;
+  --radius-sm: 6px; --radius: 10px; --radius-lg: 16px;
+  --shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+```
+
+#### 5.2 `assets/css/components.css`
+
+通用组件 + 工具专属：`.list-item`、`.item-checkbox`、`.item-content`、`.item-actions`、`.empty-state`、`.fab`（悬浮新增按钮）、`.form-field`、`.stat-card`、`.stat-value`、`.stat-label`、`.progress-bar`、`.theme-picker`
+
+#### 5.3 `assets/js/common.js`
+
+同 dating 子 skill
+
+#### 5.4 localStorage 键名（工具专属）
+
+| 键名 | 类型 | 用途 | 写入页 | 读取页 |
+|------|------|------|--------|--------|
+| `<name>:user` | Object | 当前登录用户 | `index.html` | 全站 |
+| `<name>:token` | String | 登录态 | `index.html` | 全站 |
+| `<name>:items` | Array | 数据列表（待办/账目等） | `edit.html` | `home.html`、`stats.html` |
+| `<name>:tags` | Array | 标签/分类 | `edit.html` | `home.html` |
+| `<name>:settings` | Object | 用户偏好（含主题） | `me.html` | 全站 |
+
+#### 5.5 index.html 设计（启动+登录一体）
+
+Hero 区用极简风格（如纯色块 + 大图标 + slogan"专注效率"），表单简洁。
+
+#### 5.6 关键页面要点
+
+**home.html（数据列表）**：
+- 顶部：标题 + 筛选 Tab（全部 / 进行中 / 已完成 / 已归档）
+- 列表项：复选框 + 标题 + 标签 + 时间 + 操作（编辑/删除）
+- 点击复选框：划线 + 灰化（标记完成）
+- 右下悬浮按钮 [+] → `edit.html`
+- 底部 Tab
+
+**edit.html（新增/编辑）**：
+- 顶部：返回 + 保存
+- 表单字段：
+  - 标题（必填）
+  - 内容/详情
+  - 标签（多选 chips）
+  - 日期（可选）
+  - 优先级（低/中/高）
+- 删除按钮（编辑模式才有）
+
+**stats.html（数据统计）**：
+- 顶部：时间范围选择（今日/本周/本月/全部）
+- 数据卡片：总数 / 已完成 / 进行中 / 完成率
+- 图表占位（柱状图/饼图用纯 CSS 实现或 emoji 装饰）
+- 标签分布列表
+
+**me.html（个人中心）**：
+- 用户卡
+- 数据概览（4 个小卡片）
+- 功能列表：
+  - 数据导出
+  - 主题切换（点击切换 light/dark，写入 settings）
+  - 通知设置
+  - 关于
+
+#### 5.7 占位数据
+
+- 列表项：5-10 条示例（待办标题、账目金额等）
+- 标签：3-5 个（工作/学习/生活/重要/紧急）
+
+### Step 6：生成 README.md
+
+```markdown
+# <项目名>
+
+> <一句话定位>
+
+## 页面清单
+
+| 页面 | 文件 |
+|------|------|
+| 启动 + 登录 | `prototype/index.html` |
+| 列表 | `prototype/home.html` |
+| 新增/编辑 | `prototype/edit.html` |
+| 统计 | `prototype/stats.html` |
+| 我的 | `prototype/me.html` |
+...
+
+## 本地预览
+
+双击 `prototype/index.html`
+```
+
+### Step 7：输出最终回复
+
+```
+✅ 项目「<name>」已初始化完成！
+
+📁 目录：<abs-path>
+🎨 风格：简约清新风
+🧩 功能：数据列表、新增编辑、统计、个人中心...
+
+📄 已生成页面（共 N 个）：
+   • index.html（启动 + 登录）
+   • home.html（列表 Tab）
+   • edit.html（新增/编辑）
+   • stats.html（统计 Tab）
+   • me.html（我的 Tab）
+   ...
+
+🚀 打开 prototype/index.html 开始体验。
+```
+
+## 注意事项
+
+- ⚠️ **数据列表按时间倒序**（最新在前）
+- ⚠️ **标记完成用本地状态切换**，刷新仍保留（localStorage）
+- ⚠️ **删除要有二次确认**（`confirm()` 即可）
+- ⚠️ **空状态必须友好**（无数据时显示插画+提示）
+
+## 关联 Skill
+
+- `frontend-design` — 高保真 UI
+- `color-font-skill` — 配色字体

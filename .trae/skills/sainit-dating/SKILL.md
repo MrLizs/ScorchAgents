@@ -1,0 +1,320 @@
+---
+name: "sainit-dating"
+description: "初始化一个交友/社交类软件项目的产品原型。Invoke when /sainit 路由到 dating 类型，或用户直接调用 /sainit-dating。会创建 prototype/ 目录、按功能生成多页 HTML 原型（含滑动匹配、聊天、个人主页等社交专属页面）。"
+---
+
+# /sainit-dating — 交友类项目初始化
+
+## 触发条件
+
+- 由 `/sainit` 主 skill 路由而来（识别到"交友/相亲/社交/聊天/匹配"等关键词）
+- 用户直接调用：`/sainit-dating <项目描述>`
+
+## 工作流程
+
+### Step 1：解析项目描述 & 创建项目目录
+
+1. 提取**项目关键词** → 生成英文项目名（kebab-case）
+2. 创建目录结构：
+   ```
+   <project-name>/
+   ├── README.md
+   └── prototype/
+       ├── index.html              # 启动 + 登录一体页
+       ├── home.html               # 首页（Tab）
+       └── <其他功能页面>.html
+       └── assets/
+           ├── css/
+           │   ├── tokens.css
+           │   ├── components.css
+           │   └── pages.css
+           ├── js/common.js
+           └── img/
+   ```
+
+### Step 2：反问 UI 风格（5 选 1）
+
+| 选项 | 风格 | 典型色系 |
+|------|------|---------|
+| A | 简约清新风 | 白底 + 淡粉/淡蓝 |
+| B | 赛博朋克风 | 黑底 + 霓虹紫/青 |
+| C | 温馨治愈风 | 米色 + 暖橙/浅黄 |
+| D | 商务专业风 | 深蓝 + 灰白 |
+| E | 复古文艺风 | 莫兰迪绿/灰粉 |
+
+### Step 3：反问功能需求（多选）
+
+**核心功能**（必选）：
+1. 用户注册 / 登录
+2. 个人资料编辑
+3. 推荐匹配（滑动卡片）
+4. 即时聊天
+5. 个人主页
+
+**增值功能**（可选）：
+6. 附近的人
+7. 朋友圈 / 动态广场
+8. 实名认证
+9. VIP 会员
+10. 兴趣社群
+
+### Step 4：功能 → 页面映射
+
+| 选中功能 | 生成页面 | Tab |
+|---------|---------|-----|
+| 注册/登录 | `index.html`（内含登录表单） | ❌ |
+| 个人资料编辑 | `edit-profile.html` | ❌ |
+| 推荐匹配 | `home.html` + `match.html` | ✅ home |
+| 即时聊天 | `messages.html` + `chat.html` | ✅ messages |
+| 个人主页 | `me.html` | ✅ |
+| 附近的人 | `nearby.html` | ❌ |
+| 朋友圈/动态 | `feed.html` | ✅ |
+| 实名认证 | `verify.html` | ❌ |
+| VIP 会员 | `vip.html` | ❌ |
+| 兴趣社群 | `topics.html` | ❌ |
+
+**Tab 配置**：首页 / 匹配 / 消息 / 我的（4 个）
+
+### Step 5：生成文件
+
+#### 5.1 `assets/css/tokens.css`（按风格切换）
+
+```css
+:root {
+  /* 默认：简约清新风 */
+  --primary: #FF6B9D; --primary-soft: #FFE4ED;
+  --accent: #4ECDC4; --accent-soft: #DFF7F4;
+  --bg: #FAFAFC; --surface: #FFFFFF;
+  --text: #1F2937; --text-sub: #6B7280; --border: #F1F1F4;
+  --radius-sm: 8px; --radius: 16px; --radius-lg: 24px;
+  --shadow: 0 8px 24px rgba(0,0,0,0.08);
+}
+/* 风格 B 赛博朋克：黑底 + 霓虹紫/青
+   --primary: #B829F0; --primary-soft: #2D1B4E;
+   --bg: #0A0E1A; --surface: #14182A; --text: #E0E6FF;
+*/
+/* 风格 C 温馨治愈：米色 + 暖橙
+   --primary: #FF9F68; --bg: #FFF8F0; --text: #4A3F35;
+*/
+/* 风格 D 商务专业：深蓝 + 灰白
+   --primary: #2563EB; --bg: #F8FAFC; --text: #0F172A;
+*/
+/* 风格 E 复古文艺：莫兰迪
+   --primary: #8FA68E; --bg: #F5F1EA; --text: #3D4A3D;
+*/
+```
+
+#### 5.2 `assets/css/components.css`
+
+通用组件：`.btn`、`.card`、`.input`、`.list-item`、`.bottom-tab`、`.sub-header`、`.auth-page`、`.auth-hero`、`.auth-form`、`.input-group`、`.captcha-row`、`.btn-send-code`、`.btn-primary`、`.agree`、`.divider`、`.oauth-row`、`.oauth-btn`、`.swipe-card` 等
+
+#### 5.3 `assets/js/common.js`
+
+```javascript
+const PROJECT_KEY = '<projectName>';
+
+const Store = {
+  get(key, fallback = null) {
+    try { const v = localStorage.getItem(`${PROJECT_KEY}:${key}`); return v ? JSON.parse(v) : fallback; }
+    catch { return fallback; }
+  },
+  set(key, val) { localStorage.setItem(`${PROJECT_KEY}:${key}`, JSON.stringify(val)); },
+  remove(key) { localStorage.removeItem(`${PROJECT_KEY}:${key}`); },
+  clear() { Object.keys(localStorage).filter(k => k.startsWith(`${PROJECT_KEY}:`)).forEach(k => localStorage.removeItem(k)); }
+};
+
+function requireLogin(redirect = 'index.html') {
+  if (!Store.get('token')) { location.href = redirect; return false; }
+  return true;
+}
+
+function currentUser() { return Store.get('user'); }
+
+function logout() { Store.clear(); location.href = 'index.html'; }
+
+function highlightTab() {
+  const path = location.pathname.split('/').pop() || 'home.html';
+  document.querySelectorAll('.tab-item').forEach(el => {
+    el.classList.toggle('active', el.getAttribute('href') === path);
+  });
+}
+
+document.addEventListener('DOMContentLoaded', highlightTab);
+```
+
+#### 5.4 localStorage 键名（交友专属）
+
+| 键名 | 类型 | 用途 | 写入页 | 读取页 |
+|------|------|------|--------|--------|
+| `<name>:user` | Object | 当前登录用户 | `index.html` | 全站 |
+| `<name>:token` | String | 登录态 | `index.html` | 全站 |
+| `<name>:matches` | Array | 匹配过的用户 | `match.html` | `messages.html` |
+| `<name>:messages` | Array | 聊天消息列表 | `chat.html` | `messages.html` |
+| `<name>:posts` | Array | 朋友圈动态 | `feed.html` | `feed.html` |
+| `<name>:settings` | Object | 用户偏好 | `me.html` | 全站 |
+
+#### 5.5 index.html 设计（启动+登录一体）
+
+三段式：Hero 区（品牌+slogan）→ 登录表单（手机号+验证码+协议）→ 其他登录方式
+
+```html
+<div class="app">
+  <main class="auth-page">
+    <section class="auth-hero">
+      <div class="brand-logo">💗</div>
+      <h1>心遇</h1>
+      <p>遇见对的人，从这里开始</p>
+    </section>
+    <form class="auth-form" onsubmit="return doLogin(event)">
+      <div class="input-group"><input type="tel" id="phone" placeholder="请输入手机号" maxlength="11"></div>
+      <div class="input-group captcha-row">
+        <input type="text" id="code" placeholder="验证码" maxlength="6">
+        <button type="button" class="btn-send-code">获取验证码</button>
+      </div>
+      <label class="agree"><input type="checkbox" id="agree" checked> 我已阅读并同意 <a href="#">《服务条款》</a></label>
+      <button type="submit" class="btn btn-primary">登录 / 注册</button>
+    </form>
+    <section class="auth-other">
+      <div class="divider"><span>其他登录方式</span></div>
+      <div class="oauth-row">
+        <button class="oauth-btn">微信</button>
+        <button class="oauth-btn">Apple</button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+function doLogin(e) {
+  e.preventDefault();
+  const phone = document.querySelector('#phone').value.trim();
+  const code = document.querySelector('#code').value.trim();
+  if (!/^1\d{10}$/.test(phone)) return alert('请输入正确的手机号');
+  if (!/^\d{4,6}$/.test(code)) return alert('请输入验证码');
+  if (!document.querySelector('#agree').checked) return alert('请先同意服务条款');
+  Store.set('token', 'mock-token-' + Date.now());
+  Store.set('user', { id: 1, phone, nickname: '用户' + phone.slice(-4), avatar: 'https://i.pravatar.cc/150?img=' + Math.floor(Math.random()*70) });
+  location.href = 'home.html';
+}
+
+document.querySelector('.btn-send-code').onclick = () => {
+  const btn = document.querySelector('.btn-send-code');
+  let n = 60; btn.disabled = true; btn.textContent = n + 's 后重试';
+  const t = setInterval(() => {
+    if (--n <= 0) { clearInterval(t); btn.disabled = false; btn.textContent = '获取验证码'; }
+    else btn.textContent = n + 's 后重试';
+  }, 1000);
+  alert('验证码已发送（演示环境，请填写 123456）');
+};
+</script>
+```
+
+#### 5.6 HTML 页面通用结构
+
+```html
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>页面名 - 项目名</title>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/components.css">
+</head>
+<body>
+  <div class="app">
+    <!-- 子页面：sub-header -->
+    <main class="page-content">...</main>
+    <!-- Tab 页面：bottom-tab -->
+  </div>
+  <script src="assets/js/common.js"></script>
+  <script>/* 页面逻辑 */</script>
+</body>
+</html>
+```
+
+Tab 页面底部导航：
+```html
+<nav class="bottom-tab">
+  <a href="home.html" class="tab-item">首页</a>
+  <a href="match.html" class="tab-item">匹配</a>
+  <a href="messages.html" class="tab-item">消息</a>
+  <a href="me.html" class="tab-item">我的</a>
+</nav>
+```
+
+子页面顶部返回：
+```html
+<header class="sub-header">
+  <a href="javascript:history.back()" class="back-btn">←</a>
+  <h1>页面标题</h1>
+  <span class="placeholder"></span>
+</header>
+```
+
+#### 5.7 占位数据
+
+- 图片：`https://picsum.photos/seed/<key>/<w>/<h>`
+- 头像：`https://i.pravatar.cc/150?img=<n>`
+- 滑卡片：3-5 张示例（含昵称、年龄、城市、一句话）
+
+### Step 6：生成 README.md
+
+```markdown
+# <项目名>
+
+> <一句话定位>
+
+## 页面清单
+
+| 页面 | 文件 | 入口 |
+|------|------|------|
+| 启动 + 登录 | `prototype/index.html` | 浏览器默认打开 |
+| 首页 | `prototype/home.html` | 登录后 |
+| 匹配 | `prototype/match.html` | 底部 Tab |
+| 消息 | `prototype/messages.html` | 底部 Tab |
+| 聊天 | `prototype/chat.html` | `messages.html` |
+| 我的 | `prototype/me.html` | 底部 Tab |
+...（按 Step 4 选中的功能展开）
+
+## 本地预览
+
+双击 `prototype/index.html`，或在项目根目录运行 `python -m http.server 8000` 访问 `http://localhost:8000/prototype/`
+
+## 下一步
+
+- `/sagen` 生成完整代码（含后端）
+- `/sadeploy` 一键部署预览
+```
+
+### Step 7：输出最终回复
+
+```
+✅ 项目「<name>」已初始化完成！
+
+📁 目录：<abs-path>
+🎨 风格：<风格名>
+🧩 功能：注册登录、推荐匹配、即时聊天、个人主页...
+
+📄 已生成页面（共 N 个，位于 prototype/）：
+   • index.html（启动 + 登录一体）
+   • home.html（首页 Tab）
+   • match.html（匹配 Tab）
+   • messages.html（消息 Tab）
+   • me.html（我的 Tab）
+   ...
+
+🚀 打开 prototype/index.html 体验完整用户旅程。
+```
+
+## 注意事项
+
+- ⚠️ **页面数量 = 选中功能数 + 1**（index 内含登录）
+- ⚠️ **跨页面跳转用相对路径**（`href="home.html"`）
+- ⚠️ **占位用真实图片服务**（picsum/pravatar），避免本地资源缺失
+- ⚠️ **match.html 必须含可滑动卡片交互**（touch 事件 + 动画）
+
+## 关联 Skill
+
+- `frontend-design` — 高保真 UI 生成
+- `color-font-skill` — 配色字体
