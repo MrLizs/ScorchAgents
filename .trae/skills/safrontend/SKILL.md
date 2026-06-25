@@ -170,10 +170,100 @@ agent 会按顺序执行以下 Step，**实施过程不打扰用户**：
 - [ ] Step 3: 通用组件库
 - [ ] Step 4: 路由配置
 - [ ] Step 5: 状态管理（Store）
+- [ ] **Step 5.5: API 客户端脚手架**（为后端接入预留，见下方说明）
 - [ ] Step 6: 启动页 + 登录（Index 页面）
 - [ ] Step 7: 首页（Home 页面）
 - [ ] ...（按 prototype 页面数生成）
 - [ ] Step N: 构建测试
+
+#### 🚧 Step 5.5：API 客户端脚手架（为后端接入预留）
+
+> 📌 **本步为 `/saapi-connect` 预留接入点**，避免后期接入时大改文件结构。
+
+**必须生成的 5 个文件**（即便 Phase 2 / 3 暂时用不到）：
+
+| 文件 | 内容（占位） | 接入时填充 |
+|------|------------|----------|
+| `frontend/src/api/client.ts` | axios 实例 + 空 interceptor | baseURL + JWT 拦截器 |
+| `frontend/src/api/auth.ts` | login / logout / refresh 函数占位 | 接真实后端接口 |
+| `frontend/src/api/users.ts` | getMe / updateProfile 占位 | 接真实接口 |
+| `frontend/src/stores/auth.ts` | Pinia/Zustand store（**mock 实现**：直接 setTimeout 赋假 token） | 接真实 login() |
+| `frontend/src/utils/errorHandler.ts` | 空函数 + TODO 注释 | HTTP 错误 → toast |
+| `frontend/.env.example` | `VITE_API_BASE_URL=` 占位 | 真实 baseURL |
+
+**生成示例**（Vue + Pinia + Axios）：
+
+`frontend/src/api/client.ts`（占位）：
+```ts
+import axios from 'axios';
+
+export const apiClient = axios.create({
+  baseURL: '',                       // ⚠️ 占位，由 /saapi-connect 注入
+  timeout: 15000,
+});
+
+// TODO: /saapi-connect 会填充以下内容
+// - JWT request interceptor
+// - 401 response interceptor (auto refresh)
+// - error handler hook
+```
+
+`frontend/src/stores/auth.ts`（**mock 实现**，方便 Phase 1-2 跑通）：
+```ts
+import { defineStore } from 'pinia';
+import { ref, computed } from 'vue';
+
+// ⚠️ 此为 safrontend 阶段的 mock 实现
+// 真实接入由 /saapi-connect 替换为真实后端调用
+export const useAuthStore = defineStore('auth', () => {
+  const accessToken = ref<string | null>(localStorage.getItem('mock_token'));
+  const user = ref<any>(JSON.parse(localStorage.getItem('mock_user') || 'null'));
+  const isLoggedIn = computed(() => !!accessToken.value);
+
+  async function login(username: string, password: string) {
+    // ⚠️ Mock：直接赋假 token，真实接入会改成调 /api/v1/auth/login
+    accessToken.value = 'mock_token_' + Date.now();
+    user.value = { id: 1, username, avatar: '/default-avatar.png' };
+    localStorage.setItem('mock_token', accessToken.value);
+    localStorage.setItem('mock_user', JSON.stringify(user.value));
+  }
+
+  function logout() {
+    accessToken.value = null;
+    user.value = null;
+    localStorage.removeItem('mock_token');
+    localStorage.removeItem('mock_user');
+  }
+
+  return { accessToken, user, isLoggedIn, login, logout };
+});
+```
+
+`frontend/.env.example`：
+```bash
+# ⚠️ 占位，由 /saapi-connect 填充真实值
+VITE_API_BASE_URL=
+VITE_API_PREFIX=/api/v1
+VITE_USE_MOCK=true
+```
+
+**验收标准**（Step 5.5 完成判定）：
+- [ ] 6 个文件全部生成（含 mock 实现）
+- [ ] `npm run dev` 启动后浏览器能正常登录（用 mock token）
+- [ ] DevTools Network 看到登录请求是 mock 路径（或不发请求）
+- [ ] localStorage 有 `mock_token` / `mock_user`
+
+> ⚠️ **后续 `/saapi-connect` 会做的事**：
+> 1. 改 `VITE_API_BASE_URL` 为真实后端地址
+> 2. 填充 `client.ts` 的 JWT 拦截器
+> 3. **新增独立 Step 3：清理 mock 认证遗留**（删除 `mockCleanup.ts` 自动清理 localStorage、扫描删除代码引用、清理 Vite proxy 中的 mock 路径）
+> 4. 重写 `auth.ts` 的 login() 接真实后端
+> 5. 配置 Vite proxy + 后端 CORS
+
+> 📌 **safrontend 被重新调用时的注意事项**：
+> - 若 STEPS.md 显示已完成 `/saapi-connect`，不要重新生成 mock_token / mock_user（保持真实实现）
+> - 若用户来回切换（safrontend → saapi-connect → safrontend），safrontend 检测到 `frontend/src/api/client.ts` 已被填充真实 baseURL 时，**不要覆盖**，只追加新功能
+> - 若用户主动回到 mock 模式（重新开发不接后端），可重新生成 mock 实现，但需提示「已存在真实接入代码，是否要备份？」
 
 > 📌 **完成后**：agent 会一次性提示用户运行 `npm run dev` 测试全部页面
 
@@ -260,8 +350,9 @@ agent 在用户反馈后**自动标记**所有功能按钮，然后**逐个询�
 4. **Step 3**：实现通用组件库（参考 prototype/components.css 样式）
 5. **Step 4**：配置路由
 6. **Step 5**：实现状态管理（Store）
-7. **Step 6 - N**：实现所有页面（**基于功能生成，参考 prototype 风格与布局**）
-8. **Step N+1**：联调（npm install → 检查能否启动）
+7. **Step 5.5**：生成 API 客户端脚手架（**为 `/saapi-connect` 预留接入点**，见 Phase 1 步骤列表下方说明）
+8. **Step 6 - N**：实现所有页面（**基于功能生成，参考 prototype 风格与布局**）
+9. **Step N+1**：联调（npm install → 检查能否启动）
 
 每个 Step 的执行细则：
 - **路径检查**：所有写入路径必须以 `frontend/` 开头
@@ -438,7 +529,9 @@ agent 输出：
    • **A. 是 → 调用 /saapi**（开始 API 设计规划）
    • **B. 暂不 API，先调整前端** → 回到 Phase 3 继续验收
    • **C. 结束** → 标记 STEPS.md 完成
-```
+
+> 📌 **完整闭环**：safrontend → saapi → sabackend → **saapi-connect**（前后端接通）。
+> 当前 safrontend 完成的是 Phase 4 的「前端开发验收」，后续 `/saapi-connect` 阶段会用 safrontend 阶段生成的 API 客户端脚手架（Step 5.5）接入真实后端。
 
 **用户选 A 时**：
 
@@ -519,6 +612,14 @@ agent **必须调用 `/saapi` skill**（不要在 safrontend 内做 API 设计�
 📦 构建生产版本：
    cd frontend
    npm run build
+
+## 修改记录（skill 自身演进）
+
+| 时间 | 改动 |
+|------|------|
+| YYYY-MM-DD | 初版：四阶段流程（实施/测试/验收/API 设计），Vue 3 / React 18 双栈支持 |
+| YYYY-MM-DD v2 | Phase 1 新增 Step 5.5「API 客户端脚手架」：生成 client.ts / auth.ts / errorHandler.ts / .env.example 6 个文件，为 `/saapi-connect` 预留接入点；Phase 4 末尾提示完整闭环 `safrontend → saapi → sabackend → saapi-connect` |
+| YYYY-MM-DD v3 | safrontend 被重复调用时的兼容规则：检测 `/saapi-connect` 已完成则不重新生成 mock；检测 `client.ts` 已有真实 baseURL 则不覆盖；用户主动回 mock 模式时提示备份 |
 
 📋 完整记录见 STEPS.md
 
