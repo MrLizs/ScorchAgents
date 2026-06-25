@@ -106,35 +106,70 @@ description: "把 /safrontend 生成的前端代码接入到 /sabackend 实现�
 
 ## 工作流程（严格按顺序）
 
-### Step 0：前置检查
+### Step 0：前置检查（含前端框架检测）
 
-1. **三件套检查**：
-   - `frontend/` 存在且含 `package.json`？
-   - `backend/` 存在且含 `config.yaml`？
-   - `api/openapi.yaml` 存在？
-   - 任意一项缺失 → 提示用户先运行对应 skill 并终止
+> 📌 **本 Step 必须先检测前端框架**，后续 Step 2/3/4/5 根据检测结果走 Vue 3 或 React 18 分支。
 
-2. **API 客户端脚手架检查**：
-   - 扫描 `frontend/src/api/` 是否已有 `client.ts`
-   - 不存在 → 警告「safrontend 未生成 API 客户端脚手架」并询问「本 skill 临时生成 / 中断」
-   - 选择「本 skill 临时生成」→ 按 safrontend 标准结构创建占位文件
+#### 0.1 三件套检查
 
-3. **指纹比对**（沿用 sabackend 机制）：
-   - 计算 `api/openapi.yaml` 的 sha256
-   - 与 STEPS.md 后端章节的「API 来源指纹」表比对
-   - 不一致 → 警告「saapi 已更新，是否要先回归后端」
+1. `frontend/` 存在且含 `package.json`？
+2. `backend/` 存在且含 `config.yaml`？
+3. `api/openapi.yaml` 存在？
+4. 任意一项缺失 → 提示用户先运行对应 skill 并终止
 
-4. **读取后端配置**：
-   - 读取 `backend/config.yaml`，提取 `server.port`（默认 3000）
-   - 读取 OpenAPI 的 `servers` 节点，确定生产域名（可选）
+#### 0.2 前端框架检测（决定后续所有代码分支）
+
+**检测逻辑**（按优先级）：
+
+```bash
+# 1. 读 STEPS.md（如已生成）—— safrontend 已在「项目信息」记录框架
+grep -E "框架：|Framework:" STEPS.md
+
+# 2. 读 frontend/package.json —— 看 dependencies
+cat frontend/package.json | jq '.dependencies, .devDependencies'
+```
+
+**判断矩阵**：
+
+| 检测到 | 框架 | 状态管理 | UI 库（自动推断） | HTTP 客户端 |
+|-------|------|---------|----------------|-----------|
+| `vue` 依赖 + `pinia` | **Vue 3** | Pinia | Element Plus / Naive UI / Vant | axios |
+| `react` 依赖 + `zustand` | **React 18** | Zustand | Ant Design / MUI / Chakra | axios / fetch |
+| `react` 依赖 + `redux toolkit` | **React 18** | Redux Toolkit | 同上 | axios / RTK Query |
+| `vue` 依赖（无 pinia） | **Vue 3** | 询问用户 | 询问用户 | 询问用户 |
+| 都不是 | **未知** | 询问用户 | 询问用户 | 询问用户 |
+
+> ⚠️ **AI 严禁硬编码默认框架**——必须先检测，再走分支。若检测失败则用 `AskUserQuestion` 询问用户（提供 Vue 3 + Pinia / React 18 + Zustand / 其它 三选项）。
+
+#### 0.3 API 客户端脚手架检查
+
+- 扫描 `frontend/src/api/` 是否已有 `client.ts`
+- 不存在 → 警告「safrontend 未生成 API 客户端脚手架」并询问「本 skill 临时生成 / 中断」
+- 选择「本 skill 临时生成」→ 按 safrontend 标准结构创建占位文件（**根据检测到的框架走对应分支**）
+
+#### 0.4 指纹比对（沿用 sabackend 机制）
+
+- 计算 `api/openapi.yaml` 的 sha256
+- 与 STEPS.md 后端章节的「API 来源指纹」表比对
+- 不一致 → 警告「saapi 已更新，是否要先回归后端」
+
+#### 0.5 读取后端配置
+
+- 读取 `backend/config.yaml`，提取 `server.port`（默认 3000）
+- 读取 OpenAPI 的 `servers` 节点，确定生产域名（可选）
 
 输出确认：
 ```
 🔍 检测到 frontend/ + backend/ + api/ 三件套齐全
+🎨 前端框架：<Vue 3 + Pinia | React 18 + Zustand | ...>（来自 STEPS.md / package.json）
+🧩 状态管理：<Pinia | Zustand | RTK>
+🎨 UI 库：<Element Plus | Ant Design | ...>
 🔐 API 指纹：openapi.yaml sha256=abc123...（与 sabackend 记录一致 ✅）
 📡 后端端口：3000（来自 backend/config.yaml）
 🚀 开始接入前端...
 ```
+
+> 📌 **后续 Step 2 / 3.2 / 4 / 5 都会按检测到的框架走对应分支**，不再询问。
 
 ---
 
@@ -189,7 +224,14 @@ VITE_USE_MOCK=false
 
 **文件**：`frontend/src/api/client.ts`
 
-**Vue + Axios 模板**：
+> 📌 **根据 Step 0.2 检测到的框架，按 A / B / C 分支填入对应代码**。AI 只填用户所用框架的分支，**不展示其它分支的代码**（除非用户主动询问对比）。
+
+---
+
+#### A. Vue 3 + Pinia + axios 分支
+
+**文件**：`frontend/src/api/client.ts`
+
 ```ts
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '@/stores/auth';
@@ -206,7 +248,7 @@ export const apiClient: AxiosInstance = axios.create({
 
 // ===== Request 拦截器：注入 JWT =====
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  const auth = useAuthStore();
+  const auth = useAuthStore();   // ⚠️ Pinia 在 setup 外需传 pinia 实例，见下方说明
   if (auth.accessToken) {
     config.headers.Authorization = `Bearer ${auth.accessToken}`;
   }
@@ -223,7 +265,6 @@ apiClient.interceptors.response.use(
     const auth = useAuthStore();
     const original = error.config;
 
-    // 401 + 不是 refresh 接口本身 → 尝试刷新 token
     if (error.response?.status === 401 && !original._isRetry && original.url !== '/auth/refresh') {
       if (!isRefreshing) {
         isRefreshing = true;
@@ -242,7 +283,6 @@ apiClient.interceptors.response.use(
           return Promise.reject(e);
         }
       }
-      // 等待 refresh 完成
       return new Promise((resolve) => {
         pendingQueue.push((newToken) => {
           original.headers.Authorization = `Bearer ${newToken}`;
@@ -260,7 +300,104 @@ apiClient.interceptors.response.use(
 export default apiClient;
 ```
 
-**React + Axios 模板**：同上，差异在 `useAuthStore` 替换为 `useAuthStore()` hook 调用。
+> ⚠️ **Pinia 在 axios interceptor 外部调用**：interceptor 是模块级代码，Pinia 实例必须在 `app.use(pinia)` 之后才能用。如果遇到「getActivePinia was called with no active Pinia」错误，改为：
+> ```ts
+> import { getActivePinia } from 'pinia';
+> const auth = useAuthStore(getActivePinia()!);
+> ```
+
+---
+
+#### B. React 18 + Zustand + axios 分支
+
+**文件**：`frontend/src/api/client.ts`
+
+```ts
+import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
+import { useAuthStore } from '@/stores/auth';
+import { handleError } from '@/utils/errorHandler';
+
+const baseURL = `${import.meta.env.VITE_API_BASE_URL}${import.meta.env.VITE_API_PREFIX}`;
+// 例：http://localhost:3000/api/v1
+
+export const apiClient: AxiosInstance = axios.create({
+  baseURL,
+  timeout: 15000,
+  headers: { 'Content-Type': 'application/json' },
+});
+
+// ===== Request 拦截器：注入 JWT =====
+// ⚠️ Zustand 是模块单例（无 Provider），可直接在 interceptor 内部调用
+apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  const token = useAuthStore.getState().accessToken;   // Zustand getState() API
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// ===== Response 拦截器：401 自动 refresh =====
+let isRefreshing = false;
+let pendingQueue: Array<(token: string) => void> = [];
+
+apiClient.interceptors.response.use(
+  (response) => response.data,
+  async (error) => {
+    const original = error.config;
+    const authState = useAuthStore.getState();
+
+    if (error.response?.status === 401 && !original._isRetry && original.url !== '/auth/refresh') {
+      if (!isRefreshing) {
+        isRefreshing = true;
+        try {
+          const newToken = await authState.refresh();
+          isRefreshing = false;
+          pendingQueue.forEach((cb) => cb(newToken));
+          pendingQueue = [];
+          original._isRetry = true;
+          original.headers.Authorization = `Bearer ${newToken}`;
+          return apiClient(original);
+        } catch (e) {
+          isRefreshing = false;
+          authState.logout();
+          window.location.href = '/login';
+          return Promise.reject(e);
+        }
+      }
+      return new Promise((resolve) => {
+        pendingQueue.push((newToken) => {
+          original.headers.Authorization = `Bearer ${newToken}`;
+          original._isRetry = true;
+          resolve(apiClient(original));
+        });
+      });
+    }
+
+    handleError(error);
+    return Promise.reject(error);
+  }
+);
+
+export default apiClient;
+```
+
+> ⚠️ **Zustand 在 interceptor 中调用**：用 `useAuthStore.getState()` 而不是 `useAuthStore()`（后者是 React hook，必须在组件内）。
+
+---
+
+#### C. React 18 + Redux Toolkit + RTK Query 分支
+
+> 📌 **RTK Query 场景**：如果 safrontend 用了 RTK Query，**不需要手写 axios interceptor**，由 RTK Query 的 `baseQueryWithReauth` 处理（详见官方文档）。本 skill 在 RTK 场景下：
+> - `client.ts` 改为 `frontend/src/store/api/baseApi.ts`
+> - 在 `baseQuery` 中注入 Authorization header
+> - 在 `prepareHeaders` 中读取 store
+> - 401 → 用 `extraOptions` + `refresh` thunk
+
+---
+
+#### D. 其它框架（Svelte / Angular / Vanilla TS）
+
+询问用户具体框架，提供对应模板。**严禁 AI 自己脑补**。
 
 **📝 本步完成后立即写入 STEPS.md**：
 ```markdown
@@ -303,15 +440,45 @@ export function cleanupMockAuth() {
 
 **3.2 在 main.ts 启动时调用**
 
-**文件**：`frontend/src/main.ts`
+**文件**：`frontend/src/main.ts`（Vue）/ `frontend/src/main.tsx`（React）
+
+> 📌 **按检测到的框架选对应分支**：
+
+#### A. Vue 3
 
 ```ts
+import { createApp } from 'vue';
+import App from './App.vue';
 import { cleanupMockAuth } from '@/utils/mockCleanup';
 
-// 在创建 app 之前调用
+// ⚠️ 在创建 app 之前调用
 cleanupMockAuth();
-// ... 后续 app 初始化
+
+const app = createApp(App);
+app.mount('#app');
 ```
+
+#### B. React 18
+
+```tsx
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import { cleanupMockAuth } from '@/utils/mockCleanup';
+
+// ⚠️ 在渲染之前调用
+cleanupMockAuth();
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+```
+
+#### C. 其它框架
+
+由用户告知入口文件位置，在 app 初始化前调用 `cleanupMockAuth()` 即可。
 
 > 📌 用户首次访问页面时，浏览器自动清理一次 localStorage 中的 mock 残留。
 
@@ -355,15 +522,20 @@ proxy: {
 
 **目标**：把 safrontend 阶段用的 mock token 替换为真实后端返回的 JWT。
 
-**3.1 修改 auth store**
+**4.1 修改 auth store**
 
 **文件**：`frontend/src/stores/auth.ts`
 
-**Vue + Pinia 示例**：
+> 📌 **按检测到的框架选对应分支**，下面同时给出 Vue 3 (Pinia) 与 React 18 (Zustand) 两个版本；AI 只填用户所用框架的分支。
+
+---
+
+#### A. Vue 3 + Pinia
+
 ```ts
 import { defineStore } from 'pinia';
-import apiClient from '@/api/client';
 import { ref, computed } from 'vue';
+import apiClient from '@/api/client';
 
 export const useAuthStore = defineStore('auth', () => {
   const accessToken = ref<string | null>(localStorage.getItem('access_token'));
@@ -373,7 +545,6 @@ export const useAuthStore = defineStore('auth', () => {
   const isLoggedIn = computed(() => !!accessToken.value);
 
   async function login(username: string, password: string) {
-    // ✅ 替换 safrontend 阶段直接赋假 token 的逻辑
     const res = await apiClient.post('/auth/login', { username, password });
     accessToken.value = res.data.access_token;
     refreshToken.value = res.data.refresh_token;
@@ -398,7 +569,7 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');
-    // ❌ 删除 safrontend 阶段的 mock 标记
+    // 删除 safrontend 阶段的 mock 标记
     localStorage.removeItem('mock_token');
     localStorage.removeItem('mock_user');
   }
@@ -407,18 +578,168 @@ export const useAuthStore = defineStore('auth', () => {
 });
 ```
 
-**3.2 替换所有 mock 认证**
+---
+
+#### B. React 18 + Zustand
+
+```ts
+import { create } from 'zustand';
+import apiClient from '@/api/client';
+
+interface User {
+  id: number;
+  username: string;
+  avatar?: string;
+}
+
+interface AuthState {
+  accessToken: string | null;
+  refreshToken: string | null;
+  user: User | null;
+  isLoggedIn: boolean;
+  login: (username: string, password: string) => Promise<void>;
+  refresh: () => Promise<string>;
+  logout: () => void;
+}
+
+// 初始化：从 localStorage 读取
+const initialAccessToken = localStorage.getItem('access_token');
+const initialRefreshToken = localStorage.getItem('refresh_token');
+const initialUser = JSON.parse(localStorage.getItem('user') || 'null');
+
+export const useAuthStore = create<AuthState>((set, get) => ({
+  accessToken: initialAccessToken,
+  refreshToken: initialRefreshToken,
+  user: initialUser,
+  isLoggedIn: !!initialAccessToken,
+
+  async login(username, password) {
+    const res = await apiClient.post('/auth/login', { username, password });
+    set({
+      accessToken: res.data.access_token,
+      refreshToken: res.data.refresh_token,
+      user: res.data.user,
+      isLoggedIn: true,
+    });
+    localStorage.setItem('access_token', res.data.access_token);
+    localStorage.setItem('refresh_token', res.data.refresh_token);
+    localStorage.setItem('user', JSON.stringify(res.data.user));
+  },
+
+  async refresh() {
+    const { refreshToken: rt } = get();
+    if (!rt) throw new Error('No refresh token');
+    const res = await apiClient.post('/auth/refresh', { refresh_token: rt });
+    set({ accessToken: res.data.access_token });
+    localStorage.setItem('access_token', res.data.access_token);
+    return res.data.access_token;
+  },
+
+  logout() {
+    set({ accessToken: null, refreshToken: null, user: null, isLoggedIn: false });
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user');
+    // 删除 safrontend 阶段的 mock 标记
+    localStorage.removeItem('mock_token');
+    localStorage.removeItem('mock_user');
+  },
+}));
+```
+
+> ⚠️ Zustand 使用方式（与 Pinia 不同）：
+> - 组件内：`const { accessToken, login } = useAuthStore()`（hook）
+> - 模块顶层（interceptor 内）：`useAuthStore.getState().accessToken` 或 `useAuthStore.getState().login()`
+> - 修改状态用 `set({ ... })`，不用 `value =`
+
+---
+
+#### C. React 18 + Redux Toolkit
+
+```ts
+// frontend/src/store/slices/authSlice.ts
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import apiClient from '@/api/client';
+
+interface User { id: number; username: string; avatar?: string }
+interface AuthState {
+  accessToken: string | null;
+  refreshToken: string | null;
+  user: User | null;
+}
+
+const initialState: AuthState = {
+  accessToken: localStorage.getItem('access_token'),
+  refreshToken: localStorage.getItem('refresh_token'),
+  user: JSON.parse(localStorage.getItem('user') || 'null'),
+};
+
+export const login = createAsyncThunk('auth/login', async (creds: { username: string; password: string }) => {
+  const res = await apiClient.post('/auth/login', creds);
+  return res.data;
+});
+
+export const refreshTokenThunk = createAsyncThunk('auth/refresh', async () => {
+  const refreshToken = localStorage.getItem('refresh_token');
+  const res = await apiClient.post('/auth/refresh', { refresh_token: refreshToken });
+  return res.data.access_token;
+});
+
+const authSlice = createSlice({
+  name: 'auth',
+  initialState,
+  reducers: {
+    logout(state) {
+      state.accessToken = null;
+      state.refreshToken = null;
+      state.user = null;
+      localStorage.clear();
+    },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(login.fulfilled, (state, action) => {
+        state.accessToken = action.payload.access_token;
+        state.refreshToken = action.payload.refresh_token;
+        state.user = action.payload.user;
+        localStorage.setItem('access_token', action.payload.access_token);
+        localStorage.setItem('refresh_token', action.payload.refresh_token);
+        localStorage.setItem('user', JSON.stringify(action.payload.user));
+      })
+      .addCase(refreshTokenThunk.fulfilled, (state, action) => {
+        state.accessToken = action.payload;
+        localStorage.setItem('access_token', action.payload);
+      });
+  },
+});
+
+export const { logout } = authSlice.actions;
+export default authSlice.reducer;
+```
+
+> ⚠️ RTK 在 interceptor 中调用：`store.dispatch(refreshTokenThunk())`，需传入 `store` 实例（在 client.ts 中通过 `import { store } from '@/store'`）。
+
+---
+
+#### D. 其它框架
+
+询问用户具体框架，提供对应模板。**严禁 AI 自己脑补**。
+
+**4.2 替换所有 mock 认证（按框架走对应分支）**
 
 扫描 `frontend/src/` 下的所有 `.ts/.tsx/.vue/.js/.jsx` 文件：
 ```bash
 grep -rE "mock_token|mock_user|fakeToken|fakeUser|MOCK_AUTH" frontend/src/
 ```
 
-对每个匹配项：
-- `localStorage.getItem('mock_token')` → `useAuthStore().accessToken`
-- `localStorage.getItem('mock_user')` → `useAuthStore().user`
-- 硬编码的假 token → 删除
-- 注释里残留的 "mock" → 改成 "real backend"
+对每个匹配项，按框架替换：
+
+| 旧代码 | Vue 3 (Pinia) | React 18 (Zustand) | React 18 (RTK) |
+|--------|---------------|--------------------|-----------------|
+| `localStorage.getItem('mock_token')` | `useAuthStore().accessToken` | `useAuthStore((s) => s.accessToken)` | `useSelector((s) => s.auth.accessToken)` |
+| `localStorage.getItem('mock_user')` | `useAuthStore().user` | `useAuthStore((s) => s.user)` | `useSelector((s) => s.auth.user)` |
+| 硬编码假 token | 删除 | 删除 | 删除 |
+| 注释残留 "mock" | 改成 "real backend" | 改成 "real backend" | 改成 "real backend" |
 
 **📝 本步完成后立即写入 STEPS.md**：
 ```markdown
@@ -434,58 +755,120 @@ grep -rE "mock_token|mock_user|fakeToken|fakeUser|MOCK_AUTH" frontend/src/
 
 **目标**：把 safrontend 占位的 `errorHandler.ts` 填实。
 
+**5.1 选择 toast 适配器（按检测到的 UI 库）**
+
+| 检测到的 UI 库 | toast 函数 |
+|---------------|----------|
+| Element Plus (Vue 3) | `ElMessage.error(msg)` |
+| Naive UI (Vue 3) | `useMessage().error(msg)` |
+| Vant (Vue 3 H5) | `showToast(msg)` |
+| Ant Design (React) | `message.error(msg)`（需 `App` 包裹） |
+| MUI (React) | `enqueueSnackbar(msg, { variant: 'error' })` |
+| Chakra UI (React) | `toast({ status: 'error', description: msg })` |
+| 未知 / 纯 JS | `alert(msg)`（仅兜底，提示用户接入 toast） |
+
+> ⚠️ **AI 必须按 Step 0.2 检测结果选对应 toast**，不混用。
+
+**5.2 填充 errorHandler.ts**
+
 **文件**：`frontend/src/utils/errorHandler.ts`
 
+> 📌 **下面以 Element Plus / Ant Design 为例展示**，其它 UI 库按 5.1 表替换 `notify` 函数即可。
+
+#### A. Vue 3 + Element Plus
+
 ```ts
-import { ElMessage } from 'element-plus'; // 或你用的 UI 库的 toast
+import { ElMessage } from 'element-plus';
+
+function notify(msg: string) {
+  ElMessage.error(msg);
+}
 
 export function handleError(error: any) {
   if (!error.response) {
-    // 网络错误 / 后端未启动
-    ElMessage.error('网络异常，请检查后端服务是否启动');
+    notify('网络异常，请检查后端服务是否启动');
     return;
   }
 
   const { status, data } = error.response;
-
   switch (status) {
-    case 400:
-      ElMessage.error(data.message || '请求参数错误');
-      break;
-    case 401:
-      // 已在 response 拦截器处理
-      ElMessage.error('登录已过期，请重新登录');
-      break;
-    case 403:
-      ElMessage.error('没有权限');
-      break;
-    case 404:
-      ElMessage.error('资源不存在');
-      break;
-    case 500:
-      ElMessage.error('服务器错误，请稍后再试');
-      break;
-    default:
-      ElMessage.error(data.message || `请求失败（${status}）`);
+    case 400: notify(data.message || '请求参数错误'); break;
+    case 401: notify('登录已过期，请重新登录'); break;
+    case 403: notify('没有权限'); break;
+    case 404: notify('资源不存在'); break;
+    case 500: notify('服务器错误，请稍后再试'); break;
+    default:  notify(data.message || `请求失败（${status}）`);
   }
 }
 ```
 
-> 不同 UI 库替换 `ElMessage`：`antd` 用 `message.error`、`naive-ui` 用 `useMessage()`、`vant` 用 `showToast`。
+#### B. React 18 + Ant Design
+
+```tsx
+import { message } from 'antd';
+
+// ⚠️ Ant Design v5 的 message 必须用 App 包裹才能拿到正确上下文
+// 在 main.tsx 用 <App> 包裹根组件后，这里直接调用 message.error()
+function notify(msg: string) {
+  message.error(msg);
+}
+
+export function handleError(error: any) {
+  if (!error.response) {
+    notify('网络异常，请检查后端服务是否启动');
+    return;
+  }
+
+  const { status, data } = error.response;
+  switch (status) {
+    case 400: notify(data.message || '请求参数错误'); break;
+    case 401: notify('登录已过期，请重新登录'); break;
+    case 403: notify('没有权限'); break;
+    case 404: notify('资源不存在'); break;
+    case 500: notify('服务器错误，请稍后再试'); break;
+    default:  notify(data.message || `请求失败（${status}）`);
+  }
+}
+```
+
+> ⚠️ Ant Design v5 初始化：在 `main.tsx` 中用 `<App>` 包裹根组件，并调用 `App.useApp()` 获取 message 实例。
+> 详见 [Ant Design v5 message 用法](https://ant.design/components/message)。
+
+#### C. React 18 + MUI（使用 notistack）
+
+```tsx
+import { enqueueSnackbar } from 'notistack';
+
+function notify(msg: string) {
+  enqueueSnackbar(msg, { variant: 'error' });
+}
+
+export function handleError(error: any) {
+  // ... 同上结构
+}
+```
+
+> ⚠️ MUI 需安装 `notistack` 并用 `<SnackbarProvider>` 包裹根组件。
+
+#### D. 其它 UI 库
+
+按 5.1 表选择对应 toast 函数，按 A/B/C 结构组织 `notify()` 即可。
 
 **📝 本步完成后立即写入 STEPS.md**：
 ```markdown
 | 2026-XX-XX | Step 5：错误处理 | ✅ |
+  - 框架：<Vue 3 | React 18 | ...>
+  - UI 库：<Element Plus | Ant Design | ...>
   - 填充 `frontend/src/utils/errorHandler.ts`：HTTP 4xx/5xx/网络 → toast
   - 在 client.ts response interceptor 末尾调用 `handleError()`
-  - 替换 UI 库的 toast API（ElMessage / message / useMessage / showToast）
+  - toast 适配器：<ElMessage | message.error | ...>
 ```
 
 ---
 
 ### Step 6：Vite proxy + 后端 CORS
 
-**5.1 前端 Vite proxy**
+**6.1 前端 Vite proxy**
 
 **文件**：`frontend/vite.config.ts`
 
@@ -550,7 +933,7 @@ cors:
 
 ### Step 7：验证接入
 
-**6.1 启动两个服务**
+**7.1 启动两个服务**
 
 使用两个终端（或并行命令）：
 ```bash
@@ -563,7 +946,7 @@ cd frontend && npm run dev
 # 等待输出：Local: http://localhost:5173/
 ```
 
-**6.2 验证流程（agent 提示用户手动测试）**
+**7.2 验证流程（agent 提示用户手动测试）**
 
 ```
 🎉 前后端已接通，请按以下步骤验证：
@@ -584,7 +967,7 @@ cd frontend && npm run dev
 请回复「测试通过」或具体问题。
 ```
 
-**6.3 自动化验证（agent 自检）**
+**7.3 自动化验证（agent 自检）**
 
 ```bash
 # 1. 后端健康检查
@@ -721,3 +1104,4 @@ curl -H "Authorization: Bearer invalid" http://localhost:3000/api/v1/users/me
 |------|------|
 | YYYY-MM-DD | 初版：基于 safrontend 脚手架填空式接入，7 步流程（环境变量 / API 客户端 / JWT / 错误处理 / Vite proxy + CORS / 验证 / STEPS.md）+ 一次性 STEPS.md 记录 |
 | YYYY-MM-DD v2 | 改为**强约束增量记录**：每完成一步立即写 STEPS.md（不等全部完成），9 步进度表 + AI 执行纪律；新增独立 **Step 3：清理 mock 认证遗留**（localStorage + 代码扫描 + Vite proxy），防止用户来回切换 safrontend 再次产生 mock；明确「本 skill 不涉及 HTTPS 证书」 |
+| YYYY-MM-DD v3 | **前端框架支持全面化**：Step 0 新增 §0.2 框架检测（读 STEPS.md + package.json，自动识别 Vue 3+Pinia / React 18+Zustand / React 18+RTK / 其它，未识别则询问用户）；Step 2 / 3.2 / 4 / 5 全部改为 A/B/C/D 分支代码（不再硬编码 Vue），AI 只填用户所用框架的分支；Step 4.2 mock 替换规则做成框架对照表；Step 5.1 toast 适配器做成 UI 库对照表 |

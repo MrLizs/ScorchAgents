@@ -187,11 +187,17 @@ agent 会按顺序执行以下 Step，**实施过程不打扰用户**：
 | `frontend/src/api/client.ts` | axios 实例 + 空 interceptor | baseURL + JWT 拦截器 |
 | `frontend/src/api/auth.ts` | login / logout / refresh 函数占位 | 接真实后端接口 |
 | `frontend/src/api/users.ts` | getMe / updateProfile 占位 | 接真实接口 |
-| `frontend/src/stores/auth.ts` | Pinia/Zustand store（**mock 实现**：直接 setTimeout 赋假 token） | 接真实 login() |
+| `frontend/src/stores/auth.ts` | store（**mock 实现**：直接 setTimeout 赋假 token） | 接真实 login() |
 | `frontend/src/utils/errorHandler.ts` | 空函数 + TODO 注释 | HTTP 错误 → toast |
 | `frontend/.env.example` | `VITE_API_BASE_URL=` 占位 | 真实 baseURL |
 
-**生成示例**（Vue + Pinia + Axios）：
+> 📌 **根据 Step 2 选定的前端框架，按 A / B / C 分支生成对应代码**。AI 只填用户所用框架的分支。
+> - **A. Vue 3 + Pinia**（默认）
+> - **B. React 18 + Zustand**
+> - **C. React 18 + Redux Toolkit**
+> - **D. 其它** → 询问用户具体框架，严禁 AI 自己脑补
+
+下面同时给出 Vue 3 / React 18 两个版本示例，AI 只填用户所用框架的分支：
 
 `frontend/src/api/client.ts`（占位）：
 ```ts
@@ -209,6 +215,9 @@ export const apiClient = axios.create({
 ```
 
 `frontend/src/stores/auth.ts`（**mock 实现**，方便 Phase 1-2 跑通）：
+
+#### A. Vue 3 + Pinia
+
 ```ts
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
@@ -237,6 +246,90 @@ export const useAuthStore = defineStore('auth', () => {
 
   return { accessToken, user, isLoggedIn, login, logout };
 });
+```
+
+#### B. React 18 + Zustand
+
+```ts
+import { create } from 'zustand';
+
+interface User {
+  id: number;
+  username: string;
+  avatar?: string;
+}
+
+interface AuthState {
+  accessToken: string | null;
+  user: User | null;
+  isLoggedIn: boolean;
+  login: (username: string, password: string) => Promise<void>;
+  logout: () => void;
+}
+
+// ⚠️ 此为 safrontend 阶段的 mock 实现
+// 真实接入由 /saapi-connect 替换为真实后端调用
+export const useAuthStore = create<AuthState>((set) => ({
+  accessToken: localStorage.getItem('mock_token'),
+  user: JSON.parse(localStorage.getItem('mock_user') || 'null'),
+  isLoggedIn: !!localStorage.getItem('mock_token'),
+
+  async login(username, _password) {
+    // ⚠️ Mock：直接赋假 token，真实接入会改成调 /api/v1/auth/login
+    const mockToken = 'mock_token_' + Date.now();
+    const mockUser = { id: 1, username, avatar: '/default-avatar.png' };
+    set({ accessToken: mockToken, user: mockUser, isLoggedIn: true });
+    localStorage.setItem('mock_token', mockToken);
+    localStorage.setItem('mock_user', JSON.stringify(mockUser));
+  },
+
+  logout() {
+    set({ accessToken: null, user: null, isLoggedIn: false });
+    localStorage.removeItem('mock_token');
+    localStorage.removeItem('mock_user');
+  },
+}));
+```
+
+#### C. React 18 + Redux Toolkit
+
+```ts
+// frontend/src/store/slices/authSlice.ts
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+
+interface User { id: number; username: string; avatar?: string }
+interface AuthState {
+  accessToken: string | null;
+  user: User | null;
+}
+
+const initialState: AuthState = {
+  accessToken: localStorage.getItem('mock_token'),
+  user: JSON.parse(localStorage.getItem('mock_user') || 'null'),
+};
+
+// ⚠️ 此为 safrontend 阶段的 mock 实现（login 不发请求）
+const authSlice = createSlice({
+  name: 'auth',
+  initialState,
+  reducers: {
+    mockLogin(state, action: PayloadAction<{ username: string }>) {
+      state.accessToken = 'mock_token_' + Date.now();
+      state.user = { id: 1, ...action.payload, avatar: '/default-avatar.png' };
+      localStorage.setItem('mock_token', state.accessToken!);
+      localStorage.setItem('mock_user', JSON.stringify(state.user));
+    },
+    logout(state) {
+      state.accessToken = null;
+      state.user = null;
+      localStorage.removeItem('mock_token');
+      localStorage.removeItem('mock_user');
+    },
+  },
+});
+
+export const { mockLogin, logout } = authSlice.actions;
+export default authSlice.reducer;
 ```
 
 `frontend/.env.example`：
@@ -620,6 +713,7 @@ agent **必须调用 `/saapi` skill**（不要在 safrontend 内做 API 设计�
 | YYYY-MM-DD | 初版：四阶段流程（实施/测试/验收/API 设计），Vue 3 / React 18 双栈支持 |
 | YYYY-MM-DD v2 | Phase 1 新增 Step 5.5「API 客户端脚手架」：生成 client.ts / auth.ts / errorHandler.ts / .env.example 6 个文件，为 `/saapi-connect` 预留接入点；Phase 4 末尾提示完整闭环 `safrontend → saapi → sabackend → saapi-connect` |
 | YYYY-MM-DD v3 | safrontend 被重复调用时的兼容规则：检测 `/saapi-connect` 已完成则不重新生成 mock；检测 `client.ts` 已有真实 baseURL 则不覆盖；用户主动回 mock 模式时提示备份 |
+| YYYY-MM-DD v4 | Step 5.5 脚手架改为 A/B/C 框架分支：Vue 3+Pinia / React 18+Zustand / React 18+RTK 各自 mock 实现；明确「AI 只填用户所用框架的分支」；增加「其它框架需询问用户」约束 |
 
 📋 完整记录见 STEPS.md
 
