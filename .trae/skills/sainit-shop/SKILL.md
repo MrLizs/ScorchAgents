@@ -63,6 +63,7 @@ description: "初始化一个电商/商城类软件项目的产品原型。Invok
 | 下单/支付 | `checkout.html` | ❌ |
 | 我的订单 | `orders.html` | ❌ |
 | 个人中心 | `me.html` | ✅ |
+| 收货地址 | `addresses.html` | ❌ |
 | 优惠券 | `coupons.html` | ❌ |
 | 客服 | `support.html` | ❌ |
 | 商品评价 | `review.html` | ❌ |
@@ -108,7 +109,10 @@ description: "初始化一个电商/商城类软件项目的产品原型。Invok
 
 #### 5.2 `assets/css/components.css`
 
-通用组件 + 电商专属：`.product-card`、`.product-grid`、`.price`、`.price-original`、`.badge`、`.cart-item`、`.qty-stepper`、`.checkout-summary`、`.address-card`、`.order-status`、`.tab-bar-cart-badge`
+通用组件 + 电商专属：
+- 基础：`.btn`、`.btn-primary`、`.btn-ghost`、`.input`、`.card`、`.list-item`、`.badge`、`.switch`
+- 电商：`.product-card`、`.product-grid`、`.price`、`.price-original`、`.cart-item`、`.qty-stepper`、`.checkout-summary`、`.address-card`、`.order-status`、`.tab-bar-cart-badge`
+- **弹窗**（新增）：`.modal-mask`、`.modal-box`、`.modal-header`、`.modal-body`、`.modal-footer`、`.modal-form-item`、`.modal-form-label`、`.toast`
 
 #### 5.3 `assets/js/common.js`
 
@@ -122,7 +126,8 @@ description: "初始化一个电商/商城类软件项目的产品原型。Invok
 | `<name>:token` | String | 登录态 | `index.html` | 全站 |
 | `<name>:cart` | Array | 购物车 | `product.html` | `cart.html`、`checkout.html` |
 | `<name>:orders` | Array | 订单历史 | `checkout.html` | `orders.html` |
-| `<name>:addresses` | Array | 收货地址 | `me.html` | `checkout.html` |
+| `<name>:addresses` | Array | 收货地址 | `addresses.html`（弹窗保存） | `checkout.html`、`me.html` |
+| `<name>:selectedAddress` | String | 选中地址 ID（临时） | `addresses.html`（选择模式） | `checkout.html` |
 | `<name>:favorites` | Array | 收藏商品 | `product.html` | `me.html` |
 | `<name>:coupons` | Array | 优惠券 | `coupons.html` | `checkout.html` |
 
@@ -166,6 +171,37 @@ Hero 区用商品/品牌视觉（如 logo + slogan "好物触手可及"），表
 - 顶部用户卡（头像/昵称/会员等级）
 - 订单快捷入口（4 个图标：待付款/待发货/待收货/全部）
 - 功能列表：地址管理、收藏、优惠券、客服、设置
+
+**【必填】addresses.html（收货地址）**：
+- **页面顶部**：返回按钮 + 标题"收货地址" + 右上"管理"按钮（进入删除/编辑模式）
+- **地址列表**：从 `Store.get('addresses')` 渲染，每条包含：
+  - 姓名 + 手机号
+  - 详细地址（省市区 + 街道）
+  - 默认地址徽标（"默认"标签）
+  - 单条右侧：编辑 / 删除按钮（小图标）
+- **【核心交互】底部"+"新增按钮**（固定在底部 Tab 上方）：
+  - 点击后**弹出 Modal 弹窗**（不是跳转新页面）
+  - 弹窗内容：
+    - 收货人姓名（必填）
+    - 手机号（必填，11 位校验）
+    - 省市区选择器（三级联动，可简化用输入框）
+    - 详细地址（街道、门牌号，必填）
+    - 设为默认地址（开关 Switch）
+  - 弹窗底部按钮：[取消] [保存]
+  - **保存逻辑**：
+    1. 表单校验
+    2. `Store.get('addresses')` 取出现有列表
+    3. 若"设为默认"为 true → 把其他地址的 `isDefault` 全部置 false
+    4. 新地址 push 到列表
+    5. `Store.set('addresses', list)`
+    6. 关闭弹窗
+    7. 列表自动重新渲染
+    8. Toast 提示"添加成功"
+- **从 checkout.html 跳转过来时**：
+  - URL 参数 `?select=1` 时，进入"选择模式"
+  - 每条地址变成可点击整行
+  - 点击后回传地址 ID 到 checkout（用 `localStorage` 临时键 `<name>:selectedAddress`）
+  - 返回 `checkout.html`
 
 #### 5.7 占位数据
 
