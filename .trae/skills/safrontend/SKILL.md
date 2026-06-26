@@ -12,6 +12,53 @@ description: "基于已有 prototype/ 原型，按步骤开发前端代码（Vue
 
 ## 工作流程（严格按顺序）
 
+### Step 0：读取 STEPS.md 项目元信息（P1-1：项目名统一传递）
+
+> 📌 **本步骤为 safrontend 新增强制步骤**。从 STEPS.md 读取 /sainit-* 阶段写入的项目元信息，避免后续环节反复追问用户。
+
+#### 0.1 读取与校验
+
+```bash
+# 1. STEPS.md 是否存在
+if [ -f STEPS.md ]; then
+  echo "✅ STEPS.md 已存在（来自 /sainit-*）"
+else
+  echo "⚠️ STEPS.md 不存在（用户可能跳过了 /sainit-*）"
+fi
+```
+
+#### 0.2 解析「项目元信息」节
+
+从 STEPS.md 提取如下字段（**作为 Phase 1 默认值，用户可在 Step 2 调整前端框架**）：
+
+| 字段 | 来源 | 用途 |
+|------|------|------|
+| 项目名（英文） | 「项目元信息」节 | `package.json` 的 `name` 字段、浏览器标题 |
+| 项目名（中文） | 「项目元信息」节 | 浏览器标题（与英文名拼接，如「心遇 - 心遇」）、README 描述 |
+| 项目类型 | 「项目元信息」节 | 推断业务模块（如 dating→含聊天、shop→含购物车） |
+| UI 风格 | 「项目元信息」节 | 设计令牌（与 prototype `tokens.css` 一致） |
+| 生成的页面 | 「项目元信息」节 | Step 1 页面清单参考 |
+| localStorage 键名前缀 | 「项目元信息」节 | Phase 1 替换 prototype 的 `<PROJECT_KEY>` 占位符 |
+
+#### 0.3 缺失字段处理
+
+- **若 STEPS.md 不存在**：提示用户「建议先运行 /sainit-* 生成 STEPS.md 的项目元信息节」，但**不阻断**——safrontend 可独立运行（仅 Phase 4 末尾提示「项目元信息缺失，后续 sabackend 会再次追问」）
+- **若 STEPS.md 存在但「项目元信息」节缺失**：同上提示，不阻断
+
+#### 0.4 验证输出
+
+```
+🔍 读取 STEPS.md 项目元信息：
+   • 项目名：<英文>（中文：<中文>）
+   • 类型：<dating|shop|blog|tool>
+   • UI 风格：<A|B|C|D|E>
+   • 页面：N 个
+   • localStorage 前缀：`<projectName>:`
+   ✅ 全部读取成功，后续不再追问
+```
+
+> 📌 **本步骤不写 STEPS.md**——只读不写。本步骤读取的字段在 Phase 1 写 STEPS.md 时（Step 3）会被原样引用。
+
 ### Step 1：定位原型目录
 
 1. 优先使用用户指定目录，否则查找当前目录或子目录中的 `prototype/`

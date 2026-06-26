@@ -96,6 +96,79 @@ description: "基于 /saapi 生成的 OpenAPI 规范，按用户选择的技术�
 5. 检查 `backend/` 是否已存在 → 存在则询问「继续开发 / 重建 / 取消」
 6. 询问用户**是否在已有 STEPS.md 上追加**（默认追加），避免覆盖前端开发记录
 
+#### 0.5 读取上游偏好（P1-2：技术栈偏好传递）
+
+> 📌 **本子步骤为 sabackend 新增强制步骤**。从 STEPS.md 读取上游环节（sainit-* / safrontend / saapi）写入的偏好，作为 Step 1 反问的**默认推荐**，避免用户重复选择。
+
+**读取顺序**（优先级从高到低）：
+
+| 优先级 | 来源（STEPS.md 节） | 提供者 | 字段 |
+|--------|-------------------|--------|------|
+| 1 | 🌐 API 设计 → 「🛠 后端技术栈偏好」 | saapi | 后端语言/框架、服务器 URL、API 标题 |
+| 2 | 🏷 项目元信息 | sainit-* | 项目名（中文/英文）、项目类型、UI 风格、功能清单 |
+| 3 | （safrontend 节） | safrontend | 前端框架、TypeScript、状态管理、UI 库（仅做日志记录） |
+
+**读取逻辑**：
+
+```bash
+# 1. 解析「🛠 后端技术栈偏好」节
+SAAPI_STACK=$(grep -A 10 "后端技术栈偏好" STEPS.md | grep "后端语言/框架" | awk -F'|' '{print $3}' | xargs)
+SAAPI_SERVER=$(grep -A 10 "后端技术栈偏好" STEPS.md | grep "服务器 URL" | awk -F'|' '{print $3}' | xargs)
+
+# 2. 解析「🏷 项目元信息」节
+PROJECT_NAME_EN=$(grep "项目名（英文" STEPS.md | awk -F'|' '{print $3}' | xargs)
+PROJECT_NAME_CN=$(grep "项目名（中文" STEPS.md | awk -F'|' '{print $3}' | xargs)
+PROJECT_TYPE=$(grep "项目类型" STEPS.md | awk -F'|' '{print $3}' | xargs)
+
+# 3. 解析「🔌 第三方 SDK 清单」与「🏢 后台管理模块清单」节
+SDK_LIST=$(grep -A 30 "第三方 SDK 清单" STEPS.md | tail -n +2)
+ADMIN_LIST=$(grep -A 30 "后台管理模块清单" STEPS.md | tail -n +2)
+```
+
+**Step 1 反问时的默认推荐**：
+
+| Step 1 子问题 | 默认值来源 | 仍可修改？ |
+|------------|----------|----------|
+| 1.1 后端技术栈 | SAAPI_STACK（如 `Node.js + Express`） | ✅ 用户可改 |
+| 1.1 ORM | **不推荐**（sainit/saapi 不涉及） | 必问 |
+| 1.1 数据库类型 | **不推荐**（sainit/saapi 不涉及） | 必问 |
+| 1.2 部署架构 | **不推荐**（sainit/saapi 不涉及） | 必问 |
+| 1.3 代码组织 | **不推荐** | 必问 |
+| 1.4 命名规范 | PROJECT_NAME_CN → 推导拼音前缀 | ✅ 用户可改 |
+| 服务器 URL | SAAPI_SERVER | ✅ 用户可改 |
+
+**项目中文名追问规则**（避免反复打扰）：
+
+```bash
+if [ -n "$PROJECT_NAME_CN" ]; then
+  echo "✅ 从 STEPS.md 读取到项目中文名：$PROJECT_NAME_CN"
+  echo "   → 推导数据库表前缀：$(to_pinyin $PROJECT_NAME_CN)_"
+  # 直接使用，不再询问
+else
+  echo "⚠️ STEPS.md 中未找到项目中文名，请补充（必填，用于命名规范）："
+  # 此时必须用 AskUserQuestion 询问
+fi
+```
+
+**SDK 与 Admin 模块的影响**：
+
+- 若 STEPS.md 的「🔌 第三方 SDK 清单」中有 `微信支付`，Step 1.5.3 的 `system_config` 默认值中 `wechat_app_id` / `wechat_app_secret` 不再留空，而是按 SDK 清单生成对应 `INSERT` 占位
+- 若 STEPS.md 的「🏢 后台管理模块清单」中有 `用户管理`，Step 1.5.3 的初始数据 INSERT 包含测试管理员账号 `admin / 123456`（仅当 ADMIN_LIST 非空时）
+
+**输出确认**：
+
+```
+🔍 读取 STEPS.md 上游偏好：
+   • 后端技术栈：<Node.js + Express>（来自 saapi）
+   • 项目名：<英文>（中文：<中文>，来自 sainit-*）
+   • 项目类型：<dating|shop|blog|tool>
+   • 第三方 SDK：<N 个>（来自 saapi）
+   • 后台模块：<M 个>（来自 saapi）
+   ✅ 已加载，Step 1 反问将作为默认推荐
+```
+
+> ⚠️ **本子步骤只读不写**。所有 Step 1 的选择结果在 Step 1 完成后统一写入 STEPS.md（不影响本步骤读取的 sainit/saapi 章节）。
+
 **指纹变更检测（每次重新启动 sabackend 时自动执行）**：
 ```bash
 # 对比当前 hash 与 STEPS.md 记录的 hash

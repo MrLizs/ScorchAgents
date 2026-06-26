@@ -82,6 +82,67 @@ description: "项目初始化路由器：识别用户描述的项目类型，并
 - ⚠️ **关键词匹配失败**：必须用 AskUserQuestion 让用户选，不要猜
 - ⚠️ **子 skill 完整自包含**：所有通用模板（CSS、JS、HTML 结构）都在子 skill 内，不需要回头读本 skill
 - ⚠️ **新增类型**：要新增类型时，建一个 `sainit-<type>/SKILL.md` 子 skill，并在上方映射表中加一行即可
+- ⚠️ **STEPS.md 由子 skill 创建**：本路由 skill 不创建 STEPS.md，统一由子 skill 在 Step 5.5（创建项目元信息节）创建
+
+## 统一 STEPS.md 元信息节（子 skill 必写）
+
+> 📌 **所有 `sainit-*` 子 skill 在完成 prototype 生成后，必须在项目根目录创建 `STEPS.md`（若已存在则追加），并写入如下「项目元信息」节**。后续 `/safrontend`（读取前端选型）、`/saapi`（读取项目名/类型）、`/sabackend`（读取命名规范）都依赖此节。
+
+```markdown
+# 开发步骤 - <项目英文名>
+
+> 创建时间：YYYY-MM-DD
+> 当前阶段：项目初始化（/sainit-*）
+
+---
+
+## 🏷 项目元信息（/sainit-* 阶段写入）
+
+> ⚠️ 本节是后续所有 skill（safrontend/saapi/sabackend/saapi-connect）的**信息源**。请勿随意修改。
+
+| 字段 | 值 |
+|------|-----|
+| **项目名（英文 / kebab-case）** | `<project-name>` |
+| **项目名（中文）** | `<用户填>` |
+| **项目类型** | <dating \| shop \| blog \| tool> |
+| **UI 风格** | <A 简约清新 \| B 赛博朋克 \| C 温馨治愈 \| D 商务专业 \| E 复古文艺> |
+| **核心功能** | <已选功能列表> |
+| **增值功能** | <已选功能列表> |
+| **生成的页面** | <已生成的 HTML 文件名清单> |
+| **Tab 配置** | <Tab 列表> |
+| **localStorage 键名前缀** | `<projectName>:` |
+| **占位图服务** | <picsum + pravatar> |
+| **设计令牌文件** | `prototype/assets/css/tokens.css` |
+| **公共 JS 文件** | `prototype/assets/js/common.js` |
+
+### 页面与功能映射
+
+| 选中功能 | 生成的页面 | Tab |
+|---------|----------|-----|
+| <功能 1> | `<file>.html` | ☐ |
+| <功能 2> | `<file>.html` | ☑ |
+| ... | ... | ... |
+
+### 后续 skill 读取指引
+
+- **/safrontend**：读取本节获取项目名、UI 风格、页面清单；前端框架与 TS/JS 由 safrontend 阶段询问用户
+- **/saapi**：读取本节获取项目名（中文/英文）、项目类型、已有功能清单作为接口发现来源
+- **/sabackend**：读取本节获取项目中文名（用于推导数据库表前缀拼音）
+- **/saapi-connect**：间接依赖（通过 sabackend 写入的命名规范）
+
+### 修改记录
+
+| 时间 | 阶段 | 改动内容 |
+|------|------|---------|
+| YYYY-MM-DD HH:mm | 项目初始化 | 创建 STEPS.md + 写入项目元信息 |
+```
+
+> 📌 **子 skill 必填项**（无默认值，必须从用户输入获取）：
+> - 项目名（中文）— 反问时单独追问，不从英文名推断
+> - 项目类型 — 由路由 skill 决定，子 skill 已知
+> - UI 风格 — Step 2 反问结果
+> - 核心/增值功能 — Step 3 反问结果
+> - 生成的页面 — Step 4 映射表结果
 
 ## 已支持的子 skill
 

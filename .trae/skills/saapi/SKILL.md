@@ -695,6 +695,148 @@ Authorization: Bearer <你的 token>
    - 后台接口需要独立的 admin 入口和 token 体系
 ```
 
+### Step 8.5：写入 STEPS.md（关键决策持久化）
+
+> 📌 **本步骤为强制步骤**。saapi 阶段用户的所有关键决策必须写入 `STEPS.md`，供后续 `/sabackend` 读取作为默认推荐。
+
+#### 8.5.1 前置检查
+
+```bash
+# 1. STEPS.md 是否已存在（由 safrontend 创建）
+if [ -f STEPS.md ]; then
+  echo "✅ STEPS.md 已存在（由 safrontend 创建），将追加「API 设计」章节"
+else
+  echo "⚠️ STEPS.md 不存在（safrontend 未运行），将创建并写入项目根目录"
+  # 询问用户是否要补建（避免直接创建空白文件）
+  # 若用户已用 /sainit-* 但未 /safrontend，建议先跑 /safrontend
+fi
+```
+
+#### 8.5.2 追加「API 设计」章节
+
+在 `STEPS.md` 末尾追加如下内容（**无论 STEPS.md 是否由 safrontend 创建，都使用相同的章节结构**）：
+
+```markdown
+---
+
+## 🌐 API 设计（基于 /saapi skill）
+
+> 设计时间：YYYY-MM-DD HH:mm
+> 触发方式：<手动 /saapi | 与 safrontend 并行>
+> API 版本：1.0.0
+> 产出目录：`api/`
+> API 标题：<Step 2.2 用户填的标题>
+> 描述：<Step 2.2 用户填的描述>
+> 服务器 URL：<Step 2.2 用户填的服务器地址>
+
+### 🔐 API 来源指纹（变更检测用）
+
+> ⚠️ 每次重新启动 `/saapi` 时自动比对下方 hash；不一致则提示「API 规范已更新」。
+
+| 文件 | SHA-256 | mtime |
+|------|---------|-------|
+| `api/openapi.yaml`    | `<启动时计算>` | `<启动时计算>` |
+| `api/API.md`          | `<启动时计算>` | `<启动时计算>` |
+| `api/mock-data.json`  | `<启动时计算>` | `<启动时计算>` |
+
+### 🛠 后端技术栈偏好（传递给 /sabackend）
+
+> ⚠️ **本节是 /sabackend 的默认推荐配置**。/sabackend 启动时会读取此处并作为默认值，用户仍可手动调整。
+
+| 维度 | 用户选择（saapi 阶段） | /sabackend 启动时的默认 |
+|------|---------------------|---------------------|
+| 后端语言/框架 | <Node.js + Express \| Node.js + NestJS \| Python + FastAPI \| Go + Gin \| 其它> | 沿用 |
+| 服务器 URL | `<sabackend 将用此值作为 OpenAPI servers 节点>` | 沿用 |
+| API 标题 | `<传递到 sabackend 的 config 注释>` | 沿用 |
+
+> 📌 **本节不决定** ORM、数据库、架构等更细粒度选项——这些由 `/sabackend` 阶段的 Step 1.1-1.4 重新询问（更细粒度的选型由后端开发者根据团队习惯决定）。
+
+### 📊 接口统计
+
+| 类别 | 数量 | 来源 |
+|------|------|------|
+| 业务接口（必需） | N | X 来自代码 / Y 来自原型 / Z 来自用户补充 |
+| 第三方对接（SDK） | M | 用户勾选的服务清单见下方 |
+| 后台管理（Admin） | K | 用户勾选的模块清单见下方 |
+| **总计** | **N+M+K** | - |
+
+### 🔌 第三方 SDK 清单（用户勾选）
+
+> ⚠️ **传给 /sabackend**：sabackend Phase 2 生成的第三方接口（如 `/api/v1/sdk/wechat-pay/*`）将基于本清单实现；sabackend 的 `system_config` 表默认配置也会按本清单初始化。
+
+| 第三方服务 | 优先级 | 用途 | 默认实现 |
+|----------|--------|------|---------|
+| <例如：短信> | 强相关 | <手机号登录> | <sms_provider=mock> |
+| <例如：微信支付> | 强相关 | <订单支付> | <wechat_app_id=""> |
+| <例如：对象存储> | 弱相关 | <头像/商品图> | <oss_provider=local> |
+| ... | ... | ... | ... |
+
+### 🏢 后台管理模块清单（用户勾选）
+
+> ⚠️ **传给 /sabackend**：sabackend Phase 2 生成的 Admin 接口将基于本清单实现；后台管理员账号的初始化权限也会按本清单生成。
+
+| 后台模块 | 优先级 | 用途 | 默认路由前缀 |
+|--------|--------|------|-----------|
+| <例如：用户管理> | 基础 | <用户列表/封禁> | `/api/v1/admin/users` |
+| <例如：数据统计> | 基础 | <实时看板/营收报表> | `/api/v1/admin/stats` |
+| ... | ... | ... | ... |
+
+### 🏷 项目元信息（与 sainit 保持一致）
+
+> ⚠️ 本节由 saapi 启动时从 `STEPS.md` 读取（若已存在），sabackend 也会读取；如未读取到则在 saapi 阶段询问用户补全。
+
+| 字段 | 值 | 来源 |
+|------|------|------|
+| 项目名（英文） | `<kebab-case>` | 沿用 sainit-* |
+| 项目名（中文） | `<用户填>` | 沿用 sainit-* |
+| 项目类型 | <dating \| shop \| blog \| tool> | 沿用 sainit-* |
+| 业务功能清单 | <列表> | 沿用 sainit-* |
+| UI 风格 | <A/B/C/D/E> | 沿用 sainit-* |
+
+> 📌 **sabackend 在 Step 1 中读取本节**，项目名/中文名不再重复询问（仅在缺失时才询问）。
+
+### ✅ API 设计状态
+
+- [x] api/openapi.yaml 已生成
+- [x] api/API.md 已生成
+- [x] api/mock-data.json 已生成
+- [x] STEPS.md 已记录本阶段关键决策
+- [x] 项目元信息已与 sainit 同步
+- 后端实现：⏭ 未开始
+- 前后端接通：⏭ 未开始
+
+### 📝 修改记录
+
+| 时间 | 阶段 | 改动内容 |
+|------|------|---------|
+| YYYY-MM-DD HH:mm | API 设计 | 初始化 /api/openapi.yaml + API.md + mock-data.json |
+| ... | ... | ... |
+```
+
+#### 8.5.3 项目元信息回填逻辑
+
+```bash
+# 1. 读取 STEPS.md 中「项目元信息」节
+# 2. 若不存在：询问用户「项目名（中文）」+「项目类型」（不询问风格与功能——这些由 sainit 决定）
+# 3. 若存在：直接沿用，仅在缺失项时询问
+```
+
+**询问话术**（仅在元信息缺失时）：
+
+> 🔍 检测到 STEPS.md 中缺少项目元信息（可能未运行 /sainit-*），请补全：
+> - **项目名（中文）**：<必填，用于 sabackend 推导数据库表前缀>
+> - **项目类型**：<dating / shop / blog / tool>
+
+#### 8.5.4 验收标准
+
+- [ ] `api/` 目录下 3 个文件已生成
+- [ ] `STEPS.md` 已包含「API 设计」章节
+- [ ] 5 个表格全部填充（指纹、栈偏好、接口统计、SDK 清单、后台模块清单）
+- [ ] 项目元信息已就位或已补全
+- [ ] 修改记录已追加
+
+> ⚠️ **若 STEPS.md 写入失败，sabackend 会丢失上下文**：agent 必须在 Step 8.5 完成后再输出最终结果。
+
 ## 关键技术约束
 
 - ⚠️ **3 类路径前缀**：
@@ -712,8 +854,8 @@ Authorization: Bearer <你的 token>
 
 ## 关联 Skill
 
-- `sainit-*` — 前置（生成 prototype）
-- `safrontend` — 可并行（已生成的代码会作为接口发现来源）
-- `sabackend` — 后续（基于 OpenAPI 生成后端业务代码）
+- `sainit-*` — 前置（生成 prototype + 写入 STEPS.md「项目元信息」节）
+- `safrontend` — 可并行（已生成的代码会作为接口发现来源；STEPS.md 由 safrontend 创建）
+- `sabackend` — 后续（基于 OpenAPI 生成后端业务代码；**读取本 skill 写入的「后端技术栈偏好」「SDK 清单」「后台模块清单」作为默认推荐**）
 - `saadmin` — 后续（基于 admin API 生成后台管理界面）
 - `sadeploy` — 后续部署（含 API mock 服务）
