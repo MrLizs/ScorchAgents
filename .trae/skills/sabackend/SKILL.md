@@ -196,29 +196,29 @@ fi
 
 #### 1.1 询问技术栈（单选 + 自定义）
 
+> ⚠️ **预设选项规则**：仅保留 **Go / Node / Python** 三栈作为预设（每栈一个最常用框架），其它栈（Java、PHP、Rust、.NET、NestJS 等）一律归入「D. 其他」由用户说明后追问。**禁止**再为同一语言拆出多个预设变体（如不再单列 NestJS）。
+
 使用 `AskUserQuestion`，**每个选项都用大白话 + 专业术语**，让小白也能选：
 
 > 请选择后端技术栈：
 > - **A. Node.js + Express + TypeScript（推荐）**
 >   - 大白话：跟前端一样用 JS，能直接复用前端类型；上手最快
 >   - 适合：中小项目、快速迭代、前端出身的开发者
-> - **B. Node.js + NestJS + TypeScript**
->   - 大白话：企业级 Express，自带模块化、依赖注入、装饰器，开箱即用
->   - 适合：中大型项目、团队协作、长期维护
-> - **C. Python + FastAPI**
+> - **B. Python + FastAPI**
 >   - 大白话：写最少代码搞定接口，自动生成文档，跟 AI 生态天然打通
 >   - 适合：AI / 数据相关项目、快速原型
-> - **D. Go + Gin**
+> - **C. Go + Gin**
 >   - 大白话：性能怪兽，编译成单个二进制直接跑，配置天然用 yaml
 >   - 适合：高并发、追求性能、部署简单
-> - **E. 其他（请说明）**
->   - 例：Java + Spring Boot、PHP + Laravel、Rust + Actix、.NET Core 等
->   - 选择后 AI 会再追问关键信息（ORM、中间件生态等）
+> - **D. 其他（请说明）**
+>   - 例：Java + Spring Boot、PHP + Laravel、Rust + Actix、.NET Core、NestJS 等
+>   - 选择后 AI 必须追问：语言/框架、ORM、构建工具、鉴权方案
 
-> 选定后必须立即追问：**ORM / 数据库驱动**：
-> - Node.js：Prisma（推荐） / TypeORM / Sequelize / Knex / 原生 mysql2
-> - Python：SQLAlchemy（推荐） / Tortoise ORM / 原生 aiomysql
-> - Go：GORM（推荐） / sqlx / 原生 database/sql
+> 选定后必须**按所选栈分支追问** ORM / 数据库驱动，**禁止**把其它栈的 ORM 选项混进来：
+> - **Node.js**：Prisma（推荐） / TypeORM / Sequelize / Knex / 原生 mysql2
+> - **Python**：SQLAlchemy（推荐） / Tortoise ORM / 原生 aiomysql
+> - **Go**：GORM（推荐） / sqlx / 原生 database/sql
+> - **其它栈**：按用户所选语言给该生态的主流 ORM（如 Java 给 MyBatis / Spring Data JPA，PHP 给 Eloquent，Rust 给 Diesel / SQLx，NestJS 默认 TypeORM），如不确定再追问用户
 
 > 再追问：**数据库类型（主存储 + 缓存）**：
 
