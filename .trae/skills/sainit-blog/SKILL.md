@@ -201,7 +201,55 @@ Hero 区用衬线大字标题（如"记录生活的诗意"）+ 装饰图案。�
 双击 `prototype/index.html`
 ```
 
-### Step 7：输出最终回复
+### Step 7：原型后续流程选择（用户分流）
+
+> 📌 **本步骤为强制步骤**。`prototype/` + `STEPS.md` + `README.md` 均已生成 → 在宣告完成与进入正式开发之间，必须让用户在「继续设计优化」与「开始前端开发」之间二选一。
+
+#### 7.1 用 AskUserQuestion 询问用户
+
+```
+问题：prototype 已生成完毕，下一步如何进行？
+说明：如果对当前 prototype 的设计/视觉不满意，可调用专门的设计 skill 重新设计；若满意，可直接进入 /safrontend 开始前端代码开发。
+```
+
+#### 7.2 选项清单
+
+| 选项 | 动作描述 | 调用 skill |
+|------|---------|-----------|
+| A | 重新设计：高保真 UI 重做（推荐作为首次重新设计选项） | `frontend-design` |
+| B | 重新设计：UI/UX 设计智能（设计令牌 + 微文案 + 可访问性） | `ui-ux-pro-max` |
+| C | 重新设计：全栈前端（媒体资产生成 + 高阶 motion + 转化文案） | `frontend-dev` |
+| D | 重新设计：配色 + 字体调优（含衬线字体配对，博客尤其需要） | `color-font-skill` |
+| E | 重新设计：PPT/视觉风格统一（radius / spacing / 组件风格令牌） | `design-style-skill` |
+| F | **不再设计，直接进入前端代码开发**（默认推荐） | `safrontend` |
+
+#### 7.3 处理逻辑
+
+**情况 1：用户选 A~E 之一（重新设计）**
+
+1. **加载并执行** `.trae/skills/<skill-name>/SKILL.md` 全部工作流程
+2. 设计 skill 会读取本 skill 已生成的 `STEPS.md`「项目元信息」节 + `prototype/` 目录，并基于现有产出做优化（**不重建 prototype/**，避免覆盖用户已确认的内容）
+3. 设计完成后 → **回到 Step 7 再次询问用户**，允许链式调用（如先 `color-font-skill` → 再 `frontend-design` → 最后 `safrontend`）
+4. 不要清空 `prototype/`；若设计 skill 建议用新文件覆盖，给用户看 diff 后再决定
+
+**情况 2：用户选 F（直接进入 safrontend，推荐）**
+
+1. 输出提示：「即将调用 `/safrontend` 开始前端代码开发」
+2. **加载并执行** `.trae/skills/safrontend/SKILL.md` 的工作流程
+3. 后续不再由本 skill 处理，由 safrontend 接管
+
+**情况 3：用户选「其他」/ 自定义输入**
+
+- 让用户用一句话说明下一步意图，按意图路由到相应 skill 或给出指引
+
+#### 7.4 注意事项
+
+- ⚠️ **本步骤是 prototype 与正式前端开发之间的必经节点**——不要跳过分流直接进 safrontend
+- ⚠️ **A~E 是叠加关系，可循环调用**：第一次不满意 → `color-font-skill` 改配色与衬线 → 仍不满意 → `frontend-design` 重做 → 满意后选 F
+- ⚠️ 重新设计后不要立即清空 `prototype/`，设计 skill 会基于现有 prototype/ 迭代
+- ⚠️ **衬线字体配对 → 优先选 D**：`color-font-skill` 内含衬线/无衬线字体配对推荐
+
+### Step 8：输出最终回复
 
 ```
 ✅ 项目「<name>」已初始化完成！
@@ -234,10 +282,15 @@ Hero 区用衬线大字标题（如"记录生活的诗意"）+ 装饰图案。�
 | 时间 | 改动 |
 |------|------|
 | 2026-06-29-1 | 初始化「修改记录（skill 自身演进）」section；约定时间格式为「年-月-日-当天变动次数」；AI 写入前必须用 PowerShell `Get-Date -Format "yyyy-MM-dd"` 校准北京时间；变动次数 N 按「该 skill 文件落地次数」自增（同一天多次改动依次为 1,2,3...） |
+| 2026-06-29-2 | 在 Step 7 新增「原型后续流程选择（用户分流）」节点；选项 A~E 对应 frontend-design / ui-ux-pro-max / frontend-dev / color-font-skill / design-style-skill 5 个设计 skill，选项 F 直接进入 safrontend；约定 A~E 可链式循环、不能清空 prototype/；博客特别强调衬线字体配对优先选 D；原 Step 7 顺延为 Step 8 |
 
 ---
 
 ## 关联 Skill
 
-- `frontend-design` — 高保真 UI
-- `color-font-skill` — 配色字体（衬线字体）
+- `frontend-design` — 高保真 UI（Step 7 选项 A）
+- `ui-ux-pro-max` — UI/UX 设计智能（Step 7 选项 B）
+- `frontend-dev` — 全栈前端开发（Step 7 选项 C）
+- `color-font-skill` — 配色字体 / 衬线配对（Step 7 选项 D）
+- `design-style-skill` — 视觉风格统一（Step 7 选项 E）
+- `safrontend` — 原型转前端代码（Step 7 选项 F，默认推荐）

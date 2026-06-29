@@ -42,9 +42,10 @@ description: "项目初始化路由器：识别用户描述的项目类型，并
 2. **加载并执行** `.trae/skills/sainit-<type>/SKILL.md` 的全部工作流程
 3. 后续不再由本 skill 处理，由子 skill 接管
 
-**情况 B：匹配到多个类型（如"社交电商"）**
-1. 用 `AskUserQuestion` 让用户选择主要类型
-2. 根据选择加载对应子 skill
+**情况 B：匹配到多个类型（如"社交电商"，跨类型项目）**
+1. **自动路由到 `/sainit-other` 子 skill**，不再询问用户
+2. 直接加载并执行 `.trae/skills/sainit-other/SKILL.md` 的全部工作流程
+3. 由 `sainit-other` 提供通用 5 页骨架（`index + home + list + detail + me`）承接跨类型场景
 
 **情况 C：未匹配到任何已知类型**
 1. 用 `AskUserQuestion` 展示 5 个类型供用户选择（含"其他 / 通用模板"）
@@ -82,6 +83,34 @@ description: "项目初始化路由器：识别用户描述的项目类型，并
 - ⚠️ **子 skill 完整自包含**：所有通用模板（CSS、JS、HTML 结构）都在子 skill 内，不需要回头读本 skill
 - ⚠️ **新增类型**：要新增类型时，建一个 `sainit-<type>/SKILL.md` 子 skill，并在上方映射表中加一行即可
 - ⚠️ **STEPS.md 由子 skill 创建**：本路由 skill 不创建 STEPS.md，统一由子 skill 在 Step 5.5（创建项目元信息节）创建
+
+## 统一行为：所有子 skill 在 prototype 完成后必须分流（Step 7）
+
+> 📌 **本节是路由与子 skill 的契约**。所有 `sainit-*` 子 skill 在 `prototype/` 生成完毕 + `STEPS.md` 写入完毕 + `README.md` 写入完毕之后，**必须执行 Step 7「原型后续流程选择（用户分流）」**，用 `AskUserQuestion` 让用户在「重新设计」与「进入前端代码开发」之间二选一。
+
+### 子 skill 的 Step 7 固定选项
+
+| 选项 | 动作 | 对应 skill |
+|------|------|-----------|
+| A | 高保真 UI 重做 | `frontend-design` |
+| B | UI/UX 设计智能（设计令牌 + 微文案 + 可访问性） | `ui-ux-pro-max` |
+| C | 全栈前端（含媒体资产生成 + 高阶 motion + 转化文案） | `frontend-dev` |
+| D | 配色 + 字体调优 | `color-font-skill` |
+| E | PPT/视觉风格统一（radius / spacing / 组件风格令牌） | `design-style-skill` |
+| F | **不再设计，直接进入前端代码开发**（默认推荐） | `safrontend` |
+
+### 链式调用（叠加修改）
+
+- 选 A~E → 加载对应设计 skill → 设计完成后**回到 Step 7 再次询问**
+- 选 F → 移交 `safrontend`，本路由链路结束
+- A~E 可多次循环（如先 `color-font-skill` 改配色 → 再 `frontend-design` 重做 → 最后 `safrontend`）
+
+### 设计 skill 与 prototype/ 的关系
+
+- 设计 skill **基于已生成的 `prototype/` + `STEPS.md` 项目元信息**进行迭代
+- **不要清空 `prototype/`**——设计 skill 会原地优化或新增文件（设计 skill 内部应自己处理差异）
+
+> ⚠️ **本路由 skill 不直接执行分流**——分流细节全部由子 skill 在 Step 7 实现。本路由 skill 仅在此处声明该契约，避免子 skill 各自遗忘。
 
 ## 统一 STEPS.md 元信息节（子 skill 必写）
 
@@ -158,6 +187,7 @@ description: "项目初始化路由器：识别用户描述的项目类型，并
 | 时间 | 改动 |
 |------|------|
 | 2026-06-29-1 | 初始化「修改记录（skill 自身演进）」section；约定时间格式为「年-月-日-当天变动次数」；AI 写入前必须用 PowerShell `Get-Date -Format "yyyy-MM-dd"` 校准北京时间；变动次数 N 按「该 skill 文件落地次数」自增（同一天多次改动依次为 1,2,3...） |
+| 2026-06-29-2 | 新增「统一行为：所有子 skill 在 prototype 完成后必须分流（Step 7）」契约节；约定子 skill 在 prototype + STEPS.md + README.md 写完后，必须用 AskUserQuestion 让用户在 A~E（重新设计 5 个设计 skill） / F（直接进 safrontend）之间做选择；声明 A~E 可链式循环、不要清空 prototype/ |
 
 ---
 
