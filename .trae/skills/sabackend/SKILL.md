@@ -37,6 +37,14 @@ description: "基于 /saapi 生成的 OpenAPI 规范，按用户选择的技术�
 9. **完整性**：最后一步必须核对 OpenAPI 中的每一个接口都在 STEPS.md 与代码中有映射
 10. **SQL 可重入**：每次执行 init.sql 会先清理表数据再插入初始数据（幂等）
 11. **避开数据库保留字**：生成表结构、ORM 模型、DTO/Entity 字段时，**严禁**直接使用目标数据库引擎的保留字作为字段名（如 `order`、`group`、`user`、`key`、`value`、`desc`、`status`、`name`、`type`、`time`、`date`、`count`、`sum`、`select`、`from`、`where`、`rank`、`share`、`comment`、`match`、`mode`、`password`、`role` 等）；必须在名称前增加**功能前缀**（推荐 `f_` / `col_` / `biz_`，或使用业务语义前缀如 `account_name`），或改用其它非保留字命名。该规则同时覆盖 init.sql 字段、ORM 模型字段、DTO/Entity 字段
+12. ⛔ **启动必须附带数据库连接检查并打印控制台日志（硬约束）**：后端服务启动时，**必须**对所选的所有数据库（主存储 + 缓存 + 其它 NoSQL/搜索/消息中间件）执行**连通性自检**，并按统一格式向 stdout 打印两行日志：
+    - 连接前：`🔌 正在连接 <数据库类型> 数据库...  host=<host> port=<port> db=<dbname>`（如启用 SSL / 副本集 / 集群，再追加相应字段）
+    - 成功：`✅ 连接 <数据库类型> 数据库成功（耗时 <ms> ms）`
+    - 失败：`❌ 连接 <数据库类型> 数据库失败：<错误摘要>`（必须**冒泡抛错并阻止启动**，禁止静默降级 / 跳过 / 假装成功）
+    - **适用范围**：MySQL、PostgreSQL、MongoDB、Redis、Elasticsearch、ClickHouse、SQLite、SQL Server、Oracle、TIDB、OceanBase 等**所有**被勾选/启用的数据库（关系型、文档型、KV、搜索、时序、列式均不例外）
+    - **落地位置**：数据库驱动/客户端初始化处（如 `db/client.ts` / `db/redis.ts` / `pkg/database/mysql.go` / `app/core/database.py`），**先打印再 connect**，并捕获 connect 异常后再打印失败行
+    - **完整性审核**：Step 4 必须 `grep` 各数据库驱动初始化文件，**找不到**这两行日志的视为**未完成**
+    - **不得用 ORM 自带静默重试**掩盖连接失败（如 Prisma 的 `datasource` 块 / SQLAlchemy 的 `create_engine` 默认 pool_pre_ping 行为），必须显式 `connect / ping` 一次并打印日志
 
 ## 与其他 skill 的关系
 
@@ -946,9 +954,11 @@ func SignToken(cfg *config.Service, payload jwt.MapClaims) (string, error) {
 **1.5.4.3 启动流程（在 `index.ts` / `main.py` / `main.go` 中）**
 
 ```
-DB connect → ConfigService.init() → ConfigService.assertRequired() → routes/middleware → listen
-                 ↑失败直接抛错，禁止用代码默认值兜底
+DB ping(打印"正在连接xxx数据库") → DB OK(打印"连接xxx数据库成功") → ConfigService.init() → ConfigService.assertRequired() → routes/middleware → listen
+                  ↑失败打印"连接xxx数据库失败"并抛错，禁止用代码默认值兜底
 ```
+
+> ⚠️ **DB ping 步骤必须**遵循核心原则 #12：每一种已选数据库（主存储 / 缓存 / 其它）**都**要在连接前与连接成功后各打印一行日志，详见 §1.5.4.5。
 
 **1.5.4.4 完整性审核（Step 4 必检）**
 
@@ -958,8 +968,231 @@ DB connect → ConfigService.init() → ConfigService.assertRequired() → route
 - `grep -rnE "viper\\.Get\\(\"(jwt|secret|wechat|sms|oss|upload)"` → 必须为空
 - `grep -rn "SELECT cfg_value FROM system_config" backend/src` 出现 > 1 次 → 全部下沉到 `ConfigService`
 - 任何文件直接读 `config.yaml` / `application.yml` 取 JWT secret / 第三方 key → 违规
+- `grep -rnE "正在连接.*数据库|连接.*数据库成功" backend/src backend/pkg backend/app` → **必须命中**（核心原则 #12：未命中则不通过）
+- `grep -rnE "DB connect|database connect|Redis connect" backend/src` 出现的位置**没**有上述日志 → 视为未实现连通性自检
 
 任一命中则**不通过**完整性审核，必须整改后重新进入 Step 4。
+
+**1.5.4.5 数据库启动连接日志（核心原则 #12 落地，必装）**
+
+> 🎯 **目的**：后端进程一启动就向控制台**显式报告**每一种数据库的连接结果，让用户 / 运维一眼看出「连上了哪个、连哪个失败、耗时多少」——绝不允许"启动后某天接口报 500 才发现 Redis 根本没连上"这种事故。
+
+**1.5.4.5.a 统一日志格式（所有栈、所有数据库通用）**
+
+| 时刻 | 输出格式 | 示例 |
+|------|---------|------|
+| 连接前 | `🔌 正在连接 <类型> 数据库...  host=<host> port=<port> db=<dbname> [其它可选字段]` | `🔌 正在连接 MySQL 数据库...  host=127.0.0.1 port=3306 db=app_db` |
+| 成功 | `✅ 连接 <类型> 数据库成功（耗时 <ms> ms）` | `✅ 连接 MySQL 数据库成功（耗时 38 ms）` |
+| 失败 | `❌ 连接 <类型> 数据库失败：<错误摘要>` | `❌ 连接 MySQL 数据库失败：ECONNREFUSED 127.0.0.1:3306` |
+| 关闭 | `🔌 已断开 <类型> 数据库连接` | `🔌 已断开 MySQL 数据库连接` |
+
+> **`<类型>`**：用人类可读中文别名（`MySQL` / `PostgreSQL` / `MongoDB` / `Redis` / `Elasticsearch` / `ClickHouse` / `SQLite` / `SQL Server` / `Oracle` / `TiDB` / `OceanBase`），不写驱动名（不要写 `mysql2` / `ioredis`）。
+> **`<host>` / `<port>` / `<dbname>`**：从 §1.5.2 生成的数据库连接配置中读出后填入；密码 / secret 一律**不打印**。
+> **`<ms>`**：从「打印第一行」到「打印第三行」的耗时（含真实网络往返），精确到整数毫秒。
+> **失败处理**：打印失败行后立即 `throw` 冒泡到入口文件，**禁止** try/catch 吞掉、禁止降级为"无缓存模式"、禁止用本地内存模拟。
+
+**1.5.4.5.b 各栈实现参考**
+
+下面给出每种主流栈的最小实现片段，**agent 在生成 `db/client.*` / `db/redis.*` 时必须照此模板实现**。
+
+**① Node.js + Express + Prisma（TypeScript）** — `src/db/client.ts` + `src/db/redis.ts`
+
+```typescript
+// src/db/client.ts
+import { PrismaClient } from '@prisma/client';
+import { dbConfig } from '../config';
+
+const t0 = Date.now();
+console.log(`🔌 正在连接 MySQL 数据库...  host=${dbConfig.host} port=${dbConfig.port} db=${dbConfig.name}`);
+
+export const prisma = new PrismaClient();
+
+export async function pingDatabase() {
+  try {
+    await prisma.$connect();
+    await prisma.$queryRaw`SELECT 1`;
+    console.log(`✅ 连接 MySQL 数据库成功（耗时 ${Date.now() - t0} ms）`);
+  } catch (err: any) {
+    console.error(`❌ 连接 MySQL 数据库失败：${err.message ?? err}`);
+    throw err;  // 冒泡，阻止启动
+  }
+}
+```
+
+```typescript
+// src/db/redis.ts
+import IORedis from 'ioredis';
+import { redisConfig } from '../config';
+
+const t0 = Date.now();
+console.log(`🔌 正在连接 Redis 数据库...  host=${redisConfig.host} port=${redisConfig.port} db=${redisConfig.db}`);
+
+export const redis = new IORedis({ ...redisConfig, lazyConnect: true, enableOfflineQueue: false });
+
+export async function pingRedis() {
+  try {
+    await redis.connect();
+    const pong = await redis.ping();
+    if (pong !== 'PONG') throw new Error(`PING returned ${pong}`);
+    console.log(`✅ 连接 Redis 数据库成功（耗时 ${Date.now() - t0} ms）`);
+  } catch (err: any) {
+    console.error(`❌ 连接 Redis 数据库失败：${err.message ?? err}`);
+    throw err;
+  }
+}
+```
+
+`src/index.ts` 中**显式等待**两个 ping 通过后再 listen：
+
+```typescript
+async function bootstrap() {
+  await pingDatabase();   // 任一失败 → 进程退出码 1
+  await pingRedis();
+  await configService.init();
+  await configService.assertRequired();
+  app.listen(PORT, () => console.log(`🚀 Server listening on :${PORT}`));
+}
+bootstrap().catch((e) => { console.error(e); process.exit(1); });
+```
+
+**② Node.js + NestJS + TypeORM** — `src/database/database.service.ts`
+
+```typescript
+@Injectable()
+export class DatabaseService implements OnModuleInit {
+  constructor(private readonly dataSource: DataSource) {}
+
+  async onModuleInit() {
+    const cfg = this.dataSource.options as any;
+    const t0 = Date.now();
+    console.log(`🔌 正在连接 ${this.driverLabel()} 数据库...  host=${cfg.host} port=${cfg.port} db=${cfg.database}`);
+    try {
+      if (!this.dataSource.isInitialized) await this.dataSource.initialize();
+      await this.dataSource.query('SELECT 1');
+      console.log(`✅ 连接 ${this.driverLabel()} 数据库成功（耗时 ${Date.now() - t0} ms）`);
+    } catch (err: any) {
+      console.error(`❌ 连接 ${this.driverLabel()} 数据库失败：${err.message ?? err}`);
+      throw err;
+    }
+  }
+  private driverLabel() { return this.dataSource.options.type === 'postgres' ? 'PostgreSQL' : 'MySQL'; }
+}
+```
+
+**③ Python + FastAPI + SQLAlchemy** — `app/core/database.py`
+
+```python
+import time
+from sqlalchemy import text
+from .config import settings
+
+def _label() -> str:
+    return "PostgreSQL" if "postgres" in settings.DATABASE_URL else "MySQL"
+
+def init_db() -> None:
+    host, port, db = settings.db_host, settings.db_port, settings.db_name
+    print(f"🔌 正在连接 {_label()} 数据库...  host={host} port={port} db={db}")
+    t0 = time.time()
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+    except Exception as e:
+        print(f"❌ 连接 {_label()} 数据库失败：{e}")
+        raise
+    print(f"✅ 连接 {_label()} 数据库成功（耗时 {int((time.time()-t0)*1000)} ms）")
+
+def init_redis() -> None:
+    print(f"🔌 正在连接 Redis 数据库...  host={settings.REDIS_HOST} port={settings.REDIS_PORT} db={settings.REDIS_DB}")
+    t0 = time.time()
+    try:
+        redis_client.ping()
+    except Exception as e:
+        print(f"❌ 连接 Redis 数据库失败：{e}")
+        raise
+    print(f"✅ 连接 Redis 数据库成功（耗时 {int((time.time()-t0)*1000)} ms）")
+```
+
+`main.py` 启动 lifespan：
+
+```python
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()        # 失败直接抛错，进程退出
+    if settings.REDIS_ENABLED: init_redis()
+    await config_service.init(); await config_service.assert_required()
+    yield
+```
+
+**④ Go + Gin + GORM** — `pkg/database/mysql.go`
+
+```go
+package database
+
+import (
+    "fmt"
+    "log"
+    "time"
+    "gorm.io/gorm"
+)
+
+func MustInitMySQL(cfg Config) *gorm.DB {
+    log.Printf("🔌 正在连接 MySQL 数据库...  host=%s port=%d db=%s", cfg.Host, cfg.Port, cfg.Name)
+    t0 := time.Now()
+    db, err := gorm.Open(mysql.Open(cfg.DSN()), &gorm.Config{})
+    if err != nil {
+        log.Printf("❌ 连接 MySQL 数据库失败：%v", err)
+        log.Fatal(err) // 阻止启动
+    }
+    sqlDB, _ := db.DB()
+    if err := sqlDB.Ping(); err != nil {
+        log.Printf("❌ 连接 MySQL 数据库失败：%v", err)
+        log.Fatal(err)
+    }
+    log.Printf("✅ 连接 MySQL 数据库成功（耗时 %d ms）", time.Since(t0).Milliseconds())
+    return db
+}
+```
+
+**⑤ Java + Spring Boot** — `src/main/java/.../config/DbHealthLogger.java`
+
+```java
+@Component
+public class DbHealthLogger implements ApplicationRunner {
+    @Autowired DataSource ds;
+    @Override public void run(ApplicationArguments args) throws Exception {
+        long t0 = System.currentTimeMillis();
+        log.info("🔌 正在连接 MySQL 数据库...  host={} port={} db={}",
+            ds.getConnection().getMetaData().getURL(), ...);
+        try (Connection c = ds.getConnection()) {
+            c.createStatement().execute("SELECT 1");
+            log.info("✅ 连接 MySQL 数据库成功（耗时 {} ms）", System.currentTimeMillis() - t0);
+        } catch (Exception e) {
+            log.error("❌ 连接 MySQL 数据库失败：{}", e.getMessage());
+            throw e; // Spring Boot 启动失败
+        }
+    }
+}
+```
+
+**⑥ MongoDB / Elasticsearch / ClickHouse 等 NoSQL / 搜索 / 列式**
+
+> 这些数据库同样**必须**打印这三行，agent 在生成对应 driver 客户端（`mongo.Connect` / `elasticsearch.Client` / `clickhouse.Open`）时把模板里的 `MySQL` 替换成对应中文类型即可，**不允许**说"NoSQL 不需要"。
+
+**1.5.4.5.c 多数据库并行启动**
+
+当主存储 + Redis + ES 同时启用时，**推荐并行** ping（如 Node `Promise.all`、Go errgroup、Python `asyncio.gather`），输出仍按"各自打印三行"格式，**不合并**——运维看日志能精确定位哪个挂了。**禁止**为简化日志只打印一行"所有数据库已就绪"。
+
+**1.5.4.5.d Step 4 审核的硬性 grep 命令**
+
+```bash
+# 至少要命中"正在连接"和"连接...成功"各 ≥ 1 次
+grep -rnE "正在连接.*数据库" backend/src backend/pkg backend/app
+grep -rnE "连接.*数据库成功" backend/src backend/pkg backend/app
+# 同时检查"连接...失败"分支也必须存在（防止只写成功路径）
+grep -rnE "连接.*数据库失败" backend/src backend/pkg backend/app
+```
+
+三组命令**全部**命中才算通过；任何一组无结果即视为违反核心原则 #12。
 
 ---
 
@@ -2352,6 +2585,7 @@ jobs:
 | YYYY-MM-DD v6 | 新增核心原则 #10「避开数据库保留字」；§1.5.3 增加字段命名强约束（处理方式 A/B/C + ORM `@map` 特殊处理 + 字段命名映射表）；新增「数据库保留字速查表」附录，扫描 → 改写 → 记录映射全流程化 |
 | YYYY-MM-DD v7 | 新增核心原则 #7「⛔ 代码必须从 `system_config` 表读取（硬约束）」；拆分原 #5/#6 并明确 `config.yaml` 不写业务运行参数；新增 §1.5.4「运行参数 ConfigService（必装，硬约束）」含契约 / 启动流程 / 完整性审核扫描命令；提供 Node + Express + Python + FastAPI + Go + Gin 四栈实现参考 + 集中 `keys.ts` 强类型声明 + 启动必填项校验；明确禁止 `process.env` / `@Value` / `viper.Get` / `os.environ` / 常量硬编码 / 多处直查 system_config 六类违规写法；§1.5.7 启动清单增加「先装 ConfigService」前置提示 |
 | YYYY-MM-DD v8 | **数据库连接配置改为「按框架惯例选文件名」**（`config.yaml` 不再是硬约束）：新增 §1.5.2.a「框架→配置文件」映射表（NestJS/Laravel/FastAPI/Django/Flask/PHP/Rust → `.env`；Go + Gin/Echo → `config.yaml`；Spring Boot → `application.yml`；.NET → `appsettings.json`）；新增 §1.5.2.b「按文件格式分支的模板」（.env 模板 / config.yaml 模板 / application.yml 模板）；核心原则 #5 修订；§1.5.7 控制台清单按 A/B/C 三情况分支；新增 §1.5.8「在项目根 `README.md` 标注 DB 配置文件路径」三重落地（控制台 + backend/README.md + 项目根 README.md），含 Node/Go/Spring 三个示例；backend/README.md 模板 §5 改为「情况 A/B/C 三选一」，目录结构改用 `<DB_CONFIG_FILE>` 占位；§4.4 迁移配置段、docker-compose volume、`/saapi-connect` 交接清单、关键约定速查、STEPS.md 模板 Step 1.4 / Phase 1 列表同步替换为 `<DB_CONFIG_FILE>`；目录结构、产出示例、技术栈示例中的硬编码 `config.yaml` 全部框架化 |
+| YYYY-MM-DD v9 | **新增核心原则 #12「启动必须附带数据库连接检查并打印控制台日志（硬约束）」**：所有已选数据库（MySQL/PostgreSQL/MongoDB/Redis/ES/ClickHouse/SQLite/SQL Server/Oracle/TiDB/OceanBase 等关系型 + NoSQL + 缓存 + 搜索 + 时序 + 列式**全不例外**）启动时必须显式 `connect/ping` 一次并按统一格式打印「🔌 正在连接 xxx 数据库... host=... port=... db=...」→「✅ 连接 xxx 数据库成功（耗时 N ms）」两行日志；失败必须打印「❌ 连接 xxx 数据库失败：<err>」并 `throw` 冒泡阻止启动（禁止静默重试 / 降级 / 假装成功 / 跳过）；§1.5.4.3 启动流程图同步增加"DB ping + 打印日志"前置步骤；新增 §1.5.4.5「数据库启动连接日志（核心原则 #12 落地，必装）」含统一日志格式表 + 6 个栈（Node+Express+Prisma / NestJS+TypeORM / FastAPI+SQLAlchemy / Go+Gin+GORM / Spring Boot / NoSQL&搜索&列式）的最小可运行实现模板 + 多库并行启动规范 + Step 4 必检 grep 命令（"正在连接/连接成功/连接失败"三组全命中才算通过）
 
 ---
 
