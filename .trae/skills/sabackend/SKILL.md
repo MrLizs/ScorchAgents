@@ -30,6 +30,7 @@ description: "基于 /saapi 生成的 OpenAPI 规范，按用户选择的技术�
 7. **步骤追踪**：在项目根目录维护 `STEPS.md`（与 safrontend 的 STEPS.md 合并存在）
 8. **完整性**：最后一步必须核对 OpenAPI 中的每一个接口都在 STEPS.md 与代码中有映射
 9. **SQL 可重入**：每次执行 init.sql 会先清理表数据再插入初始数据（幂等）
+10. **避开数据库保留字**：生成表结构、ORM 模型、DTO/Entity 字段时，**严禁**直接使用目标数据库引擎的保留字作为字段名（如 `order`、`group`、`user`、`key`、`value`、`desc`、`status`、`name`、`type`、`time`、`date`、`count`、`sum`、`select`、`from`、`where`、`rank`、`share`、`comment`、`match`、`mode`、`password`、`role` 等）；必须在名称前增加**功能前缀**（推荐 `f_` / `col_` / `biz_`，或使用业务语义前缀如 `account_name`），或改用其它非保留字命名。该规则同时覆盖 init.sql 字段、ORM 模型字段、DTO/Entity 字段
 
 ## 与其他 skill 的关系
 
@@ -438,6 +439,19 @@ redis:
 
 按 OpenAPI 中出现的所有 model（schema）生成对应表。规则：
 
+> 🚫 **字段命名强约束（与核心原则 #10 配套）**：
+> - **严禁**直接使用目标数据库引擎的保留字作为字段名（含但不限于：`order`、`group`、`user`、`key`、`value`、`desc`、`status`、`name`、`type`、`time`、`date`、`count`、`sum`、`select`、`from`、`where`、`rank`、`share`、`comment`、`match`、`mode`、`password`、`role`、`interval`、`range`、`position`、`session`、`database`、`table`、`view`、`trigger`、`function`、`procedure`、`index`、`schema`、`sequence`、`public`、`default`、`check`、`primary`、`foreign`、`references`、`cascade`、`begin`、`end`、`if`、`else`、`while`、`do`、`for`、`into`、`join`、`left`、`right`、`inner`、`outer`、`on`、`as`、`all`、`any`、`exists`、`in`、`between`、`like`、`is`、`null`、`not`、`and`、`or`、`true`、`false`）。
+> - **处理方式（任选其一）**：
+>   - **A. 加通用功能前缀**（推荐，最稳定）：`f_xxx` / `col_xxx` / `biz_xxx`（例：`f_status` → `status`、`f_key` → `key`、`f_value` → `value`）
+>   - **B. 加业务语义前缀**：用业务对象 + 字段名（例：`user_name`、`order_status`、`account_role`），自然避开保留字
+>   - **C. 改用同义非保留字**（例：`desc` → `description` / `remark`、`password` → `password_hash` / `pwd_hash`、`key` → `code` / `kebab`、`rank` → `sort_no` / `position_no`）
+> - **覆盖范围**：`init.sql` 字段、ORM 模型字段（Prisma schema / TypeORM entity / GORM model / SQLAlchemy model）、DTO/Entity 字段**三处必须保持一致**（同一字段在 DDL、ORM、DTO 中使用相同名字）
+> - **遇到保留字时**：
+>   1. AI 在生成前对所有字段名做一次**保留字扫描**（参见附录「数据库保留字速查表」）；
+>   2. 若命中，**自动**按上述 A/B/C 方案改写并记录在 STEPS.md 的「字段命名映射表」；
+>   3. 同时把改写结果同步到 OpenAPI 衍生记录（不修改 `api/openapi.yaml`，仅在 STEPS.md 中记录映射）。
+> - **特殊处理**：若 ORM 框架已支持 `@map` / `@@map` / `field.column` 等字段别名机制（如 Prisma 的 `@map("xxx")`、GORM 的 `gorm:"column:xxx"`、TypeORM 的 `@Column({ name: 'xxx' })`），可在 ORM 模型中保留**业务友好的属性名**（如 `status`），但底层 DDL 列名用非保留字形式（如 `f_status`），并通过别名映射连接两端。
+
 1. **DROP + CREATE 模式**（保证幂等、可重入）：
    ```sql
    -- 每个表按外键依赖倒序 DROP
@@ -457,16 +471,16 @@ redis:
 2. **必须包含的通用表**：
    - `roles`（角色表）：admin / user 等
    - `users`（用户表）：含 `password_hash`、`role_id`、`status` 等
-   - `system_config`（KV 配置表）：
+   - `system_config`（KV 配置表，**字段名已遵循核心原则 #10，避开 `key`/`value`/`desc` 三个保留字**）：
      ```sql
      CREATE TABLE system_config (
-       `key`   VARCHAR(64)  NOT NULL PRIMARY KEY,
-       `value` TEXT         NOT NULL,
-       `desc`  VARCHAR(255),
-       `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+       cfg_key    VARCHAR(64)  NOT NULL PRIMARY KEY,
+       cfg_value  TEXT         NOT NULL,
+       cfg_desc   VARCHAR(255),
+       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-     INSERT INTO system_config (`key`, `value`, `desc`) VALUES
+     INSERT INTO system_config (cfg_key, cfg_value, cfg_desc) VALUES
        ('jwt_secret',           'CHANGE_ME_AFTER_FIRST_RUN', 'JWT 签名密钥，首次启动后必须修改'),
        ('jwt_expire_seconds',   '7200',                        'Access Token 有效期（秒）'),
        ('refresh_expire_seconds','2592000',                    'Refresh Token 有效期（秒）'),
@@ -478,14 +492,26 @@ redis:
        ('wechat_app_secret',    '',                            '微信 AppSecret');
      ```
 
-3. **业务表 DDL**：从 OpenAPI 的 schema 推断（**表名套用 §1.4 选定的前缀**）：
-   | OpenAPI schema | 表名（含 §1.4 前缀） | 字段映射 |
+3. **业务表 DDL**：从 OpenAPI 的 schema 推断（**表名套用 §1.4 选定的前缀**；**字段名严格遵循核心原则 #10，已自动避开保留字**，下表中的字段名已为最终列名）：
+   | OpenAPI schema | 表名（含 §1.4 前缀） | 字段映射（已加前缀规避保留字） |
    |---------------|------|---------|
-   | User / Account | `<prefix>accounts` 或 `<prefix>users` | id, username, password_hash, phone, email, avatar, role_id, status, created_at, updated_at |
-   | Product | `<prefix>products` | id, name, description, price, stock, images(JSON), category_id, status, created_at, updated_at |
-   | Order | `<prefix>orders` | id, user_id, total_amount, status, address(JSON), created_at, updated_at |
+   | User / Account | `<prefix>accounts` 或 `<prefix>users` | id, account_name(username), password_hash, phone, email, avatar_url, role_id, f_status, created_at, updated_at |
+   | Product | `<prefix>products` | id, product_name, product_desc(description), price, stock, images(JSON), category_id, f_status, created_at, updated_at |
+   | Order | `<prefix>orders` | id, user_id, total_amount, f_status, ship_address(JSON), created_at, updated_at |
    | OrderItem | `<prefix>order_items` | id, order_id, product_id, quantity, unit_price |
+   | system_config | `system_config`（通用表不加业务前缀） | cfg_key, cfg_value, cfg_desc, updated_at |
    | ... | ... | ... |
+
+   > 字段命名映射表（写入 STEPS.md）：
+   > | 原始语义（OpenAPI） | 保留字命中 | 最终列名 | 处理方式 |
+   > |------|------|------|------|
+   > | `status` | ✅ | `f_status` | A. 加 `f_` 前缀 |
+   > | `name` | ✅ | `product_name` / `account_name` | B. 加业务语义前缀 |
+   > | `desc` / `description` | ✅ | `product_desc` / `cfg_desc` | C. 用非保留字同义词 |
+   > | `password` | ✅ | `password_hash` | C. 用非保留字同义词 |
+   > | `key` / `value` | ✅ | `cfg_key` / `cfg_value` | B. 加业务语义前缀 |
+   > | `type` | ✅ | `biz_type` / `f_type` | A/B. 加前缀 |
+   > | `order`（字段） | ✅ | `sort_no` / `display_order`（注意：表名可叫 `xxx_orders` 不冲突，仅字段名禁用） | C. 改同义词 |
 
 4. **初始数据 INSERT**：
    - 默认角色：`('admin','超级管理员')`, `('user','普通用户')`
@@ -1673,3 +1699,81 @@ jobs:
 | YYYY-MM-DD v3 | 强化与 `/saapi` 的边界：Step 0 / 2.1 明确「只读 `api/` 目录（saapi 产出）」；接口映射清单新增「OpenAPI 定位」列与「Mock 来源」列；新增 `api/openapi.yaml` 外部修改检测与提示 |
 | YYYY-MM-DD v4 | 锁定 `api/` 路径固定（项目根，不支持多 api）；Step 0 增加 sha256 + mtime 指纹记录到 STEPS.md，启动时自动比对变更；mock-data.json 严格禁止拷贝，改为相对路径 import；新增三栈（Node/Python/Go）import 示例 |
 | YYYY-MM-DD v5 | 新增 §4.7 完成判定（5 项必备）+ §4.8 自动询问启动 `/saapi-connect`（闭环前端接入）+ §4.9 全流程总结；与新建的 `saapi-connect` skill 形成 `/sainit-* → /safrontend → /saapi → /sabackend → /saapi-connect` 五段闭环 |
+| YYYY-MM-DD v6 | 新增核心原则 #10「避开数据库保留字」；§1.5.3 增加字段命名强约束（处理方式 A/B/C + ORM `@map` 特殊处理 + 字段命名映射表）；新增「数据库保留字速查表」附录，扫描 → 改写 → 记录映射全流程化 |
+
+---
+
+## 附录 A：数据库保留字速查表（核心原则 #10 配套）
+
+> 📌 **使用方式**：
+> 1. AI 在 §1.5.3 生成 init.sql 之前，**必须**用本表对 OpenAPI 推导出的所有字段名做一次扫描；
+> 2. 命中保留字 → 自动按「A 加 `f_` 前缀 / B 加业务语义前缀 / C 改同义词」三选一改写；
+> 3. 改写结果写入 STEPS.md 的「字段命名映射表」，并同步到 ORM 模型与 DTO。
+
+### A.1 MySQL 8.0 高频保留字（禁止直接作为字段名）
+
+| 类别 | 保留字 |
+|------|------|
+| 通用 | `add`, `all`, `alter`, `and`, `any`, `as`, `asc`, `between`, `by`, `call`, `cascade`, `case`, `check`, `column`, `constraint`, `create`, `cross`, `current_date`, `current_time`, `current_timestamp`, `database`, `default`, `delete`, `desc`, `distinct`, `drop`, `each`, `else`, `end`, `exists`, `foreign`, `from`, `full`, `function`, `group`, `having`, `if`, `in`, `index`, `inner`, `insert`, `interval`, `into`, `is`, `join`, `key`, `left`, `like`, `limit`, `lock`, `match`, `mode`, `not`, `null`, `on`, `or`, `order`, `outer`, `primary`, `procedure`, `range`, `rank`, `references`, `rename`, `replace`, `return`, `right`, `schema`, `select`, `session`, `set`, `share`, `show`, `some`, `sum`, `table`, `then`, `time`, `timestamp`, `to`, `trigger`, `union`, `unique`, `update`, `use`, `using`, `values`, `view`, `when`, `where`, `while`, `with` |
+| 数据类型同名 | `char`, `date`, `datetime`, `decimal`, `double`, `float`, `int`, `integer`, `long`, `numeric`, `real`, `text`, `time`, `tinyint`, `varchar` |
+| 业务高频 | `comment`, `count`, `desc`, `group`, `key`, `name`, `order`, `password`, `rank`, `status`, `type`, `user`, `value` |
+
+> ⚠️ MySQL 8.0 共 **300+** 保留字，完整列表见 https://dev.mysql.com/doc/refman/8.0/en/keywords.html
+
+### A.2 PostgreSQL 15 高频保留字
+
+| 类别 | 保留字 |
+|------|------|
+| 通用 SQL | `all`, `analyse`, `analyze`, `and`, `any`, `array`, `as`, `asc`, `asymmetric`, `both`, `case`, `cast`, `check`, `collate`, `column`, `constraint`, `create`, `current_catalog`, `current_date`, `current_role`, `current_time`, `current_timestamp`, `current_user`, `default`, `deferrable`, `desc`, `distinct`, `do`, `else`, `end`, `except`, `false`, `fetch`, `for`, `foreign`, `from`, `grant`, `group`, `having`, `in`, `initially`, `intersect`, `into`, `lateral`, `leading`, `limit`, `localtime`, `localtimestamp`, `not`, `null`, `offset`, `on`, `only`, `or`, `order`, `placing`, `primary`, `references`, `returning`, `select`, `session_user`, `some`, `symmetric`, `table`, `then`, `to`, `trailing`, `true`, `union`, `unique`, `user`, `using`, `values`, `when`, `where`, `window`, `with` |
+| 业务高频 | `comment`, `desc`, `group`, `key`, `name`, `order`, `password`, `rank`, `status`, `type`, `user`, `value` |
+
+> ⚠️ PostgreSQL 完整保留字列表见 https://www.postgresql.org/docs/15/sql-keywords-appendix.html
+
+### A.3 MongoDB 注意点
+
+MongoDB 无 SQL 保留字概念，但**字段名仍应避免**：
+- 以 `$` 开头（MongoDB 操作符）
+- 以 `_` 开头（部分驱动 / 框架保留）
+- 包含 `.`（路径分隔符）
+
+> 推荐 MongoDB 字段命名规则：业务前缀 + 功能名（如 `account_name`、`f_status`），与 SQL 保持一致风格。
+
+### A.4 跨库通用安全做法（强烈推荐）
+
+| 原始名（保留字） | 推荐改写 | 说明 |
+|----------|----------|------|
+| `status` | `f_status` | 加 `f_` 前缀，最稳 |
+| `name` | `<entity>_name`（如 `product_name`） | 加业务前缀 |
+| `type` | `biz_type` / `<entity>_type` | 加业务前缀 |
+| `desc` / `description` | `<entity>_desc` / `remark` | 改同义词或加前缀 |
+| `key` / `value` | `cfg_key` / `cfg_value`（或 `code` / `val`） | 加业务前缀 |
+| `order` | `sort_no` / `display_order` / `seq` | 改同义词 |
+| `group` | `group_code` / `group_name` | 加业务前缀 |
+| `user` | `user_id`（FK 列）/ `account_name`（用户名） | 加业务前缀 |
+| `password` | `password_hash` | 加后缀 |
+| `count` / `sum` | `total_count` / `total_sum` | 加 `total_` 前缀 |
+| `comment` | `remark` / `notes` | 改同义词 |
+| `match` | `match_score` / `is_matched` | 加前缀或改同义词 |
+| `mode` | `run_mode` / `biz_mode` | 加前缀 |
+| `role` | `role_id`（FK）/ `role_code` | 加后缀 |
+| `range` | `value_range` / `min_max` | 加前缀 |
+| `position` | `position_no` / `sort_no` | 加后缀 |
+| `time` / `date` | `start_time` / `end_date` | 加业务前缀 |
+| `rank` | `rank_no` / `sort_no` | 加后缀 |
+| `share` | `share_url` / `is_shared` | 加前缀 |
+| `session` | `session_id` / `session_token` | 加后缀 |
+
+### A.5 ORM 框架字段别名机制（保业务命名 + 换物理列名）
+
+| 框架 | 语法 | 示例 |
+|------|------|------|
+| Prisma | `@map("col_xxx")`（字段）/ `@@map("tab_xxx")`（表） | `status String @map("f_status")` |
+| TypeORM | `@Column({ name: 'col_xxx' })` | `@Column({ name: 'f_status' }) status: string` |
+| GORM (Go) | `gorm:"column:col_xxx"` tag | `Status int \`gorm:"column:f_status"\`` |
+| SQLAlchemy | `Column('col_xxx', ...)` | `status = Column('f_status', Integer)` |
+| Django | `db_column='col_xxx'` | `status = models.IntegerField(db_column='f_status')` |
+| MyBatis-Plus | `@TableField("col_xxx")` | `@TableField("f_status") private Integer status;` |
+| Eloquent (PHP) | `$table->renameColumn(...)` 或 `protected $hidden` | migration 中重命名 |
+
+> 💡 **最佳实践**：业务代码用 `status`（可读），物理列用 `f_status`（合规），通过 ORM 别名机制连接。
+> 这样既规避保留字风险，又不破坏业务层语义。
