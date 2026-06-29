@@ -1342,3 +1342,4 @@ curl -H "Authorization: Bearer invalid" http://localhost:3000/api/v1/users/me
 | YYYY-MM-DD | 初版：基于 safrontend 脚手架填空式接入，7 步流程（环境变量 / API 客户端 / JWT / 错误处理 / Vite proxy + CORS / 验证 / STEPS.md）+ 一次性 STEPS.md 记录 |
 | YYYY-MM-DD v2 | 改为**强约束增量记录**：每完成一步立即写 STEPS.md（不等全部完成），9 步进度表 + AI 执行纪律；新增独立 **Step 3：清理 mock 认证遗留**（localStorage + 代码扫描 + Vite proxy），防止用户来回切换 safrontend 再次产生 mock；明确「本 skill 不涉及 HTTPS 证书」 |
 | YYYY-MM-DD v3 | **前端框架支持全面化**：Step 0 新增 §0.2 框架检测（读 STEPS.md + package.json，自动识别 Vue 3+Pinia / React 18+Zustand / React 18+RTK / 其它，未识别则询问用户）；Step 2 / 3.2 / 4 / 5 全部改为 A/B/C/D 分支代码（不再硬编码 Vue），AI 只填用户所用框架的分支；Step 4.2 mock 替换规则做成框架对照表；Step 5.1 toast 适配器做成 UI 库对照表 |
+| 2026-06-29-1 | 修正「修改记录」时间格式 bug：原 v1~v3 的占位符 `YYYY-MM-DD` 保留为历史；自本条起改为「年-月-日-当天变动次数」格式（如 `2026-06-29-1`），AI 写入前必须用 PowerShell `Get-Date -Format "yyyy-MM-dd"` 校准北京时间；变动次数 N 按「该 skill 文件落地次数」自增（同一天多次改动依次为 1,2,3...） |

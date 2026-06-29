@@ -1285,6 +1285,7 @@ agent **必须调用 `/saapi` skill**（不要在 safrontend 内做 API 设计�
 | YYYY-MM-DD v2 | Phase 1 新增 Step 5.5「API 客户端脚手架」：生成 client.ts / auth.ts / errorHandler.ts / .env.example 6 个文件，为 `/saapi-connect` 预留接入点；Phase 4 末尾提示完整闭环 `safrontend → saapi → sabackend → saapi-connect` |
 | YYYY-MM-DD v3 | safrontend 被重复调用时的兼容规则：检测 `/saapi-connect` 已完成则不重新生成 mock；检测 `client.ts` 已有真实 baseURL 则不覆盖；用户主动回 mock 模式时提示备份 |
 | YYYY-MM-DD v4 | Step 5.5 脚手架改为 A/B/C 框架分支：Vue 3+Pinia / React 18+Zustand / React 18+RTK 各自 mock 实现；明确「AI 只填用户所用框架的分支」；增加「其它框架需询问用户」约束 |
+| 2026-06-29-1 | 修正「修改记录」时间格式 bug：原 v1~v4 的占位符 `YYYY-MM-DD` 保留为历史；自本条起改为「年-月-日-当天变动次数」格式（如 `2026-06-29-1`），AI 写入前必须用 PowerShell `Get-Date -Format "yyyy-MM-dd"` 校准北京时间；变动次数 N 按「该 skill 文件落地次数」自增（同一天多次改动依次为 1,2,3...） |
 
 📋 完整记录见 STEPS.md
 

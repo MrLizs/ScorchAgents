@@ -272,6 +272,14 @@ Hero 区用商品/品牌视觉（如 logo + slogan "好物触手可及"），表
 - ⚠️ **订单提交后清空购物车**（`Store.set('cart', [])`）
 - ⚠️ **结算页必须先检查 `requireLogin()`**
 
+## 修改记录（skill 自身演进）
+
+| 时间 | 改动 |
+|------|------|
+| 2026-06-29-1 | 初始化「修改记录（skill 自身演进）」section；约定时间格式为「年-月-日-当天变动次数」；AI 写入前必须用 PowerShell `Get-Date -Format "yyyy-MM-dd"` 校准北京时间；变动次数 N 按「该 skill 文件落地次数」自增（同一天多次改动依次为 1,2,3...） |
+
+---
+
 ## 关联 Skill
 
 - `frontend-design` — 高保真 UI

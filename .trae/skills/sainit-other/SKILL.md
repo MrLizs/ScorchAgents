@@ -505,6 +505,14 @@ TAB_CONFIG="首页 / 我的"
 - ⚠️ **占位用真实图片服务**（picsum/pravatar），避免本地资源缺失
 - ⚠️ **若项目能明确归类**（dating / shop / blog / tool），应优先回到 `/sainit` 路由到对应子 skill 以获得更贴合的页面与组件
 
+## 修改记录（skill 自身演进）
+
+| 时间 | 改动 |
+|------|------|
+| 2026-06-29-1 | 初始化「修改记录（skill 自身演进）」section；约定时间格式为「年-月-日-当天变动次数」；AI 写入前必须用 PowerShell `Get-Date -Format "yyyy-MM-dd"` 校准北京时间；变动次数 N 按「该 skill 文件落地次数」自增（同一天多次改动依次为 1,2,3...） |
+
+---
+
 ## 关联 Skill
 
 - `frontend-design` — 高保真 UI 生成
