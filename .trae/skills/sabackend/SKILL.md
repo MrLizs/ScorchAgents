@@ -25,7 +25,12 @@ description: "基于 /saapi 生成的 OpenAPI 规范，按用户选择的技术�
 2. **技术栈选择**：每次启动时由用户选择（4 预设 + 自定义）
 3. **架构选择**：每次启动时由用户选择（用大白话 + 专业术语并排展示）
 4. **存放位置**：`backend/` 目录，与 `prototype/`、`frontend/`、`api/` 平级
-5. **配置文件**：`backend/config.yaml` 只放**数据库连接**配置（host / port / username / password / dbname / redis 连接等），不写任何业务运行参数
+5. **数据库连接配置**：只放**数据库连接**配置（host / port / username / password / dbname / redis 连接等），不写任何业务运行参数。
+   - **文件名按框架惯例选**（见 §1.5.2.a「框架→配置文件」映射表）：
+     - 框架原生支持 `.env`（如 NestJS / Laravel / Next.js / Nuxt / Django + django-environ）→ 用 `backend/.env` + `backend/.env.example`
+     - 框架无 `.env` 惯例 → 用 `backend/config.yaml`
+     - 个别框架有专属格式（如 Spring Boot 的 `application.yml`、.NET 的 `appsettings.json`）→ 用框架默认格式
+   - **运行时强制约束见核心原则 #7**：业务运行参数（JWT secret、第三方 key…）必须从 `system_config` 表读取，**与上述数据库连接配置文件无关**——后者只放 DB / Redis 连接
 6. **运行参数存储**：所有运行时可调参数（JWT secret / 过期时间、第三方 AppID / AppSecret、上传域名、短信 key、站点名、对象存储配置、限流阈值 …）**默认值**统一写入 `init.sql` 的 `system_config(cfg_key, cfg_value, cfg_desc)` 表；上线后通过后台管理页或 SQL 即可修改，无需改代码或重启
 7. ⛔ **代码必须从 `system_config` 表读取（硬约束）**：业务代码**绝对禁止**通过 `process.env.JWT_SECRET`、`os.environ['JWT_SECRET']`、`yaml` 文件、`@Value` 注解、`const JWT_SECRET = 'xxx'` 等方式硬编码或从环境变量 / yaml 读取这些运行参数；**所有运行参数一律经由 `ConfigService`（或同名封装）从 `system_config` 表读取**，带内存缓存（TTL 30~60s）以减少 DB 压力。任何违反此规则的实现都视为**未完成**。
 8. **步骤追踪**：在项目根目录维护 `STEPS.md`（与 safrontend 的 STEPS.md 合并存在）
@@ -58,7 +63,7 @@ description: "基于 /saapi 生成的 OpenAPI 规范，按用户选择的技术�
 │   ├── openapi.yaml                ← /saapi 产出，本 skill 只读
 │   └── API.md                      ← /saapi 产出，本 skill 只读
 ├── backend/                        ← 本 skill 产出
-│   ├── config.yaml                 数据库连接配置（仅此一项）
+│   ├── config.yaml 或 .env         数据库连接配置（仅此一项，按 §1.5.2.a 框架惯例选用其一）
 │   ├── sql/
 │   │   └── init.sql                表结构 + 初始数据 + 运行参数
 │   ├── src/                        源码（根据技术栈不同而不同）
@@ -69,9 +74,9 @@ description: "基于 /saapi 生成的 OpenAPI 规范，按用户选择的技术�
 └── STEPS.md                        后端开发步骤追踪（与 safrontend 共用）
 ```
 
-> 💡 **为什么 DB 配置单独放 yaml，而运行参数放 SQL？**
-> - `config.yaml`：环境敏感（开发 / 测试 / 生产可能不同），由运维维护
-> - `init.sql`：包含 `system_config(key, value)` 表，**默认参数**（JWT secret、站点名、上传域名…）以 INSERT 写入；后续可通过后台管理页面修改，无需改文件
+> 💡 **为什么 DB 连接配置单独成文件，而运行参数放 SQL？**
+> - 数据库连接配置（yaml / .env / application.yml …）：环境敏感（开发 / 测试 / 生产可能不同），由运维维护，文件名按框架惯例选用（详见 §1.5.2.a）
+> - `init.sql`：包含 `system_config(cfg_key, cfg_value, cfg_desc)` 表，**默认参数**（JWT secret、站点名、上传域名…）以 INSERT 写入；后续可通过后台管理页面修改，无需改文件
 
 ## 工作流程（严格按顺序）
 
@@ -239,7 +244,7 @@ fi
 > - **A. 启用 Redis**（推荐，用于 Session、限流、热点缓存、消息队列）
 > - **B. 不启用**（单实例 / 极简项目可跳过）
 
-> 选定后根据组合生成 `config.yaml` 字段：
+> 选定后根据组合生成**数据库连接配置块**（字段映射，文件名按 §1.5.2.a 选用 `.env` 或 `config.yaml` 或框架默认格式）：
 > - 仅 MySQL/PostgreSQL → `database:` 块
 > - 含 Redis → 追加 `redis:` 块
 > - MongoDB → `database:` 块换为 `mongodb:`（URI 形式）
@@ -329,13 +334,13 @@ fi
 
 按所选技术栈 + 架构生成对应目录结构：
 
-**示例 1：Node + Express + TS + 分层架构**
+**示例 1：Node + Express + TS + 分层架构**（原生用 .env）
 ```
 backend/
-├── config.yaml
+├── .env                         ← DB 连接配置（§1.5.2.a 选 .env）
+├── .env.example                 ← 提交到仓库的样例文件
 ├── package.json
 ├── tsconfig.json
-├── .env.example
 ├── README.md
 ├── sql/
 │   └── init.sql
@@ -343,7 +348,7 @@ backend/
     ├── index.ts                  入口
     ├── app.ts                    Express 实例
     ├── config/
-    │   └── index.ts              读取 config.yaml
+    │   └── index.ts              读取 .env（dotenv 加载）
     ├── middlewares/
     │   ├── auth.ts               JWT 校验
     │   ├── error.ts              全局错误处理
@@ -367,10 +372,10 @@ backend/
         └── client.ts             Prisma / 数据库客户端单例
 ```
 
-**示例 2：Go + Gin + 分层架构**
+**示例 2：Go + Gin + 分层架构**（无 .env 惯例，用 config.yaml）
 ```
 backend/
-├── config.yaml
+├── config.yaml                  ← DB 连接配置
 ├── go.mod
 ├── main.go
 ├── sql/
@@ -391,8 +396,79 @@ backend/
 
 （其他栈与架构的目录按相同原则生成，详细模板在 §1.5.6）
 
-**1.5.2 生成 `backend/config.yaml`（仅数据库配置）**
+**1.5.2 生成数据库连接配置（按框架惯例选文件名）**
 
+> 📌 **本节取代原 `config.yaml` 硬约束**：DB 连接配置文件名**由所选框架决定**，不再统一为 `config.yaml`。
+
+**1.5.2.a 框架 → 配置文件 映射表（必读，agent 必须按此分支）**
+
+> 判定流程：**用户在 Step 1.1 选定技术栈 → 查下表 → 得到文件名 → 按对应模板生成**。
+> 若框架不在表内，agent 必须追问用户「该框架惯用配置格式是什么？」，禁止默认生成 `config.yaml`。
+
+| 技术栈 | 数据库连接配置**文件名** | 默认加载库 / 机制 | 备注 |
+|--------|----------------------|----------------|------|
+| **Node.js + Express + TS**（原生无配置） | `.env` + `.env.example` | `dotenv`（社区事实标准） | 初始化时自动 `cp .env.example .env` |
+| **Node.js + NestJS** | `.env` + `.env.example` | `@nestjs/config`（官方） | NestJS 原生支持 `ConfigModule.forRoot()` |
+| **Python + FastAPI** | `.env` + `.env.example` | `pydantic-settings` | 在 `Settings` 类中读 `env_file=".env"` |
+| **Python + Django** | `.env` + `.env.example` | `django-environ` | 加入 `requirements.txt` |
+| **Python + Flask** | `.env` + `.env.example` | `python-dotenv` | Flask ≥ 1.0 已内置 |
+| **PHP + Laravel** | `.env` + `.env.example` | Laravel 原生 | Laravel 标准做法 |
+| **Go + Gin** | `config.yaml` | `viper` | Go 社区主流，无 .env 惯例 |
+| **Go + Echo** | `config.yaml` | `viper` | 同 Gin |
+| **Java + Spring Boot** | `src/main/resources/application.yml` | Spring 原生 | **禁止**改成 `.env` 或 `config.yaml` |
+| **Java + Spring（非 Boot）** | `src/main/resources/applicationContext.xml` | Spring 原生 | 同上 |
+| **C# / .NET Core** | `appsettings.json` + `appsettings.Development.json` | .NET 原生 | 同上 |
+| **Rust + Actix-web / Axum** | `.env` + `.env.example` | `dotenvy` | Rust 社区惯例 |
+| **Ruby on Rails** | `.env` + `.env.example`（叠加 `config/database.yml`） | Rails 原生 + `dotenv-rails` | Rails 同时维护 `database.yml`，DB 连接仍以 yml 为准，`.env` 仅覆盖 host/port/password 等敏感字段 |
+| **Next.js / Nuxt（全栈 API）** | `.env.local` + `.env.example` | 框架原生 | 框架启动时自动加载 |
+
+> ⚠️ **硬约束（贯穿全 skill）**：
+> 1. 若框架惯例是 `.env`，**禁止**再额外生成 `config.yaml`；反之亦然——**二选一，不并存**
+> 2. 若用户手动指定用 `.env` 或 `config.yaml`（与框架惯例冲突），agent 必须先确认「是否覆盖框架惯例」，确认后方可执行
+> 3. 不论文件名如何，**配置文件内容只能放 DB / Redis 连接信息**（详见 §1.5.2.b）
+
+**1.5.2.b 模板（按文件格式分支）**
+
+**模板 ①：`backend/.env` + `backend/.env.example`**（Node/NestJS/Python/PHP/Rust 等）
+
+`.env.example`（提交到 git，作为新成员 onboarding 模板）：
+```bash
+# ─────────────── 数据库（主存储） ───────────────
+# 仅 MySQL / PostgreSQL
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=
+DB_NAME=app_db
+DB_CHARSET=utf8mb4
+DB_TIMEZONE=+08:00
+DB_POOL_MIN=2
+DB_POOL_MAX=20
+
+# 或 MongoDB（URI 形式，独占 DB_*）
+# MONGODB_URI=mongodb://localhost:27017/app_db
+
+# ─────────────── 缓存（可选） ───────────────
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_DB=0
+
+# ─────────────── 服务端口（可选，部分栈需要） ───────────────
+# SERVER_PORT=3000
+```
+
+`.env`（**真实本地配置，不提交 git**，新成员 `cp .env.example .env` 后填写）：
+```bash
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=你的密码
+DB_NAME=app_db
+# ... 其余同上
+```
+
+**模板 ②：`backend/config.yaml`**（Go + Gin / Echo 等无 .env 惯例）
 ```yaml
 # 数据库连接配置
 # 注意：JWT secret、站点名等运行参数请在 sql/init.sql 的 system_config 表中维护
@@ -400,7 +476,7 @@ database:
   host: localhost
   port: 3306
   username: root
-  password: ""                # 首次安装留空，启动后通过 .env 或后台修改
+  password: ""                # 首次安装留空，启动后通过本文件或后台修改
   name: app_db
   charset: utf8mb4
   timezone: "+08:00"
@@ -416,9 +492,15 @@ redis:
   db: 0
 ```
 
-> ⚠️ **此文件仅放 DB 连接**。运行参数（JWT secret、上传域名、短信 key…）写入 `system_config` 表。
+**模板 ③：`application.yml` / `appsettings.json`**（Java / .NET 框架原生格式）
+
+按 Spring Boot / .NET Core 标准模板生成（agent 必须按所选栈生成对应格式），字段键名与 ①/② 等价。**禁止**为这些栈生成 `.env` 或 `config.yaml`。
+
+> ⚠️ **此文件仅放 DB / Redis 连接**。运行参数（JWT secret、上传域名、短信 key…）写入 `system_config` 表（详见 §1.5.3）。
 >
 > 🚨 **再次强调（核心原则 #7）**：上面那些运行参数**不仅默认值要入库，业务代码也只能从库读取**。详见 §1.5.4（ConfigService 硬约束实现）。
+>
+> 📌 **后文示例若未特别说明，默认按 §1.5.2.a 选定的格式展示**。若实际生成的是 `.env`，请把 `config.yaml` 字样替换为 `.env`，字段名按 `DB_HOST=...` 等 KEY=VALUE 形式而非 yaml 缩进。
 
 **1.5.3 生成 `backend/sql/init.sql`（DDL + 初始数据）**
 
@@ -905,15 +987,18 @@ DB connect → ConfigService.init() → ConfigService.assertRequired() → route
 > 1. 数据库需要**手动创建**（init.sql 只建表，不建库）
 > 2. **init.sql 文件位于哪个路径**（让用户一眼能找到）
 > 3. **如何用一行命令把它导入数据库**
-> 4. **如何配置 `config.yaml` 中的连接信息**（库名 / 用户名 / 密码 / 主机 / 端口）
+> 4. **如何配置数据库连接配置**（库名 / 用户名 / 密码 / 主机 / 端口）
 >
-> 这些信息**双重落地**：
+> 这些信息**三重落地**：
 > - 立即以控制台高亮提示告知用户
 > - 写入 `backend/README.md`（详见 §4.3）以便用户随时查阅
+> - 同步在**项目根 `README.md`** 显眼位置写一行「数据库连接配置在 `backend/<文件名>`」，避免用户翻找（详见 §1.5.8）
 
 **Step 1.5.7.a 在控制台打印操作清单**
 
 > ⚠️ **必须先完成 §1.5.4 ConfigService 骨架后再打印本节清单**（避免用户在没装 ConfigService 之前就启动后端）
+>
+> 📌 **文件名按 §1.5.2.a 自动套用**：用户选 NestJS/Laravel/FastAPI 等 → 提示 `backend/.env`；选 Go + Gin 等 → 提示 `backend/config.yaml`；选 Spring Boot → 提示 `backend/src/main/resources/application.yml`。
 
 骨架文件生成完毕后，**必须**在控制台输出以下高亮信息（按用户所选数据库类型分支）：
 
@@ -933,7 +1018,7 @@ DB connect → ConfigService.init() → ConfigService.assertRequired() → route
    • MongoDB：
      # 无需建库，application 首次写入时自动创建
 
-   📌 <库名> 与 §1.5.2 生成的 config.yaml 中 database.name 保持一致
+   📌 <库名> 与 §1.5.2 生成的数据库连接配置文件中对应字段保持一致
 
 2️⃣  导入初始化 SQL（路径已固定）
 
@@ -950,34 +1035,53 @@ DB connect → ConfigService.init() → ConfigService.assertRequired() → route
      psql -U postgres -d <库名> -f backend/sql/init.sql
 
    • MongoDB（无 SQL）：
-     跳过此步；种子数据由后端启动时根据 config.yaml + 业务代码自动写入
+     跳过此步；种子数据由后端启动时根据数据库连接配置 + 业务代码自动写入
 
-3️⃣  配置 backend/config.yaml
+3️⃣  配置数据库连接（按 §1.5.2.a 自动套用文件名）
 
-   请打开 backend/config.yaml，核对/修改以下字段：
    ┌─────────────────────────────────────────────────┐
-   │  database:                                      │
-   │    host:     <你的 DB 主机，默认 localhost>      │
-   │    port:     <你的 DB 端口，MySQL 3306 / PG 5432>│
-   │    username: <连接用户名>                        │
-   │    password: <连接密码>                          │
-   │    name:     <库名，必须与第 1 步一致>            │
+   │  A. 框架惯例为 .env（NestJS/Laravel/FastAPI…）  │
+   │     cp backend/.env.example backend/.env         │
+   │     # 编辑 backend/.env，填 DB 连接字段：        │
+   │       DB_HOST=localhost                          │
+   │       DB_PORT=3306                               │
+   │       DB_USER=root                               │
+   │       DB_PASSWORD=<你的密码>                     │
+   │       DB_NAME=<库名，必须与第 1 步一致>          │
+   │     （如启用 Redis，同步填 REDIS_* 字段）        │
+   │                                                  │
+   │  B. 框架惯例为 config.yaml（Go + Gin/Echo…）    │
+   │     编辑 backend/config.yaml：                   │
+   │       database:                                  │
+   │         host:     localhost                      │
+   │         port:     3306                           │
+   │         username: root                           │
+   │         password: <你的密码>                     │
+   │         name:     <库名，必须与第 1 步一致>      │
+   │     （如启用 Redis，同步核对 redis 块）          │
+   │                                                  │
+   │  C. 框架原生格式（Spring Boot/.NET…）            │
+   │     编辑 backend/src/main/resources/             │
+   │     application.yml 或 appsettings.json：        │
+   │       spring.datasource:                         │
+   │         url: jdbc:mysql://localhost:3306/<库名>  │
+   │         username: root                           │
+   │         password: <你的密码>                     │
    └─────────────────────────────────────────────────┘
-   （如启用 Redis，同步核对 redis 块）
 
-4️⃣  启动后端（命令见 README.md「快速启动」一节）
+4️⃣  启动后端（命令见 backend/README.md「快速启动」一节）
 
 ═══════════════════════════════════════════════════════
 ```
 
 > 💡 **小贴士**：agent 在控制台打印后，**必须**追加一条简短确认：
-> `✅ 已写入 backend/README.md，可随时查阅。是否继续生成接口代码？`
+> `✅ 已写入 backend/README.md 和项目根 README.md，可随时查阅。是否继续生成接口代码？`
 
 **Step 1.5.7.b 库名命名规则**
 
-- **默认**：`app_db`（与 §1.5.2 config.yaml 模板一致）
+- **默认**：`app_db`（与 §1.5.2 模板一致）
 - **建议**：`<项目拼音前缀>_db`，如项目「好物触手」→ `hwcs_db`
-- **MongoDB**：留空（不需建库），但仍写入 config.yaml 的 `mongodb.uri` 中
+- **MongoDB**：留空（不需建库），但仍写入数据库连接配置文件的 `mongodb.uri` / `MONGODB_URI` 中
 
 **Step 1.5.7.c 常见数据库客户端工具提示**
 
@@ -985,6 +1089,113 @@ DB connect → ConfigService.init() → ConfigService.assertRequired() → route
 - MySQL：Navicat / DBeaver / MySQL Workbench / TablePlus
 - PostgreSQL：pgAdmin / DBeaver
 - MongoDB：MongoDB Compass / Studio 3T
+
+---
+
+**1.5.8 在项目根 `README.md` 告知 DB 配置文件路径（必做）**
+
+> 🎯 **目的**：让任何接手项目的人，**扫一眼项目根 README 就能 5 秒内定位 DB 配置文件**——不必钻进 `backend/README.md` 找，也无需 grep 全仓库。
+
+**强制规则**：
+
+1. **位置**：在项目根 `README.md` 的「本地启动 / 快速开始 / 目录结构」**任一显眼节**中插入一行：
+
+   ```markdown
+   ## 🗄️ 后端数据库连接配置
+
+   **配置文件路径**：`backend/<文件名>`
+   （<框架名> 默认用 <文件名>，详见 `backend/README.md` §5 配置说明）
+
+   | 字段 | 含义 | 示例 |
+   |------|------|------|
+   | DB_HOST | 数据库主机 | localhost |
+   | DB_PORT | 数据库端口 | 3306（MySQL）/ 5432（PostgreSQL） |
+   | DB_USER | 连接用户名 | root |
+   | DB_PASSWORD | 连接密码 | （本地可空） |
+   | DB_NAME | 库名 | `<prefix>_db` |
+   ```
+
+   - **文件名按 §1.5.2.a 自动套用**（如 `backend/.env` / `backend/config.yaml` / `backend/src/main/resources/application.yml`）
+   - **字段名按实际配置文件格式**（`.env` → `DB_HOST`；`config.yaml` → `database.host`；Spring → `spring.datasource.url`）
+
+2. **三种落地方式**（按顺序尝试，命中任一即停）：
+   - **方式 ①（推荐）**：在已有 README.md 中**插入一个新章节**「🗄️ 后端数据库连接配置」（紧跟「技术栈 / 快速开始」之后）
+   - **方式 ②**：在「目录结构」节用粗体标注 `backend/<文件名>`
+   - **方式 ③**：在「快速开始」节第一步加一行「1️⃣ 复制 DB 配置模板：`cp backend/.env.example backend/.env`（Go 栈为 `backend/config.yaml`）」
+
+3. **如果项目根 `README.md` 尚未生成**（即上游 `/sainit-*` 未生成），则 sabackend 必须**主动创建**一份精简版（含项目名 + 启动步骤 + 本节内容），后续由 safrontend 等 skill 扩充。
+
+4. **同步到 STEPS.md**：把「项目根 README.md 已写 DB 配置路径」作为 Step 1.5.8 的完成项打勾。
+
+5. **示例输出**（Node + Express 项目）：
+
+   ```markdown
+   # fashion-shop
+
+   ...
+
+   ## 🗄️ 后端数据库连接配置
+
+   **配置文件路径**：`backend/.env`
+   （Node.js + Express 默认用 `.env`，详见 [`backend/README.md` §5](backend/README.md#五配置说明)）
+
+   | 字段 | 含义 | 示例 |
+   |------|------|------|
+   | DB_HOST | 数据库主机 | localhost |
+   | DB_PORT | 数据库端口 | 3306 |
+   | DB_USER | 连接用户名 | root |
+   | DB_PASSWORD | 连接密码 | （本地可空） |
+   | DB_NAME | 库名 | `ys_db` |
+
+   ## 本地启动
+   ...
+   ```
+
+6. **示例输出**（Go + Gin 项目）：
+
+   ```markdown
+   # myapp
+
+   ...
+
+   ## 🗄️ 后端数据库连接配置
+
+   **配置文件路径**：`backend/config.yaml`
+   （Go + Gin 默认用 `config.yaml`，详见 [`backend/README.md` §5](backend/README.md#五配置说明)）
+
+   | 字段（yaml 路径） | 含义 | 示例 |
+   |------|------|------|
+   | database.host | 数据库主机 | localhost |
+   | database.port | 数据库端口 | 3306 |
+   | database.username | 连接用户名 | root |
+   | database.password | 连接密码 | （本地可空） |
+   | database.name | 库名 | `ys_db` |
+
+   ## 本地启动
+   ...
+   ```
+
+7. **示例输出**（Java Spring Boot 项目）：
+
+   ```markdown
+   # myapp
+
+   ...
+
+   ## 🗄️ 后端数据库连接配置
+
+   **配置文件路径**：`backend/src/main/resources/application.yml`
+   （Java Spring Boot 用框架原生 `application.yml`，详见 [`backend/README.md` §5](backend/README.md#五配置说明)）
+
+   | 字段 | 含义 | 示例 |
+   |------|------|------|
+   | spring.datasource.url | JDBC URL | jdbc:mysql://localhost:3306/ys_db |
+   | spring.datasource.username | 连接用户名 | root |
+   | spring.datasource.password | 连接密码 | （本地可空） |
+
+   ## 本地启动
+   ...
+   ```
 
 #### 1.6 安装依赖
 
@@ -1160,7 +1371,7 @@ export default {
 > 技术栈：Node.js + Express + TypeScript
 > 架构：分层架构 Controller → Service → Repository
 > 代码目录：`backend/`
-> 配置：`backend/config.yaml` + `backend/sql/init.sql`
+> 配置：`backend/<DB_CONFIG_FILE>` + `backend/sql/init.sql`（`<DB_CONFIG_FILE>` 按 §1.5.2.a 自动套用，本示例为 `.env`）
 > 创建时间：YYYY-MM-DD
 > 接口来源：`<项目根>/api/openapi.yaml`（路径固定，由 /saapi 生成）
 
@@ -1208,9 +1419,10 @@ export default {
 - [ ] Step 1.1：创建 backend/ 目录
 - [ ] Step 1.2：选定命名规范 → 推导项目拼音前缀（如 `hwcs_`）
 - [ ] Step 1.3：生成 package.json / tsconfig.json
-- [ ] Step 1.4：生成 config.yaml（数据库连接 + Redis）
+- [ ] Step 1.4：生成 DB 连接配置（`backend/<DB_CONFIG_FILE>`，文件名按 §1.5.2.a 自动套用，如 `.env` / `config.yaml` / `application.yml`）
 - [ ] Step 1.5：生成 sql/init.sql（DDL + 初始数据 + system_config 默认值，**表名套 §1.4 前缀**）
 - [ ] Step 1.5.4：生成 **ConfigService 骨架**（`src/config/keys.ts` + `config.service.ts`，承接核心原则 #7，运行参数一律从 `system_config` 表读取）
+- [ ] Step 1.5.8：在项目根 `README.md` 中标注 DB 配置文件路径（详见 §1.5.8，避免用户翻找）
 - [ ] Step 1.6：生成 sql/migrations/ 目录与迁移文件（Flyway 风格，详见 §4.4）
 - [ ] Step 1.7：生成入口与中间件骨架
 - [ ] Step 1.8：依赖安装（npm/pip/go mod/maven）
@@ -1394,7 +1606,7 @@ README.md 是用户**拿到代码后第一个打开的文件**，必须按以下
 - [二、环境要求](#二环境要求)
 - [三、快速启动](#三快速启动)        ← 命令行启动方式
 - [四、数据库初始化](#四数据库初始化) ← 必读：建库 + 导入 init.sql
-- [五、配置说明](#五配置说明)         ← config.yaml + system_config
+- [五、配置说明](#五配置说明)         ← DB 连接配置文件 + system_config
 - [六、运行参数调整](#六运行参数调整)  ← 怎么改 JWT secret 等
 - [七、接口调试示例](#七接口调试示例)  ← curl
 - [八、常见问题](#八常见问题)
@@ -1403,17 +1615,22 @@ README.md 是用户**拿到代码后第一个打开的文件**，必须按以下
 
 ## 一、目录结构
 
+> 📌 **数据库连接配置文件名按 §1.5.2.a 框架惯例选用**（本项目用 `<DB_CONFIG_FILE>` 表示）：
+> - Node/NestJS/Python/PHP/Rust → `backend/.env` + `backend/.env.example`
+> - Go + Gin/Echo → `backend/config.yaml`
+> - Spring Boot / .NET → 框架原生格式
+
 \```
 backend/
-├── config.yaml              # 数据库连接配置（仅此一项）
+├── <DB_CONFIG_FILE>         # 数据库连接配置（按 §1.5.2.a 自动选用文件名）
 ├── sql/
 │   ├── init.sql             # ⭐ 首次部署必须导入的初始化文件
 │   └── migrations/          # 后续迭代的 Flyway 风格迁移脚本
 ├── src/                     # 源码（按 §1.3 架构生成）
 ├── tests/                   # 测试
 ├── package.json             # Node 系 / 或 go.mod / requirements.txt / pom.xml
-├── tsconfig.json            # TS 工程配置
-├── .env.example             # 环境变量样例
+├── tsconfig.json            # TS 工程配置（TS 工程时才有）
+├── .env.example             # 环境变量样例（按需）
 └── README.md                # 本文件
 \```
 
@@ -1522,7 +1739,7 @@ psql -U postgres -c "CREATE DATABASE <库名> ENCODING 'UTF8';"
 **MongoDB**：
 > 无需手动建库，application 首次写入时自动创建集合。
 
-> 📌 **库名** = `backend/config.yaml` 中 `database.name` 的值，默认 `app_db`，建议改为 `<项目前缀>_db`。
+> 📌 **库名** = `backend/<DB_CONFIG_FILE>` 中数据库名字段的值，默认 `app_db`，建议改为 `<项目前缀>_db`。
 
 ### 4.2 导入初始化 SQL
 
@@ -1566,11 +1783,52 @@ psql -U postgres -d <库名> -c "\dt"
 
 ## 五、配置说明
 
-### 5.1 `backend/config.yaml`（环境敏感，仅 DB 连接）
+> 📌 **本节文件名按 §1.5.2.a 框架惯例选用**，下表列出常见栈对应的配置文件：
 
-打开 `backend/config.yaml`，按你的实际环境修改：
+| 技术栈 | DB 连接配置文件 | 加载库 |
+|--------|----------------|--------|
+| Node.js + Express / NestJS | `backend/.env` + `backend/.env.example` | `dotenv` / `@nestjs/config` |
+| Python + FastAPI / Django / Flask | `backend/.env` + `backend/.env.example` | `pydantic-settings` / `django-environ` / `python-dotenv` |
+| PHP + Laravel | `backend/.env` + `backend/.env.example` | Laravel 原生 |
+| Go + Gin / Echo | `backend/config.yaml` | `viper` |
+| Java + Spring Boot | `backend/src/main/resources/application.yml` | Spring 原生 |
+| C# / .NET Core | `backend/appsettings.json` | .NET 原生 |
+| Rust + Actix-web / Axum | `backend/.env` + `backend/.env.example` | `dotenvy` |
 
-\```yaml
+### 5.1 数据库连接配置（环境敏感，仅 DB 连接）
+
+按上面表格找到**本项目对应的配置文件**，按你的实际环境修改（仅放 DB / Redis 连接，**不写运行参数**）：
+
+**情况 A：`backend/.env`（Node/NestJS/Python/PHP/Rust 栈）**
+
+```bash
+# 1) 先复制模板为本地真实配置（.env 不提交 git）
+cp backend/.env.example backend/.env
+
+# 2) 编辑 backend/.env，填以下字段
+DB_HOST=localhost              # DB 服务器地址
+DB_PORT=3306                   # MySQL 3306 / PostgreSQL 5432 / MongoDB 27017
+DB_USER=root                   # 连接用户名
+DB_PASSWORD=                   # 连接密码（首次留空，启动后请修改）
+DB_NAME=app_db                 # 库名（必须与 §4.1 创建的库名一致）
+DB_CHARSET=utf8mb4
+DB_TIMEZONE=+08:00
+DB_POOL_MIN=2
+DB_POOL_MAX=20
+
+# 或 MongoDB（URI 形式，独占 DB_*）
+# MONGODB_URI=mongodb://localhost:27017/app_db
+
+# 可选：Redis
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_DB=0
+```
+
+**情况 B：`backend/config.yaml`（Go + Gin/Echo 栈）**
+
+```yaml
 database:
   host: localhost            # ← DB 服务器地址
   port: 3306                 # ← MySQL 3306 / PostgreSQL 5432 / MongoDB 27017
@@ -1589,7 +1847,22 @@ redis:
   port: 6379
   password: ""
   db: 0
-\```
+```
+
+**情况 C：`backend/src/main/resources/application.yml`（Spring Boot 栈）**
+
+```yaml
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/app_db?useUnicode=true&characterEncoding=utf8
+    username: root
+    password:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  redis:
+    host: localhost
+    port: 6379
+    password:
+```
 
 > ⚠️ **此文件仅放 DB / Redis 连接信息**。JWT secret、站点名等运行参数**不在此处**，请见下一节。
 
@@ -1624,11 +1897,11 @@ UPDATE system_config SET \`value\` = 'your_new_jwt_secret' WHERE \`key\` = 'jwt_
 
 | 场景 | 修改位置 | 是否需重启 |
 |------|---------|----------|
-| 改 DB 连接 | `config.yaml` | ✅ |
+| 改 DB 连接 | `backend/<DB_CONFIG_FILE>` | ✅ |
 | 改 JWT secret | `system_config` 表 | ✅ |
 | 改 token 有效期 | `system_config` 表 | ✅ |
 | 加新业务字段 | `sql/migrations/V2__xxx.sql` + 代码 | ✅ |
-| 改端口 | `config.yaml`（如 `server.port`）或启动命令参数 | ✅ |
+| 改端口 | `backend/<DB_CONFIG_FILE>` 中 `server.port`（若有）或启动命令参数 | ✅ |
 
 ## 七、接口调试示例
 
@@ -1654,13 +1927,13 @@ A：忘记执行 §4.1 的 `CREATE DATABASE`，请先建库再导入。
 A：init.sql 内部已按依赖倒序 DROP / 正序 CREATE，若仍报错请检查 MySQL 版本 ≥ 5.7。
 
 **Q3：启动报「connect ECONNREFUSED 127.0.0.1:3306」？**
-A：MySQL 未启动，或 `config.yaml` 中的 `host` / `port` 与实际不符。
+A：MySQL 未启动，或 `backend/<DB_CONFIG_FILE>` 中的 `host` / `port` 与实际不符。
 
 **Q4：jwt_secret 忘了改会有安全问题吗？**
-A：会有！**首次启动后必须**执行 `UPDATE system_config SET value='<新密钥>' WHERE key='jwt_secret';` 并重启服务。
+A：会有！**首次启动后必须**执行 `UPDATE system_config SET cfg_value='<新密钥>' WHERE cfg_key='jwt_secret';` 并重启服务。
 
 **Q5：MongoDB 项目没有 init.sql？**
-A：是的，MongoDB 无 DDL，种子数据由 application 启动时根据 `init()` 函数自动写入。运行参数仍写入 `config.yaml` 的 `mongodb` 块。
+A：是的，MongoDB 无 DDL，种子数据由 application 启动时根据 `init()` 函数自动写入。运行参数仍写入 DB 连接配置文件的 `mongodb` 块（如 `.env` 的 `MONGODB_URI` 或 `config.yaml` 的 `mongodb.uri`）。
 
 ---
 
@@ -1670,10 +1943,12 @@ A：是的，MongoDB 无 DDL，种子数据由 application 启动时根据 `init
 
 **README.md 生成补充规则**：
 
-1. **端口自动填入**：根据 `config.yaml` 中 `server.port` 字段（如无则用 `3000` / `8000` / `8080` 栈默认值）。
+1. **端口自动填入**：根据 DB 连接配置文件中 `server.port` 字段（如无则用 `3000` / `8000` / `8080` 栈默认值）。
 2. **数据库命令按栈分支**：用户选 MySQL → 显示 MySQL 命令；选 PostgreSQL → 显示 PostgreSQL 命令；选 MongoDB → 仅显示 MongoDB Compass 验证步骤。
 3. **启动命令按 §1.1 选定的栈精确输出**：禁止把其它栈的命令混进 README（避免误导）。
 4. **首屏突出 `init.sql` 路径**：在「四、数据库初始化」开头用粗体 + 代码块高亮 `backend/sql/init.sql` 这条路径。
+5. **§5 配置说明按 §1.5.2.a 分支**：模板里用 `<DB_CONFIG_FILE>` 占位，按所选栈替换为 `.env` / `config.yaml` / `application.yml` / `appsettings.json`，并生成对应的 §5.1 示例块（情况 A/B/C 之一）。**禁止**为 .env 栈生成 yaml 范例，反之亦然。
+6. **目录结构节按 §1.5.2.a 渲染**：若选 .env 栈，目录里同时出现 `.env.example`（提交）和 `.env`（gitignore）；若选 config.yaml 栈，目录里只有 `config.yaml`；若选 application.yml 栈，目录里写 `src/main/resources/application.yml`。
 
 #### 4.4 API 版本管理（迁移文件 Flyway 风格）
 
@@ -1727,13 +2002,32 @@ backend/sql/
 | 数据修正（迁移数据） | ❌ | ✅ 生成 V2__xxx.sql |
 | 重置开发环境 | ✅ | ❌（migrate down 或重建） |
 
-**配置 `config.yaml` 中新增迁移段**：
+**配置数据库连接文件中新增迁移段**（按 §1.5.2.a 文件格式分支）：
+
+**情况 A：`backend/.env`**（Node/NestJS/Python/PHP/Rust 栈）
+```bash
+MIGRATIONS_ENABLED=true
+MIGRATIONS_DIRECTORY=./sql/migrations
+MIGRATIONS_TABLE=schema_migrations       # 迁移工具自带的版本跟踪表
+MIGRATIONS_ON_STARTUP=true               # 启动时自动执行 pending 迁移
+```
+
+**情况 B：`backend/config.yaml`**（Go + Gin/Echo 栈）
 ```yaml
 migrations:
   enabled: true
   directory: ./sql/migrations
   table: schema_migrations       # 迁移工具自带的版本跟踪表
   on_startup: true               # 启动时自动执行 pending 迁移
+```
+
+**情况 C：`backend/src/main/resources/application.yml`**（Spring Boot 栈）
+```yaml
+spring:
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
 ```
 
 **ST 表新增迁移执行步骤**（由 agent 在每次接口 / 功能完善完成后追加）：
@@ -1813,7 +2107,8 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./backend/config.yaml:/app/config.yaml:ro
+      # DB 连接配置文件按 §1.5.2.a 自动选用（.env / config.yaml / application.yml）
+      - ./backend/<DB_CONFIG_FILE>:/app/<DB_CONFIG_FILE>:ro
       - ./backend/sql:/app/sql:ro
     restart: unless-stopped
 
@@ -1822,7 +2117,7 @@ volumes:
   redisdata:
 ```
 
-> 📌 **注意**：`config.yaml` 与 `sql/` 通过 volume 挂载而非 COPY，方便部署时改配置不改镜像。
+> 📌 **注意**：DB 连接配置文件（`<DB_CONFIG_FILE>`，按 §1.5.2.a 自动选用）与 `sql/` 通过 volume 挂载而非 COPY，方便部署时改配置不改镜像。
 
 **GitHub Actions ci.yml 模板**：
 ```yaml
@@ -1925,7 +2220,8 @@ jobs:
    🚀 启动 /saapi-connect
 
    📦 后端交接信息：
-   - 后端基址：http://localhost:<port>（来自 backend/config.yaml）
+   - 后端基址：http://localhost:<port>（端口见 `backend/<DB_CONFIG_FILE>` 中的 `server.port` 或启动命令）
+   - DB 连接配置：`backend/<DB_CONFIG_FILE>`（文件名按 §1.5.2.a 自动套用）
    - API 前缀：/api/v1
    - 鉴权方案：JWT（access + refresh）
    - CORS 状态：待 /saapi-connect 添加前端域名
@@ -2001,7 +2297,7 @@ jobs:
 | 项目 | 约定 |
 |------|------|
 | 后端目录 | `backend/` |
-| 配置目录 | `backend/config.yaml`（仅 DB + Redis 连接）+ `backend/sql/init.sql`（其余） |
+| 配置目录 | `backend/<DB_CONFIG_FILE>`（按 §1.5.2.a 框架惯例选用，如 `.env` / `config.yaml` / `application.yml`，仅 DB + Redis 连接）+ `backend/sql/init.sql`（其余运行参数） |
 | 步骤追踪 | 项目根目录 `STEPS.md` |
 | 接口规范来源 | 项目根目录 `api/openapi.yaml`（**由 `/saapi` 生成，本 skill 只读不写**） |
 | API 文档参考 | `api/API.md`（saapi 产出，人类阅读） |
@@ -2055,6 +2351,7 @@ jobs:
 | YYYY-MM-DD v5 | 新增 §4.7 完成判定（5 项必备）+ §4.8 自动询问启动 `/saapi-connect`（闭环前端接入）+ §4.9 全流程总结；与新建的 `saapi-connect` skill 形成 `/sainit-* → /safrontend → /saapi → /sabackend → /saapi-connect` 五段闭环 |
 | YYYY-MM-DD v6 | 新增核心原则 #10「避开数据库保留字」；§1.5.3 增加字段命名强约束（处理方式 A/B/C + ORM `@map` 特殊处理 + 字段命名映射表）；新增「数据库保留字速查表」附录，扫描 → 改写 → 记录映射全流程化 |
 | YYYY-MM-DD v7 | 新增核心原则 #7「⛔ 代码必须从 `system_config` 表读取（硬约束）」；拆分原 #5/#6 并明确 `config.yaml` 不写业务运行参数；新增 §1.5.4「运行参数 ConfigService（必装，硬约束）」含契约 / 启动流程 / 完整性审核扫描命令；提供 Node + Express + Python + FastAPI + Go + Gin 四栈实现参考 + 集中 `keys.ts` 强类型声明 + 启动必填项校验；明确禁止 `process.env` / `@Value` / `viper.Get` / `os.environ` / 常量硬编码 / 多处直查 system_config 六类违规写法；§1.5.7 启动清单增加「先装 ConfigService」前置提示 |
+| YYYY-MM-DD v8 | **数据库连接配置改为「按框架惯例选文件名」**（`config.yaml` 不再是硬约束）：新增 §1.5.2.a「框架→配置文件」映射表（NestJS/Laravel/FastAPI/Django/Flask/PHP/Rust → `.env`；Go + Gin/Echo → `config.yaml`；Spring Boot → `application.yml`；.NET → `appsettings.json`）；新增 §1.5.2.b「按文件格式分支的模板」（.env 模板 / config.yaml 模板 / application.yml 模板）；核心原则 #5 修订；§1.5.7 控制台清单按 A/B/C 三情况分支；新增 §1.5.8「在项目根 `README.md` 标注 DB 配置文件路径」三重落地（控制台 + backend/README.md + 项目根 README.md），含 Node/Go/Spring 三个示例；backend/README.md 模板 §5 改为「情况 A/B/C 三选一」，目录结构改用 `<DB_CONFIG_FILE>` 占位；§4.4 迁移配置段、docker-compose volume、`/saapi-connect` 交接清单、关键约定速查、STEPS.md 模板 Step 1.4 / Phase 1 列表同步替换为 `<DB_CONFIG_FILE>`；目录结构、产出示例、技术栈示例中的硬编码 `config.yaml` 全部框架化 |
 
 ---
 
