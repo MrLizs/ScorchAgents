@@ -107,6 +107,270 @@ fi
 > - **A. 是**（推荐，类型安全）
 > - **B. 否**（纯 JS，简单）
 
+### Step 2.5：写入 README.md 技术栈与运行指南
+
+> 📌 **本步骤为 safrontend 强制步骤**。在用户选定前端框架与语言后，**必须**把框架信息、初始化方式、运行方式写入项目根目录的 `README.md`，确保后续维护者能直接根据 README 跑起项目。
+
+#### 2.5.1 检查 README.md 是否存在
+
+```bash
+if [ -f README.md ]; then
+  echo "✅ README.md 已存在，将在末尾追加/更新「## 技术栈」与「## 本地开发」章节"
+else
+  echo "📝 README.md 不存在，将自动创建（结合 Step 0 读取的项目元信息）"
+fi
+```
+
+#### 2.5.2 写入规则
+
+根据 Step 2 选定的框架 + 语言组合，**必须**向 `README.md` 写入以下两个章节：
+
+| 章节 | 必含内容 |
+|------|---------|
+| `## 技术栈` | 框架名称 + 版本、构建工具、状态管理、路由、HTTP 客户端、UI 风格来源（指向 `prototype/assets/css/tokens.css`） |
+| `## 本地开发` | 环境要求（Node 版本）、初始化命令（脚手架命令）、依赖安装命令、启动命令（含默认端口）、构建命令、目录结构、常见问题 |
+
+#### 2.5.3 模板示例
+
+> AI 根据用户选择的框架，**只填对应模板**，不要输出其它模板的内容。
+
+##### 模板 A：Vue 3 + TypeScript + Pinia（默认推荐）
+
+```markdown
+## 技术栈
+
+- **前端框架**：Vue 3（Composition API）
+- **语言**：TypeScript
+- **构建工具**：Vite
+- **状态管理**：Pinia
+- **路由**：Vue Router 4
+- **HTTP 客户端**：Axios
+- **UI 风格**：复用 `prototype/assets/css/tokens.css`
+
+## 本地开发
+
+### 环境要求
+
+- Node.js ≥ 18.0.0
+- npm ≥ 9.0.0（或 pnpm ≥ 8 / yarn ≥ 1.22）
+
+### 初始化（首次拉取项目后）
+
+```bash
+# 1. 进入前端目录
+cd frontend
+
+# 2. 安装依赖
+npm install
+
+# 3. 启动开发服务器
+npm run dev
+# 浏览器打开 http://localhost:5173
+```
+
+### 常用命令
+
+| 命令 | 说明 |
+|------|------|
+| `npm run dev` | 启动开发服务器（默认 5173 端口） |
+| `npm run build` | 生产构建（输出到 `frontend/dist/`） |
+| `npm run preview` | 本地预览生产构建产物 |
+| `npm run type-check` | TypeScript 类型检查 |
+
+### 目录结构
+
+```
+frontend/
+├── public/              # 静态资源（不经 Vite 处理）
+├── src/
+│   ├── api/             # API 客户端
+│   ├── components/      # 通用组件
+│   ├── pages/           # 页面组件
+│   ├── router/          # 路由配置
+│   ├── stores/          # Pinia 状态管理
+│   ├── styles/          # 全局样式（含 tokens.css）
+│   ├── utils/           # 工具函数
+│   ├── App.vue
+│   └── main.ts
+├── index.html
+├── package.json
+├── tsconfig.json
+└── vite.config.ts
+```
+
+### 常见问题
+
+- **端口 5173 被占用**：Vite 会自动尝试 5174、5175...；也可在 `vite.config.ts` 中修改 `server.port`
+- **Node 版本过低**：建议使用 nvm 切换：`nvm use 18`
+- **依赖安装失败**：可尝试 `npm install --legacy-peer-deps`
+```
+
+##### 模板 B：React 18 + TypeScript + Zustand
+
+```markdown
+## 技术栈
+
+- **前端框架**：React 18
+- **语言**：TypeScript
+- **构建工具**：Vite
+- **状态管理**：Zustand
+- **路由**：React Router 6
+- **HTTP 客户端**：Axios
+- **UI 风格**：复用 `prototype/assets/css/tokens.css`
+
+## 本地开发
+
+### 环境要求
+
+- Node.js ≥ 18.0.0
+- npm ≥ 9.0.0（或 pnpm ≥ 8 / yarn ≥ 1.22）
+
+### 初始化（首次拉取项目后）
+
+```bash
+# 1. 进入前端目录
+cd frontend
+
+# 2. 安装依赖
+npm install
+
+# 3. 启动开发服务器
+npm run dev
+# 浏览器打开 http://localhost:5173
+```
+
+### 常用命令
+
+| 命令 | 说明 |
+|------|------|
+| `npm run dev` | 启动开发服务器（默认 5173 端口） |
+| `npm run build` | 生产构建（输出到 `frontend/dist/`） |
+| `npm run preview` | 本地预览生产构建产物 |
+| `npm run lint` | ESLint 代码检查 |
+| `npm run type-check` | TypeScript 类型检查 |
+
+### 目录结构
+
+```
+frontend/
+├── public/              # 静态资源
+├── src/
+│   ├── api/             # API 客户端
+│   ├── components/      # 通用组件
+│   ├── pages/           # 页面组件
+│   ├── router/          # 路由配置
+│   ├── stores/          # Zustand 状态管理
+│   ├── styles/          # 全局样式（含 tokens.css）
+│   ├── utils/           # 工具函数
+│   ├── App.tsx
+│   └── main.tsx
+├── index.html
+├── package.json
+├── tsconfig.json
+└── vite.config.ts
+```
+
+### 常见问题
+
+- **端口 5173 被占用**：Vite 会自动尝试 5174、5175...；也可在 `vite.config.ts` 中修改 `server.port`
+- **Node 版本过低**：建议使用 nvm 切换：`nvm use 18`
+- **依赖安装失败**：可尝试 `npm install --legacy-peer-deps`
+```
+
+##### 模板 C：React 18 + TypeScript + Redux Toolkit
+
+```markdown
+## 技术栈
+
+- **前端框架**：React 18
+- **语言**：TypeScript
+- **构建工具**：Vite
+- **状态管理**：Redux Toolkit
+- **路由**：React Router 6
+- **HTTP 客户端**：Axios
+- **UI 风格**：复用 `prototype/assets/css/tokens.css`
+
+## 本地开发
+
+### 环境要求
+
+- Node.js ≥ 18.0.0
+- npm ≥ 9.0.0（或 pnpm ≥ 8 / yarn ≥ 1.22）
+
+### 初始化（首次拉取项目后）
+
+```bash
+cd frontend
+npm install
+npm run dev
+# 浏览器打开 http://localhost:5173
+```
+
+### 常用命令
+
+| 命令 | 说明 |
+|------|------|
+| `npm run dev` | 启动开发服务器（默认 5173 端口） |
+| `npm run build` | 生产构建（输出到 `frontend/dist/`） |
+| `npm run preview` | 本地预览生产构建产物 |
+| `npm run lint` | ESLint 代码检查 |
+| `npm run type-check` | TypeScript 类型检查 |
+
+### 目录结构
+
+```
+frontend/
+├── public/
+├── src/
+│   ├── api/             # API 客户端
+│   ├── components/      # 通用组件
+│   ├── pages/           # 页面组件
+│   ├── router/          # 路由配置
+│   ├── store/           # Redux store + slices
+│   ├── styles/          # 全局样式（含 tokens.css）
+│   ├── utils/           # 工具函数
+│   ├── App.tsx
+│   └── main.tsx
+├── index.html
+├── package.json
+├── tsconfig.json
+└── vite.config.ts
+```
+
+### 常见问题
+
+- **端口 5173 被占用**：Vite 会自动尝试 5174、5175...；也可在 `vite.config.ts` 中修改 `server.port`
+- **Node 版本过低**：建议使用 nvm 切换：`nvm use 18`
+- **依赖安装失败**：可尝试 `npm install --legacy-peer-deps`
+```
+
+##### 模板 D：纯 JavaScript（不推荐，TS 不可用时使用）
+
+根据实际选用的框架（Vue 3 / React 18），将上述模板的 `TypeScript` 替换为 `JavaScript`，并删除 `tsconfig.json` 相关说明、删除 `npm run type-check` 命令。
+
+#### 2.5.4 写入位置规则
+
+- 若 `README.md` 已存在：定位到末尾的「## 技术栈」与「## 本地开发」章节，**覆盖更新**（其它章节保持不动）
+- 若 `README.md` 不存在：使用 Step 0 读取的项目元信息创建完整 README.md，**必须**包含：项目简介、页面清单、技术栈、本地开发、数据存储（如有）
+
+#### 2.5.5 验证输出
+
+```
+📝 写入 README.md：
+   • 框架：Vue 3 + TypeScript
+   • 状态管理：Pinia
+   • 初始化命令：cd frontend && npm install
+   • 启动命令：npm run dev → http://localhost:5173
+   • 章节位置：## 技术栈、## 本地开发
+   ✅ README.md 已更新
+```
+
+> ⚠️ **本步骤必须先于 Step 3（生成 STEPS.md）执行**——STEPS.md 中的「框架」「语言」字段应与 README.md 保持一致。
+
+> 📌 **safrontend 被重新调用时**：
+> - 若 README.md 已包含「## 技术栈」与「## 本地开发」章节，且框架未变更：**跳过本步**
+> - 若框架发生变更（如 Vue 3 → React 18）：提示用户「检测到框架变更，是否覆盖更新 README.md 技术栈章节？」
+
 ### Step 3：生成 `STEPS.md`
 
 在项目根目录（与 `prototype/` 同级）创建 `STEPS.md`，包含完整开发步骤清单。

@@ -522,6 +522,91 @@ redis:
 
 追问完毕后，按该生态标准目录生成（如 Spring Boot 的 `src/main/java/com/example/{controller,service,repository,entity,dto,config}/`）。
 
+**1.5.6 数据库创建与 `init.sql` 导入提示（必读）**
+
+> 📌 **目的**：配置文件 + SQL 文件生成完毕后，**必须**明确告诉用户：
+> 1. 数据库需要**手动创建**（init.sql 只建表，不建库）
+> 2. **init.sql 文件位于哪个路径**（让用户一眼能找到）
+> 3. **如何用一行命令把它导入数据库**
+> 4. **如何配置 `config.yaml` 中的连接信息**（库名 / 用户名 / 密码 / 主机 / 端口）
+>
+> 这些信息**双重落地**：
+> - 立即以控制台高亮提示告知用户
+> - 写入 `backend/README.md`（详见 §4.3）以便用户随时查阅
+
+**Step 1.5.6.a 在控制台打印操作清单**
+
+骨架文件生成完毕后，**必须**在控制台输出以下高亮信息（按用户所选数据库类型分支）：
+
+```
+═══════════════════════════════════════════════════════
+🗄️  数据库初始化清单（请按顺序执行）
+═══════════════════════════════════════════════════════
+
+1️⃣  手动创建数据库（init.sql 只建表，不建库）
+
+   • MySQL：
+     mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS <库名> DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+   • PostgreSQL：
+     psql -U postgres -c "CREATE DATABASE <库名> ENCODING 'UTF8';"
+
+   • MongoDB：
+     # 无需建库，application 首次写入时自动创建
+
+   📌 <库名> 与 §1.5.2 生成的 config.yaml 中 database.name 保持一致
+
+2️⃣  导入初始化 SQL（路径已固定）
+
+   📂 SQL 文件绝对路径：<项目根>/backend/sql/init.sql
+   ⚠️  此文件由本 skill 在 §1.5.3 自动生成，包含：
+      - DROP + CREATE 全部业务表
+      - 初始角色、管理员账号（admin / 123456）
+      - system_config 表 + JWT secret 等默认运行参数
+
+   • MySQL：
+     mysql -u root -p <库名> < backend/sql/init.sql
+
+   • PostgreSQL：
+     psql -U postgres -d <库名> -f backend/sql/init.sql
+
+   • MongoDB（无 SQL）：
+     跳过此步；种子数据由后端启动时根据 config.yaml + 业务代码自动写入
+
+3️⃣  配置 backend/config.yaml
+
+   请打开 backend/config.yaml，核对/修改以下字段：
+   ┌─────────────────────────────────────────────────┐
+   │  database:                                      │
+   │    host:     <你的 DB 主机，默认 localhost>      │
+   │    port:     <你的 DB 端口，MySQL 3306 / PG 5432>│
+   │    username: <连接用户名>                        │
+   │    password: <连接密码>                          │
+   │    name:     <库名，必须与第 1 步一致>            │
+   └─────────────────────────────────────────────────┘
+   （如启用 Redis，同步核对 redis 块）
+
+4️⃣  启动后端（命令见 README.md「快速启动」一节）
+
+═══════════════════════════════════════════════════════
+```
+
+> 💡 **小贴士**：agent 在控制台打印后，**必须**追加一条简短确认：
+> `✅ 已写入 backend/README.md，可随时查阅。是否继续生成接口代码？`
+
+**Step 1.5.6.b 库名命名规则**
+
+- **默认**：`app_db`（与 §1.5.2 config.yaml 模板一致）
+- **建议**：`<项目拼音前缀>_db`，如项目「好物触手」→ `hwcs_db`
+- **MongoDB**：留空（不需建库），但仍写入 config.yaml 的 `mongodb.uri` 中
+
+**Step 1.5.6.c 常见数据库客户端工具提示**
+
+告知用户可用 GUI 工具验证：
+- MySQL：Navicat / DBeaver / MySQL Workbench / TablePlus
+- PostgreSQL：pgAdmin / DBeaver
+- MongoDB：MongoDB Compass / Studio 3T
+
 #### 1.6 安装依赖
 
 根据所选栈自动执行：
@@ -913,13 +998,302 @@ export default {
 
 #### 4.3 生成 `backend/README.md`
 
-包含：
-- 技术栈说明
-- 启动命令（按栈）
-- 环境变量（虽然 DB 走 yaml，但 JWT secret 等运行参数说明）
-- 目录结构图
-- 接口调试示例（curl）
-- 数据库初始化步骤（`mysql -u root -p < sql/init.sql`）
+README.md 是用户**拿到代码后第一个打开的文件**，必须按以下结构生成（**所有内容自动根据 §1.1 选定的技术栈分支生成**，禁止把其它栈的命令混进来）：
+
+```markdown
+# <项目中文名> 后端服务
+
+> 基于 OpenAPI 规范自动生成 · 脚手架版本 v5
+> 技术栈：<§1.1 选定的栈> + <§1.1 选定的 ORM> + <§1.1 选定的数据库>
+> 代码组织：<§1.3 选定的架构>　部署：<§1.2 选定的部署架构>
+> 表名命名：<§1.4 选定的前缀规则>
+
+## 📋 目录
+
+- [一、目录结构](#一目录结构)
+- [二、环境要求](#二环境要求)
+- [三、快速启动](#三快速启动)        ← 命令行启动方式
+- [四、数据库初始化](#四数据库初始化) ← 必读：建库 + 导入 init.sql
+- [五、配置说明](#五配置说明)         ← config.yaml + system_config
+- [六、运行参数调整](#六运行参数调整)  ← 怎么改 JWT secret 等
+- [七、接口调试示例](#七接口调试示例)  ← curl
+- [八、常见问题](#八常见问题)
+
+---
+
+## 一、目录结构
+
+\```
+backend/
+├── config.yaml              # 数据库连接配置（仅此一项）
+├── sql/
+│   ├── init.sql             # ⭐ 首次部署必须导入的初始化文件
+│   └── migrations/          # 后续迭代的 Flyway 风格迁移脚本
+├── src/                     # 源码（按 §1.3 架构生成）
+├── tests/                   # 测试
+├── package.json             # Node 系 / 或 go.mod / requirements.txt / pom.xml
+├── tsconfig.json            # TS 工程配置
+├── .env.example             # 环境变量样例
+└── README.md                # 本文件
+\```
+
+## 二、环境要求
+
+| 工具 | 版本要求 | 用途 |
+|------|---------|------|
+| Node.js | ≥ 18.x（或 Go ≥ 1.21 / Python ≥ 3.10 / Java ≥ 17） | 运行时 |
+| <数据库> | <MySQL 8.0+ / PostgreSQL 15+ / MongoDB 6+> | 主存储 |
+| Redis（可选） | ≥ 6.x | 缓存 / Session |
+| npm / pnpm / yarn | 最新稳定版 | 包管理 |
+
+## 三、快速启动
+
+> 📌 **首次启动顺序**：
+> 1. 完成 [四、数据库初始化](#四数据库初始化)
+> 2. 完成 [五、配置说明](#五配置说明)
+> 3. 再执行下面的「启动命令」
+
+### 3.1 安装依赖
+
+\```
+# Node.js
+cd backend
+npm install        # 或 pnpm install / yarn install
+
+# Python
+cd backend
+python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+
+# Go
+cd backend
+go mod tidy
+
+# Java (Maven)
+cd backend
+mvn install -DskipTests
+
+# Java (Gradle)
+cd backend
+gradle build -x test
+\```
+
+### 3.2 启动开发服务器
+
+\```
+# Node + Express + TS（监听 <端口>，默认 3000）
+cd backend
+npm run dev                 # 等价于：ts-node-dev --respawn src/index.ts
+
+# Node + NestJS
+cd backend
+npm run start:dev
+
+# Python + FastAPI（监听 8000）
+cd backend
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+# Go + Gin（监听 8080）
+cd backend
+go run main.go
+
+# Java Spring Boot（监听 8080）
+cd backend
+mvn spring-boot:run         # 或 gradle bootRun
+\```
+
+> ✅ 启动成功标志：控制台输出 `Server listening on port <端口>` 且无报错。
+> 📍 访问健康检查：`curl http://localhost:<端口>/health`
+
+### 3.3 生产构建
+
+\```
+# Node
+npm run build && npm start
+
+# Python（用 gunicorn 替代 uvicorn）
+gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000
+
+# Go
+go build -o bin/server . && ./bin/server
+
+# Java
+mvn clean package -DskipTests && java -jar target/*.jar
+\```
+
+## 四、数据库初始化 ⭐ 必读
+
+> ⚠️ **本节是首次部署的关键步骤**，按顺序操作。
+
+### 4.1 手动创建数据库
+
+`init.sql` **只建表，不建库**。请先手动创建数据库：
+
+**MySQL**：
+\```
+mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS <库名> DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+\```
+
+**PostgreSQL**：
+\```
+psql -U postgres -c "CREATE DATABASE <库名> ENCODING 'UTF8';"
+\```
+
+**MongoDB**：
+> 无需手动建库，application 首次写入时自动创建集合。
+
+> 📌 **库名** = `backend/config.yaml` 中 `database.name` 的值，默认 `app_db`，建议改为 `<项目前缀>_db`。
+
+### 4.2 导入初始化 SQL
+
+**SQL 文件路径（固定）**：
+
+```
+<项目根>/backend/sql/init.sql
+```
+
+> 💡 即当前 `backend/` 目录下的 `sql/init.sql` 文件。
+
+**MySQL 导入命令**：
+\```
+cd backend
+mysql -u root -p <库名> < sql/init.sql
+\```
+
+**PostgreSQL 导入命令**：
+\```
+cd backend
+psql -U postgres -d <库名> -f sql/init.sql
+\```
+
+> 📦 init.sql 内容包括：
+> - DROP + CREATE 全部业务表（带 §1.4 选定的前缀，如 `hwcs_users`）
+> - 通用表：`roles` / `users` / `system_config`
+> - 初始数据：默认角色、管理员账号（用户名 `admin`，密码 `123456`）
+> - `system_config` 默认运行参数（JWT secret、站点名、上传域名等）
+
+### 4.3 验证导入是否成功
+
+\```
+# MySQL
+mysql -u root -p <库名> -e "SHOW TABLES;"
+
+# PostgreSQL
+psql -U postgres -d <库名> -c "\dt"
+\```
+
+预期看到至少以下表：`roles` / `users` / `system_config` / 各业务表（带前缀）。
+
+## 五、配置说明
+
+### 5.1 `backend/config.yaml`（环境敏感，仅 DB 连接）
+
+打开 `backend/config.yaml`，按你的实际环境修改：
+
+\```yaml
+database:
+  host: localhost            # ← DB 服务器地址
+  port: 3306                 # ← MySQL 3306 / PostgreSQL 5432 / MongoDB 27017
+  username: root             # ← 连接用户名
+  password: ""               # ← 连接密码（首次留空，启动后请修改）
+  name: app_db               # ← 库名（必须与 §4.1 创建的库名一致）
+  charset: utf8mb4
+  timezone: "+08:00"
+  pool:
+    min: 2
+    max: 20
+
+# 可选：Redis（如使用）
+redis:
+  host: localhost
+  port: 6379
+  password: ""
+  db: 0
+\```
+
+> ⚠️ **此文件仅放 DB / Redis 连接信息**。JWT secret、站点名等运行参数**不在此处**，请见下一节。
+
+### 5.2 `system_config` 表（运行参数，可热改）
+
+所有**不随环境变化**的运行参数都在 `init.sql` 里以 INSERT 写入 `system_config` 表：
+
+| key | 默认值 | 含义 |
+|-----|--------|------|
+| `jwt_secret` | `CHANGE_ME_AFTER_FIRST_RUN` | JWT 签名密钥，**首次启动后必须修改** |
+| `jwt_expire_seconds` | `7200` | Access Token 有效期 |
+| `refresh_expire_seconds` | `2592000` | Refresh Token 有效期 |
+| `site_name` | `My App` | 站点名称 |
+| `upload_domain` | `https://cdn.example.com` | 文件访问域名 |
+| `sms_provider` | `mock` | 短信服务商 |
+| `oss_provider` | `local` | 对象存储类型 |
+| `wechat_app_id` | `""` | 微信 AppID（如使用） |
+| `wechat_app_secret` | `""` | 微信 AppSecret（如使用） |
+
+**修改方式**：
+
+\```
+# 方式 1：直接 SQL
+UPDATE system_config SET \`value\` = 'your_new_jwt_secret' WHERE \`key\` = 'jwt_secret';
+
+# 方式 2：后台管理页面（项目若已实现）
+\```
+
+> 💡 这种设计的优点：换环境（开发 / 测试 / 生产）时**不需要改代码**，通过后台或 SQL 就能调整运行参数。
+
+## 六、运行参数调整
+
+| 场景 | 修改位置 | 是否需重启 |
+|------|---------|----------|
+| 改 DB 连接 | `config.yaml` | ✅ |
+| 改 JWT secret | `system_config` 表 | ✅ |
+| 改 token 有效期 | `system_config` 表 | ✅ |
+| 加新业务字段 | `sql/migrations/V2__xxx.sql` + 代码 | ✅ |
+| 改端口 | `config.yaml`（如 `server.port`）或启动命令参数 | ✅ |
+
+## 七、接口调试示例
+
+> 完整接口列表见项目根 `api/API.md`。
+
+\```
+# 登录获取 token
+curl -X POST http://localhost:<端口>/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"123456"}'
+
+# 携带 token 访问受保护接口
+curl http://localhost:<端口>/api/v1/users/me \
+  -H "Authorization: Bearer <your_token>"
+\```
+
+## 八、常见问题
+
+**Q1：执行 init.sql 报「Unknown database '<库名>'」？**
+A：忘记执行 §4.1 的 `CREATE DATABASE`，请先建库再导入。
+
+**Q2：执行 init.sql 报外键错？**
+A：init.sql 内部已按依赖倒序 DROP / 正序 CREATE，若仍报错请检查 MySQL 版本 ≥ 5.7。
+
+**Q3：启动报「connect ECONNREFUSED 127.0.0.1:3306」？**
+A：MySQL 未启动，或 `config.yaml` 中的 `host` / `port` 与实际不符。
+
+**Q4：jwt_secret 忘了改会有安全问题吗？**
+A：会有！**首次启动后必须**执行 `UPDATE system_config SET value='<新密钥>' WHERE key='jwt_secret';` 并重启服务。
+
+**Q5：MongoDB 项目没有 init.sql？**
+A：是的，MongoDB 无 DDL，种子数据由 application 启动时根据 `init()` 函数自动写入。运行参数仍写入 `config.yaml` 的 `mongodb` 块。
+
+---
+
+🤖 **本 README 由 `/sabackend` skill 自动生成**
+修改栈/数据库时需重新生成。
+```
+
+**README.md 生成补充规则**：
+
+1. **端口自动填入**：根据 `config.yaml` 中 `server.port` 字段（如无则用 `3000` / `8000` / `8080` 栈默认值）。
+2. **数据库命令按栈分支**：用户选 MySQL → 显示 MySQL 命令；选 PostgreSQL → 显示 PostgreSQL 命令；选 MongoDB → 仅显示 MongoDB Compass 验证步骤。
+3. **启动命令按 §1.1 选定的栈精确输出**：禁止把其它栈的命令混进 README（避免误导）。
+4. **首屏突出 `init.sql` 路径**：在「四、数据库初始化」开头用粗体 + 代码块高亮 `backend/sql/init.sql` 这条路径。
 
 #### 4.4 API 版本管理（迁移文件 Flyway 风格）
 
