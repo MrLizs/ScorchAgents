@@ -25,12 +25,13 @@ description: "基于 /saapi 生成的 OpenAPI 规范，按用户选择的技术�
 2. **技术栈选择**：每次启动时由用户选择（4 预设 + 自定义）
 3. **架构选择**：每次启动时由用户选择（用大白话 + 专业术语并排展示）
 4. **存放位置**：`backend/` 目录，与 `prototype/`、`frontend/`、`api/` 平级
-5. **配置文件**：`backend/config.yaml` 只放**数据库连接**配置
-6. **初始化数据**：`backend/sql/init.sql` 放 DDL + 初始数据（含 JWT secret 等运行参数默认值）
-7. **步骤追踪**：在项目根目录维护 `STEPS.md`（与 safrontend 的 STEPS.md 合并存在）
-8. **完整性**：最后一步必须核对 OpenAPI 中的每一个接口都在 STEPS.md 与代码中有映射
-9. **SQL 可重入**：每次执行 init.sql 会先清理表数据再插入初始数据（幂等）
-10. **避开数据库保留字**：生成表结构、ORM 模型、DTO/Entity 字段时，**严禁**直接使用目标数据库引擎的保留字作为字段名（如 `order`、`group`、`user`、`key`、`value`、`desc`、`status`、`name`、`type`、`time`、`date`、`count`、`sum`、`select`、`from`、`where`、`rank`、`share`、`comment`、`match`、`mode`、`password`、`role` 等）；必须在名称前增加**功能前缀**（推荐 `f_` / `col_` / `biz_`，或使用业务语义前缀如 `account_name`），或改用其它非保留字命名。该规则同时覆盖 init.sql 字段、ORM 模型字段、DTO/Entity 字段
+5. **配置文件**：`backend/config.yaml` 只放**数据库连接**配置（host / port / username / password / dbname / redis 连接等），不写任何业务运行参数
+6. **运行参数存储**：所有运行时可调参数（JWT secret / 过期时间、第三方 AppID / AppSecret、上传域名、短信 key、站点名、对象存储配置、限流阈值 …）**默认值**统一写入 `init.sql` 的 `system_config(cfg_key, cfg_value, cfg_desc)` 表；上线后通过后台管理页或 SQL 即可修改，无需改代码或重启
+7. ⛔ **代码必须从 `system_config` 表读取（硬约束）**：业务代码**绝对禁止**通过 `process.env.JWT_SECRET`、`os.environ['JWT_SECRET']`、`yaml` 文件、`@Value` 注解、`const JWT_SECRET = 'xxx'` 等方式硬编码或从环境变量 / yaml 读取这些运行参数；**所有运行参数一律经由 `ConfigService`（或同名封装）从 `system_config` 表读取**，带内存缓存（TTL 30~60s）以减少 DB 压力。任何违反此规则的实现都视为**未完成**。
+8. **步骤追踪**：在项目根目录维护 `STEPS.md`（与 safrontend 的 STEPS.md 合并存在）
+9. **完整性**：最后一步必须核对 OpenAPI 中的每一个接口都在 STEPS.md 与代码中有映射
+10. **SQL 可重入**：每次执行 init.sql 会先清理表数据再插入初始数据（幂等）
+11. **避开数据库保留字**：生成表结构、ORM 模型、DTO/Entity 字段时，**严禁**直接使用目标数据库引擎的保留字作为字段名（如 `order`、`group`、`user`、`key`、`value`、`desc`、`status`、`name`、`type`、`time`、`date`、`count`、`sum`、`select`、`from`、`where`、`rank`、`share`、`comment`、`match`、`mode`、`password`、`role` 等）；必须在名称前增加**功能前缀**（推荐 `f_` / `col_` / `biz_`，或使用业务语义前缀如 `account_name`），或改用其它非保留字命名。该规则同时覆盖 init.sql 字段、ORM 模型字段、DTO/Entity 字段
 
 ## 与其他 skill 的关系
 
@@ -388,7 +389,7 @@ backend/
     └── jwt/
 ```
 
-（其他栈与架构的目录按相同原则生成，详细模板在 §1.5.5）
+（其他栈与架构的目录按相同原则生成，详细模板在 §1.5.6）
 
 **1.5.2 生成 `backend/config.yaml`（仅数据库配置）**
 
@@ -416,6 +417,8 @@ redis:
 ```
 
 > ⚠️ **此文件仅放 DB 连接**。运行参数（JWT secret、上传域名、短信 key…）写入 `system_config` 表。
+>
+> 🚨 **再次强调（核心原则 #7）**：上面那些运行参数**不仅默认值要入库，业务代码也只能从库读取**。详见 §1.5.4（ConfigService 硬约束实现）。
 
 **1.5.3 生成 `backend/sql/init.sql`（DDL + 初始数据）**
 
@@ -530,7 +533,355 @@ redis:
    -- ============================================
    ```
 
-**1.5.4 关键脚手架代码模板**
+**1.5.4 运行参数 ConfigService（必装，硬约束，承接核心原则 #7）**
+
+> 🚨 **本节是核心原则 #7 的代码层面强制落点**。只要 §1.5.3 中存在 `system_config` 表，**任何**业务代码要读取运行参数（JWT secret / 过期时间、第三方 key、上传域名、限流阈值 …），**唯一合规路径**就是经由本节定义的 `ConfigService`。以下写法一律**禁止**：
+>
+> | 禁止写法 | 示例 | 后果 |
+> |---------|------|------|
+> | 环境变量读取 | `process.env.JWT_SECRET` / `os.environ['JWT_SECRET']` / `System.getenv("jwt_secret")` | ❌ 拒绝合并 |
+> | yaml / properties 读取 | `yaml.load()['jwt']['secret']` / `@Value("${jwt.secret}")` / `viper.Get("jwt.secret")` | ❌ 拒绝合并 |
+> | 常量硬编码 | `const JWT_SECRET = 'xxx'` / `JWT_SECRET = "xxx"` | ❌ 拒绝合并 |
+> | 直接 SELECT 而不经过封装 | 各 service / middleware 各自 `SELECT cfg_value FROM system_config WHERE cfg_key='jwt_secret'` | ❌ 必须改为 `ConfigService.get('jwt_secret')` |
+>
+> ✅ **唯一允许**：`configService.get('jwt_secret')` / `configService.getInt('jwt_expire_seconds')` / `configService.getJson('wechat_pay_config')` …
+
+**1.5.4.1 ConfigService 契约（所有栈通用）**
+
+| 方法 | 签名 | 行为 |
+|------|------|------|
+| `get(key)` | `(key: string) => string` | 同步读字符串；缺失时抛 `ConfigKeyNotFoundError` |
+| `getInt(key)` | `(key: string) => number` | 读并 `parseInt`，缺失或非数字抛错 |
+| `getBool(key)` | `(key: string) => boolean` | 读并解析 `true/false/1/0/yes/no` |
+| `getJson<T>(key)` | `(key: string) => T` | `JSON.parse` 后强类型返回；非法 JSON 抛错 |
+| `set(key, value, desc?)` | `(key, value, desc?) => Promise<void>` | UPSERT（仅后台管理 / 启动 seed 使用） |
+| `refresh()` | `() => Promise<void>` | 清缓存并重载，admin 修改配置后由后台调用 |
+
+**实现要求**：
+
+1. **首次启动批量预热**：服务 `ready` / `listen` 之前一次性 `SELECT cfg_key, cfg_value FROM system_config` 全部加载到内存 `Map`，避免运行时每次打 DB。
+2. **TTL 缓存**：内存缓存默认 `30` 秒过期（可调）；`refresh()` 立即重载。
+3. **强类型可枚举**：在 `src/config/keys.ts`（或同名）集中声明所有 key 与类型，未声明的 key 运行时给 warning（防止拼写错误）。
+4. **后台修改立即生效**：当 STEPS.md「🏢 后台管理模块清单」含 `系统配置` 时，`PUT /api/v1/admin/configs/:key` 调用 `configService.set(...)`，**必须**通过写后立即 `refresh()`，或等待 TTL 过期。
+5. **初始化校验**：服务启动时遍历 `keys.ts` 中所有 **必填项 key**（如 `jwt_secret`），`system_config` 表里若不存在 → 直接启动失败并打印明确错误信息，**禁止**用代码内 fallback 兜底。
+
+**1.5.4.2 各栈实现参考**
+
+<details>
+<summary><b>Node + Express + TS（推荐：Prisma 单例）</b></summary>
+
+```ts
+// backend/src/config/keys.ts
+export const CONFIG_KEYS = {
+  jwtSecret:            { key: 'jwt_secret',            type: 'string', required: true  },
+  jwtExpireSeconds:     { key: 'jwt_expire_seconds',    type: 'number', required: true, default: 7200 },
+  refreshExpireSeconds: { key: 'refresh_expire_seconds',type: 'number', required: true, default: 2592000 },
+  siteName:             { key: 'site_name',             type: 'string', required: false, default: 'My App' },
+  uploadDomain:         { key: 'upload_domain',         type: 'string', required: false },
+  smsProvider:          { key: 'sms_provider',          type: 'string', required: false, default: 'mock' },
+  ossProvider:          { key: 'oss_provider',          type: 'string', required: false, default: 'local' },
+  wechatAppId:          { key: 'wechat_app_id',         type: 'string', required: false },
+  wechatAppSecret:      { key: 'wechat_app_secret',     type: 'string', required: false },
+} as const;
+```
+
+```ts
+// backend/src/config/config.service.ts
+import { prisma } from '../db/client';
+import { CONFIG_KEYS } from './keys';
+
+type Cache = { value: string; expireAt: number };
+const TTL_MS = 30_000;
+const cache = new Map<string, Cache>();
+
+export class ConfigKeyNotFoundError extends Error {
+  constructor(key: string) { super(`Config key not found in system_config: ${key}`); }
+}
+
+async function loadAll() {
+  const rows = await prisma.systemConfig.findMany();   // model: SystemConfig { cfgKey, cfgValue, ... }
+  cache.clear();
+  for (const r of rows) cache.set(r.cfgKey, { value: r.cfgValue, expireAt: Date.now() + TTL_MS });
+}
+
+async function ensureLoaded() {
+  if (cache.size === 0) await loadAll();
+}
+
+function raw(key: string): string {
+  const hit = cache.get(key);
+  if (hit && hit.expireAt > Date.now()) return hit.value;
+  throw new ConfigKeyNotFoundError(key);
+}
+
+export const configService = {
+  async init() { await loadAll(); },
+
+  async get(key: string)              { await ensureLoaded(); return raw(key); },
+  async getInt(key: string)           { return parseInt(await this.get(key), 10); },
+  async getBool(key: string)          { return /^(true|1|yes)$/i.test(await this.get(key)); },
+  async getJson<T = unknown>(key: string): Promise<T> { return JSON.parse(await this.get(key)); },
+
+  async set(key: string, value: string, desc?: string) {
+    await prisma.systemConfig.upsert({
+      where:  { cfgKey: key },
+      update: { cfgValue: value, cfgDesc: desc },
+      create: { cfgKey: key, cfgValue: value, cfgDesc: desc },
+    });
+    cache.delete(key);
+  },
+
+  async refresh() { await loadAll(); },
+
+  /** 启动校验：必填项缺失则直接抛错 */
+  async assertRequired() {
+    await ensureLoaded();
+    for (const def of Object.values(CONFIG_KEYS)) {
+      if (def.required && !cache.has(def.key)) {
+        throw new ConfigKeyNotFoundError(def.key);
+      }
+    }
+  },
+};
+```
+
+```ts
+// backend/src/middlewares/auth.ts（正确用法）
+import jwt from 'jsonwebtoken';
+import { configService } from '../config/config.service';
+
+export async function signToken(payload: object) {
+  const secret  = await configService.get('jwt_secret');                      // ✅ 走表
+  const expires = await configService.getInt('jwt_expire_seconds');           // ✅ 走表
+  return jwt.sign(payload, secret, { expiresIn: expires });
+}
+```
+
+> ❌ 反例（任何类似写法都视为不合格）：
+> ```ts
+> const JWT_SECRET = process.env.JWT_SECRET;            // 禁止
+> @Value('${jwt.secret}') secret: string;               // 禁止（NestJS 注解）
+> ```
+
+</details>
+
+<details>
+<summary><b>Python + FastAPI</b></summary>
+
+```python
+# backend/app/config/keys.py
+from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class Cfg:
+    key: str
+    type: str            # 'string' | 'number' | 'bool' | 'json'
+    required: bool = False
+    default: object = None
+
+CONFIG_KEYS = {
+    "jwt_secret":              Cfg("jwt_secret", "string", required=True),
+    "jwt_expire_seconds":      Cfg("jwt_expire_seconds", "number", required=True, default=7200),
+    "refresh_expire_seconds":  Cfg("refresh_expire_seconds", "number", required=True, default=2592000),
+    "site_name":               Cfg("site_name", "string", required=False, default="My App"),
+    "wechat_app_id":           Cfg("wechat_app_id", "string", required=False),
+    "wechat_app_secret":       Cfg("wechat_app_secret", "string", required=False),
+}
+```
+
+```python
+# backend/app/config/service.py
+import json, time
+from typing import Any
+from sqlalchemy import select
+from app.db.session import SessionLocal
+from app.models.system_config import SystemConfig        # 表 system_config
+from .keys import CONFIG_KEYS
+
+class ConfigKeyNotFoundError(KeyError): ...
+
+class ConfigService:
+    TTL = 30  # 秒
+    def __init__(self):
+        self._cache: dict[str, tuple[Any, float]] = {}
+
+    async def init(self):
+        await self._load_all()
+
+    async def _load_all(self):
+        async with SessionLocal() as db:
+            rows = (await db.execute(select(SystemConfig))).scalars().all()
+        self._cache = {r.cfg_key: (r.cfg_value, time.time() + self.TTL) for r in rows}
+
+    async def _ensure(self):
+        if not self._cache:
+            await self._load_all()
+
+    async def get(self, key: str) -> str:
+        await self._ensure()
+        if key not in self._cache:
+            raise ConfigKeyNotFoundError(key)
+        return self._cache[key][0]
+
+    async def get_int(self, key: str) -> int: return int(await self.get(key))
+    async def get_bool(self, key: str) -> bool: return (await self.get(key)).lower() in ("true","1","yes")
+    async def get_json(self, key: str):        return json.loads(await self.get(key))
+
+    async def set(self, key: str, value: str, desc: str | None = None):
+        async with SessionLocal() as db:
+            row = await db.get(SystemConfig, key)
+            if row:
+                row.cfg_value = value; row.cfg_desc = desc
+            else:
+                db.add(SystemConfig(cfg_key=key, cfg_value=value, cfg_desc=desc))
+            await db.commit()
+        self._cache.pop(key, None)
+
+    async def refresh(self): await self._load_all()
+    async def assert_required(self):
+        await self._ensure()
+        for c in CONFIG_KEYS.values():
+            if c.required and c.key not in self._cache:
+                raise ConfigKeyNotFoundError(c.key)
+
+config_service = ConfigService()
+```
+
+```python
+# backend/app/core/security.py（正确用法）
+import jwt
+from app.config.service import config_service
+
+async def create_access_token(payload: dict) -> str:
+    secret  = await config_service.get("jwt_secret")          # ✅ 走表
+    expires = await config_service.get_int("jwt_expire_seconds")
+    return jwt.encode(payload, secret, algorithm="HS256", expires_in=expires)
+```
+
+</details>
+
+<details>
+<summary><b>Go + Gin</b></summary>
+
+```go
+// backend/internal/config/keys.go
+package config
+
+type Cfg struct{ Key string; Type string; Required bool; Default any }
+var Keys = map[string]Cfg{
+    "jwt_secret":            {"jwt_secret", "string", true, nil},
+    "jwt_expire_seconds":    {"jwt_expire_seconds", "number", true, 7200},
+    "refresh_expire_seconds":{"refresh_expire_seconds", "number", true, 2592000},
+    "site_name":             {"site_name", "string", false, "My App"},
+    "wechat_app_id":         {"wechat_app_id", "string", false, ""},
+    "wechat_app_secret":     {"wechat_app_secret", "string", false, ""},
+}
+```
+
+```go
+// backend/internal/config/service.go
+package config
+
+import (
+    "encoding/json"
+    "errors"
+    "strconv"
+    "sync"
+    "time"
+    "gorm.io/gorm"
+)
+
+type row struct{ CfgKey string `gorm:"column:cfg_key"`; CfgValue string `gorm:"column:cfg_value"` }
+func (row) TableName() string { return "system_config" }
+
+type CacheEntry struct{ Value string; ExpireAt time.Time }
+
+type Service struct {
+    db    *gorm.DB
+    mu    sync.RWMutex
+    cache map[string]CacheEntry
+    TTL   time.Duration
+}
+
+func NewService(db *gorm.DB) *Service { return &Service{db: db, cache: map[string]CacheEntry{}, TTL: 30*time.Second} }
+
+func (s *Service) Init() error  { return s.loadAll() }
+func (s *Service) Refresh() error { return s.loadAll() }
+
+func (s *Service) loadAll() error {
+    var rows []row
+    if err := s.db.Table("system_config").Find(&rows).Error; err != nil { return err }
+    s.mu.Lock(); defer s.mu.Unlock()
+    s.cache = map[string]CacheEntry{}
+    for _, r := range rows {
+        s.cache[r.CfgKey] = CacheEntry{Value: r.CfgValue, ExpireAt: time.Now().Add(s.TTL)}
+    }
+    return nil
+}
+
+func (s *Service) Get(key string) (string, error) {
+    s.mu.RLock(); e, ok := s.cache[key]; s.mu.RUnlock()
+    if ok && time.Now().Before(e.ExpireAt) { return e.Value, nil }
+    return "", errors.New("config key not found: " + key)
+}
+func (s *Service) GetInt(key string) (int, error)    { v, err := s.Get(key); if err != nil { return 0, err }; return strconv.Atoi(v) }
+func (s *Service) GetBool(key string) (bool, error)  { v, err := s.Get(key); if err != nil { return false, err }; return v == "true" || v == "1" || v == "yes", nil }
+func (s *Service) GetJSON(key string, out any) error { v, err := s.Get(key); if err != nil { return err }; return json.Unmarshal([]byte(v), out) }
+
+func (s *Service) AssertRequired() error {
+    s.mu.RLock(); defer s.mu.RUnlock()
+    for _, c := range Keys {
+        if c.Required { if _, ok := s.cache[c.Key]; !ok { return errors.New("required config missing: " + c.Key) } }
+    }
+    return nil
+}
+```
+
+```go
+// backend/internal/middleware/auth.go（正确用法）
+import "github.com/golang-jwt/jwt/v5"
+import "yourapp/internal/config"
+
+func SignToken(cfg *config.Service, payload jwt.MapClaims) (string, error) {
+    secret, err := cfg.Get("jwt_secret")           // ✅ 走表
+    if err != nil { return "", err }
+    expSec, _ := cfg.GetInt("jwt_expire_seconds")  // ✅ 走表
+    claims := jwt.MapClaims{ ...payload, "exp": time.Now().Add(time.Duration(expSec)*time.Second).Unix() }
+    return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(secret))
+}
+```
+
+</details>
+
+<details>
+<summary><b>Java Spring Boot / NestJS</b></summary>
+
+- Spring Boot：在 `application.yml` **只**留 `spring.datasource.*` 与 `spring.redis.*`；新建 `@Service class ConfigService` 注入 `JdbcTemplate` / JPA，实现上述同款契约，登录拦截器 / JWT 工具类只注入 `ConfigService`。
+- NestJS：仿 Express 实现，新建 `ConfigModule` 全局导出 `ConfigService`（用 `TypeOrmModule` 注入 Repository），JWT module 通过 `JwtModule.registerAsync` 在 `useFactory` 中 `inject: [ConfigService]` 再 `configService.get('jwt_secret')`，**禁止**用 `@nestjs/config` 的 `ConfigService.get('JWT_SECRET')`（后者读的是 `.env`，违反本规则）。
+
+</details>
+
+**1.5.4.3 启动流程（在 `index.ts` / `main.py` / `main.go` 中）**
+
+```
+DB connect → ConfigService.init() → ConfigService.assertRequired() → routes/middleware → listen
+                 ↑失败直接抛错，禁止用代码默认值兜底
+```
+
+**1.5.4.4 完整性审核（Step 4 必检）**
+
+§4.x 完整性审核时，**强制**扫描以下违规：
+- `grep -rnE "process\\.env\\.(JWT_|WECHAT_|SMS_|OSS_|UPLOAD_|ALI_|TENCENT_)" backend/src` → **必须为空**
+- `grep -rnE "@Value\\(" backend/src/main` → 必须为空（除 `spring.datasource.*` 与 `spring.redis.*`）
+- `grep -rnE "viper\\.Get\\(\"(jwt|secret|wechat|sms|oss|upload)"` → 必须为空
+- `grep -rn "SELECT cfg_value FROM system_config" backend/src` 出现 > 1 次 → 全部下沉到 `ConfigService`
+- 任何文件直接读 `config.yaml` / `application.yml` 取 JWT secret / 第三方 key → 违规
+
+任一命中则**不通过**完整性审核，必须整改后重新进入 Step 4。
+
+---
+
+**1.5.5 关键脚手架代码模板**
 
 | 技术栈 | 入口文件 | 关键依赖 |
 |-------|---------|---------|
@@ -539,7 +890,7 @@ redis:
 | Python + FastAPI | `main.py` + `app/` | fastapi, uvicorn, sqlalchemy[asyncio], pyjwt, passlib[bcrypt], pyyaml, alembic |
 | Go + Gin | `main.go` + `internal/router/` | gin, gorm, viper, golang-jwt/jwt, bcrypt, zap |
 
-**1.5.5 「其他」技术栈**
+**1.5.6 「其他」技术栈**
 
 若用户选 E（如 Java Spring Boot），AI 必须继续追问：
 - 构建工具：Maven / Gradle
@@ -548,7 +899,7 @@ redis:
 
 追问完毕后，按该生态标准目录生成（如 Spring Boot 的 `src/main/java/com/example/{controller,service,repository,entity,dto,config}/`）。
 
-**1.5.6 数据库创建与 `init.sql` 导入提示（必读）**
+**1.5.7 数据库创建与 `init.sql` 导入提示（必读）**
 
 > 📌 **目的**：配置文件 + SQL 文件生成完毕后，**必须**明确告诉用户：
 > 1. 数据库需要**手动创建**（init.sql 只建表，不建库）
@@ -560,7 +911,9 @@ redis:
 > - 立即以控制台高亮提示告知用户
 > - 写入 `backend/README.md`（详见 §4.3）以便用户随时查阅
 
-**Step 1.5.6.a 在控制台打印操作清单**
+**Step 1.5.7.a 在控制台打印操作清单**
+
+> ⚠️ **必须先完成 §1.5.4 ConfigService 骨架后再打印本节清单**（避免用户在没装 ConfigService 之前就启动后端）
 
 骨架文件生成完毕后，**必须**在控制台输出以下高亮信息（按用户所选数据库类型分支）：
 
@@ -620,13 +973,13 @@ redis:
 > 💡 **小贴士**：agent 在控制台打印后，**必须**追加一条简短确认：
 > `✅ 已写入 backend/README.md，可随时查阅。是否继续生成接口代码？`
 
-**Step 1.5.6.b 库名命名规则**
+**Step 1.5.7.b 库名命名规则**
 
 - **默认**：`app_db`（与 §1.5.2 config.yaml 模板一致）
 - **建议**：`<项目拼音前缀>_db`，如项目「好物触手」→ `hwcs_db`
 - **MongoDB**：留空（不需建库），但仍写入 config.yaml 的 `mongodb.uri` 中
 
-**Step 1.5.6.c 常见数据库客户端工具提示**
+**Step 1.5.7.c 常见数据库客户端工具提示**
 
 告知用户可用 GUI 工具验证：
 - MySQL：Navicat / DBeaver / MySQL Workbench / TablePlus
@@ -857,6 +1210,7 @@ export default {
 - [ ] Step 1.3：生成 package.json / tsconfig.json
 - [ ] Step 1.4：生成 config.yaml（数据库连接 + Redis）
 - [ ] Step 1.5：生成 sql/init.sql（DDL + 初始数据 + system_config 默认值，**表名套 §1.4 前缀**）
+- [ ] Step 1.5.4：生成 **ConfigService 骨架**（`src/config/keys.ts` + `config.service.ts`，承接核心原则 #7，运行参数一律从 `system_config` 表读取）
 - [ ] Step 1.6：生成 sql/migrations/ 目录与迁移文件（Flyway 风格，详见 §4.4）
 - [ ] Step 1.7：生成入口与中间件骨架
 - [ ] Step 1.8：依赖安装（npm/pip/go mod/maven）
@@ -1700,6 +2054,7 @@ jobs:
 | YYYY-MM-DD v4 | 锁定 `api/` 路径固定（项目根，不支持多 api）；Step 0 增加 sha256 + mtime 指纹记录到 STEPS.md，启动时自动比对变更；mock-data.json 严格禁止拷贝，改为相对路径 import；新增三栈（Node/Python/Go）import 示例 |
 | YYYY-MM-DD v5 | 新增 §4.7 完成判定（5 项必备）+ §4.8 自动询问启动 `/saapi-connect`（闭环前端接入）+ §4.9 全流程总结；与新建的 `saapi-connect` skill 形成 `/sainit-* → /safrontend → /saapi → /sabackend → /saapi-connect` 五段闭环 |
 | YYYY-MM-DD v6 | 新增核心原则 #10「避开数据库保留字」；§1.5.3 增加字段命名强约束（处理方式 A/B/C + ORM `@map` 特殊处理 + 字段命名映射表）；新增「数据库保留字速查表」附录，扫描 → 改写 → 记录映射全流程化 |
+| YYYY-MM-DD v7 | 新增核心原则 #7「⛔ 代码必须从 `system_config` 表读取（硬约束）」；拆分原 #5/#6 并明确 `config.yaml` 不写业务运行参数；新增 §1.5.4「运行参数 ConfigService（必装，硬约束）」含契约 / 启动流程 / 完整性审核扫描命令；提供 Node + Express + Python + FastAPI + Go + Gin 四栈实现参考 + 集中 `keys.ts` 强类型声明 + 启动必填项校验；明确禁止 `process.env` / `@Value` / `viper.Get` / `os.environ` / 常量硬编码 / 多处直查 system_config 六类违规写法；§1.5.7 启动清单增加「先装 ConfigService」前置提示 |
 
 ---
 
