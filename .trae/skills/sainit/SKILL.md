@@ -1,6 +1,6 @@
 ---
 name: "sainit"
-description: "项目初始化路由器：识别用户描述的项目类型，并路由到对应的子 skill（sainit-dating / sainit-shop / sainit-blog / sainit-tool）。Invoke when 用户输入 /sainit 且未指定具体类型。"
+description: "项目初始化路由器：识别用户描述的项目类型，并路由到对应的子 skill（sainit-dating / sainit-shop / sainit-blog / sainit-tool / sainit-other）。Invoke when 用户输入 /sainit 且未指定具体类型。"
 ---
 
 # /sainit — 项目初始化路由器
@@ -33,6 +33,7 @@ description: "项目初始化路由器：识别用户描述的项目类型，并
 | 商城 / 电商 / 购物 / 商店 / 订单 / 商品 | **ecommerce** | `sainit-shop` |
 | 博客 / 文章 / 资讯 / 笔记 / 阅读 / 专栏 | **blog** | `sainit-blog` |
 | 待办 / 记账 / 工具 / 效率 / 提醒 / 清单 | **tool** | `sainit-tool` |
+| 都不匹配 / 跨类型 / 全新领域 | **other** | `sainit-other` |
 
 #### 识别结果处理
 
@@ -45,12 +46,10 @@ description: "项目初始化路由器：识别用户描述的项目类型，并
 1. 用 `AskUserQuestion` 让用户选择主要类型
 2. 根据选择加载对应子 skill
 
-**情况 C：未匹配到任何类型**
-1. 用 `AskUserQuestion` 展示 4 个类型供用户选择（含"其他"）
-2. 若选"其他"，按以下通用模板生成：
-   - 目录结构：`prototype/index.html` + `home.html` + `list.html` + `detail.html` + `me.html`
-   - Tab：首页 / 我的
-   - localStorage 通用键：`user` / `token` / `settings`
+**情况 C：未匹配到任何已知类型**
+1. 用 `AskUserQuestion` 展示 5 个类型供用户选择（含"其他 / 通用模板"）
+2. 若选"其他" → **加载并执行** `.trae/skills/sainit-other/SKILL.md` 的全部工作流程
+3. `sainit-other` 提供通用 5 页骨架（`index + home + list + detail + me`）、2 Tab（首页 / 我的）、通用 3 个 localStorage 键（`user` / `token` / `settings`）
 
 ### Step 3：传递项目上下文
 
@@ -105,7 +104,7 @@ description: "项目初始化路由器：识别用户描述的项目类型，并
 | **项目名（英文 / kebab-case）** | `<project-name>` |
 | **项目名（中文）** | `<用户填>` |
 | **项目类型** | <dating \| shop \| blog \| tool> |
-| **UI 风格** | <A 简约清新 \| B 赛博朋克 \| C 温馨治愈 \| D 商务专业 \| E 复古文艺> |
+| **UI 风格** | <A 简约清新 \| B 霓虹灯风格 \| C 温馨治愈 \| D 商务专业 \| E 复古文艺> |
 | **核心功能** | <已选功能列表> |
 | **增值功能** | <已选功能列表> |
 | **生成的页面** | <已生成的 HTML 文件名清单> |
@@ -152,9 +151,10 @@ description: "项目初始化路由器：识别用户描述的项目类型，并
 | `/sainit-shop` | 电商/商城 | ✅ |
 | `/sainit-blog` | 博客/内容 | ✅ |
 | `/sainit-tool` | 工具/效率 | ✅ |
+| `/sainit-other` | 通用/兜底 | ✅ |
 
 ## 关联 Skill
 
-- `sainit-dating` / `sainit-shop` / `sainit-blog` / `sainit-tool` — 子 skill
+- `sainit-dating` / `sainit-shop` / `sainit-blog` / `sainit-tool` / `sainit-other` — 子 skill
 - `frontend-design` — 高保真 UI（子 skill 内部使用）
 - `color-font-skill` — 配色字体（子 skill 内部使用）
