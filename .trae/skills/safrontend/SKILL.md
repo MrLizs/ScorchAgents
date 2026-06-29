@@ -107,6 +107,78 @@ fi
 > - **A. 是**（推荐，类型安全）
 > - **B. 否**（纯 JS，简单）
 
+#### Step 2.2：选择 UI 组件库（必选，避免空跑）
+
+> ⛔ **硬约束**：本步骤必须执行。Step 2 的框架对比表虽然列出了多个 UI 生态，但**默认情况下不会自动安装任何 UI 库**——若不显式选择，Phase 1 生成的页面将是「裸 HTML + 自写 CSS」，导致视觉风格与 `prototype/` 严重脱节，且 `saapi-connect` Step 0.2 / 5.1 的 toast 适配器无法对应。
+
+**按所选框架分支提问**：
+
+##### A. Vue 3 用户（选 A）
+
+> 请选择 UI 组件库：
+> - **A. Element Plus**（推荐，国内最成熟，适合中后台 / 商城 / 工具）
+> - **B. Vant**（推荐，移动端 H5 / 交友 / 内容型项目）
+> - **C. Naive UI**（推荐，TypeScript 友好，主题灵活）
+> - **D. 不安装**（纯手写组件，后续需自建 toast / Modal / Form 等）
+>   - 选 D 时 AI 必须警告：「未选 UI 库将导致 saapi-connect 无法使用组件级 toast，错误提示只能 fallback 到 `alert()`，影响体验」
+> - **E. 其他**（请说明）
+
+##### B. React 18 用户（选 B）
+
+> 请选择 UI 组件库：
+> - **A. Ant Design**（推荐，国内最成熟，适合中后台 / 商城 / 工具）
+> - **B. MUI (Material UI)**（推荐，海外项目、Google 风格）
+> - **C. Chakra UI**（推荐，简洁、TypeScript 友好）
+> - **D. 不安装**（纯手写组件，后续需自建 toast / Modal / Form 等）
+>   - 选 D 时 AI 必须警告：「未选 UI 库将导致 saapi-connect 无法使用组件级 toast」
+> - **E. 其他**（请说明）
+
+##### C. 其它框架（选 C）
+
+AI 必须先确认框架名称，再**联网查询**该框架对应的 UI 生态，给出 2-3 个候选，**严禁凭记忆推荐**。
+
+**锁定写入 STEPS.md**：
+
+```markdown
+### 🧩 UI 组件库
+
+- **库名**：<Element Plus | Vant | Naive UI | Ant Design | MUI | Chakra UI | ...>
+- **版本**：<具体版本号，写入 package.json>
+- **影响范围**：
+  - 通用组件库（Button / Modal / Toast / Form）→ 全部基于所选 UI 库
+  - saapi-connect Step 5.1 toast 适配器 → 按所选库自动匹配
+  - README.md 「技术栈」节 → 追加「UI 库」字段
+```
+
+**自动安装**：
+
+```bash
+# Vue 3 + Element Plus 示例
+cd frontend && npm install element-plus@^2.4.0
+cd frontend && npm install -D @element-plus/icons-vue
+# Vue 3 + Vant 示例
+cd frontend && npm install vant@^4.8.0
+# React 18 + Ant Design 示例
+cd frontend && npm install antd@^5.0.0
+```
+
+> ⚠️ 安装后必须 `grep -rE "element-plus|antd|vant|naive-ui" frontend/package.json` 验证 package.json 已含依赖，未含则视为未完成。
+
+**Phase 1 影响**：
+
+- **Step 3（通用组件库）**：从「纯手写」改为「基于 UI 库封装」——例如 `<BaseButton>` 内部根据所选库是 `<el-button>` / `<van-button>` / `<a-button>`
+- **Step 6+（页面实现）**：Modal / Drawer / Form / Toast 等交互全部使用 UI 库组件
+- **STEPS.md Phase 1 列表**：在「Step 3：通用组件库」旁标注「基于 <UI 库名>」
+
+**📝 本步完成后立即写入 STEPS.md**：
+```markdown
+| YYYY-MM-DD | Step 2.2：UI 库选择 | ✅ |
+  - 选定：<UI 库名>@<版本>
+  - 已安装：<npm install 输出>
+  - 已写入 STEPS.md「🧩 UI 组件库」节
+  - Phase 1 Step 3 改为基于 UI 库封装
+```
+
 ### Step 2.5：写入 README.md 技术栈与运行指南
 
 > 📌 **本步骤为 safrontend 强制步骤**。在用户选定前端框架与语言后，**必须**把框架信息、初始化方式、运行方式写入项目根目录的 `README.md`，确保后续维护者能直接根据 README 跑起项目。

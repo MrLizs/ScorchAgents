@@ -20,6 +20,56 @@ description: "为整个项目规划 API 接口：自动从 prototype 和 fronten
 - 用户输入 `/saapi` 或 `/saapi <项目目录>`
 - 适用于任何阶段：可与 `safrontend` 并行（独立运行），也可在后端实现前使用
 
+## 推荐执行顺序
+
+> ⛔ **强烈推荐顺序**：`/sainit-*` → **`/safrontend`** → **`/saapi`** → `/sabackend` → `/saapi-connect`
+>
+> 📌 虽然本 skill 自描述「可与 safrontend 并行」，但**只有按推荐顺序跑**才能保证接口发现完整 + 前后端零返工。
+
+### 为什么不推荐并行
+
+`/saapi` 的核心原则 #5 「接口发现」采用**三源混合策略**：
+
+| 发现源 | 内容 | 何时生效 |
+|-------|------|---------|
+| 源 A：扫 `frontend/src/` 代码 | 从 API 调用（`apiClient.get`、`fetch(...)` 等）提取接口 | ✅ 需要先有 frontend 代码 |
+| 源 B：扫 `prototype/` HTML | 从 HTML 数据需求反推接口 | ✅ prototype 阶段已有，**降级模式** |
+| 源 C：用户手动补充 | AskUserQuestion 让用户增删改 | ✅ 任何时候 |
+
+**若用户先跑 `/saapi` 而 `frontend/` 不存在**：
+
+- 源 A 失效 → 仅依赖 prototype（精度低）
+- 后续 safrontend 引入新接口（如真实分页 / 排序 / 筛选参数）→ `/saapi` 需**重新跑一次**才能补全
+- 增加返工成本
+
+**若用户先跑 `/safrontend` 再跑 `/saapi`**：
+
+- 源 A 全量生效 → 接口发现最完整
+- sabackend / saapi-connect 按 `api/openapi.yaml` 实现 → 零返工
+
+### 检测与提示
+
+> 📌 **Step 1 必须先检测 frontend 目录是否存在**，若不存在则给出明确警告但仍允许继续（兼容「跳过 safrontend」的极简流程）。
+
+Step 1 输出改造为：
+
+```
+🔍 找到项目：<path>
+
+✅ 发现 prototype/    → 源 B 可用
+⚠️  发现 frontend/    → 源 A 不可用（接口发现将仅依赖 prototype 反推，建议先跑 /safrontend）
+
+💡 推荐执行顺序：/sainit-* → /safrontend → /saapi
+   现在继续执行 /saapi？[是 / 否，先去跑 safrontend]
+```
+
+| 情况 | 默认推荐 | 提示文案 |
+|------|---------|---------|
+| 有 prototype + 有 frontend | 直接继续 | 「接口发现源齐全，开始扫描」 |
+| 有 prototype + 无 frontend | **警告但不阻断** | 「⚠️ 接口发现将仅依赖 prototype，建议先跑 /safrontend」 |
+| 无 prototype + 有 frontend | 直接继续 | 「从 frontend 代码扫描接口」 |
+| 都无 | 阻断 | 「请先运行 /sainit-* 生成 prototype」 |
+
 ## 核心原则
 
 1. **接口风格**：RESTful（用 GET/POST/PUT/PATCH/DELETE 这些 HTTP 方法）

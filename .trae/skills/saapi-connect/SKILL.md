@@ -420,23 +420,62 @@ export default apiClient;
 
 **3.1 清理浏览器 localStorage（生成迁移脚本）**
 
+> 📌 **本步骤必须清理 3 个来源的键名**，避免新旧 key 共存造成状态混乱。
+
+| 来源 | 键名模式 | 举例 |
+|------|---------|------|
+| safrontend mock | 固定串 | `mock_token`, `mock_user`, `fakeToken`, `fakeUser`, `MOCK_AUTH` |
+| **prototype 阶段**（sainit-*） | **`<projectName>:*` 前缀** | `<projectName>:token`, `<projectName>:user`, `<projectName>:settings`, `<projectName>:matches`, `<projectName>:messages`, `<projectName>:posts` |
+| 其它可疑残留 | `test_*`, `demo_*` 前缀 | `test_login`, `demo_user` |
+
+**前置**：从 STEPS.md「🏷 项目元信息」节读取 `项目名（英文 / kebab-case）` 与 `localStorage 键名前缀`，**禁止猜测**。
+
 **文件**：`frontend/src/utils/mockCleanup.ts`（新建）
 
 ```ts
 /**
- * safrontend 阶段遗留的 mock 数据清理工具
+ * safrontend + prototype 阶段遗留的 localStorage 数据清理工具
  * 在 saapi-connect 启动时执行一次，之后不再使用
  */
+
+// ⚠️ 必填：与 sainit-* 写入 STEPS.md 的「项目名（英文 / kebab-case）」一致
+const PROJECT_NAME = '<projectName>';
+
 export function cleanupMockAuth() {
+  // 1. safrontend 阶段的 mock 键名
   const mockKeys = ['mock_token', 'mock_user', 'fakeToken', 'fakeUser', 'MOCK_AUTH'];
   mockKeys.forEach((key) => {
     if (localStorage.getItem(key) !== null) {
       localStorage.removeItem(key);
-      console.info(`[saapi-connect] 已清理 localStorage.${key}`);
+      console.info(`[saapi-connect] 已清理 safrontend mock: localStorage.${key}`);
     }
   });
+
+  // 2. prototype 阶段（sainit-*）的 <projectName>:* 前缀键名
+  //    必须按 prefix 全量清理，避免新旧 token / user 共存
+  const projectPrefix = `${PROJECT_NAME}:`;
+  const projectKeys = Object.keys(localStorage).filter((k) => k.startsWith(projectPrefix));
+  projectKeys.forEach((key) => {
+    localStorage.removeItem(key);
+    console.info(`[saapi-connect] 已清理 prototype 残留: localStorage.${key}`);
+  });
+
+  // 3. 其它可疑测试残留（test_* / demo_* 前缀）
+  Object.keys(localStorage)
+    .filter((k) => k.startsWith('test_') || k.startsWith('demo_'))
+    .forEach((key) => {
+      localStorage.removeItem(key);
+      console.info(`[saapi-connect] 已清理可疑残留: localStorage.${key}`);
+    });
+
+  // 4. 兜底：如果用户从 prototype 直接带入且项目名前缀不同，提示用户
+  //    （无法自动清理——避免误删其他应用的数据）
 }
 ```
+
+**注入 PROJECT_NAME 的最佳实践**：AI 在生成文件前**必须**先从 `STEPS.md` 读取项目英文名（如 `fashion-shop`），再把 `<projectName>` 占位符替换为真实值。否则 `cleanupMockAuth()` 将无法清理 prototype 残留，导致 `<projectName>:token` 与 `access_token` 并存，登录态混乱。
+
+> ⚠️ **如 STEPS.md 不存在项目名**，AI 必须先用 `AskUserQuestion` 询问用户「sainit 阶段定义的项目英文名是什么？」，不可默认占位。
 
 **3.2 在 main.ts 启动时调用**
 
@@ -747,6 +786,204 @@ grep -rE "mock_token|mock_user|fakeToken|fakeUser|MOCK_AUTH" frontend/src/
   - 重写 `frontend/src/stores/auth.ts`：login/refresh/logout 接真实后端
   - 替换 <N> 处 mock_token/mock_user 引用
   - 检查 logout() 已删除 mock_token / mock_user
+```
+
+---
+
+### Step 4.5：业务页面 API 接入（核心步骤，必做）
+
+> ⛔ **硬约束**：本步骤必须执行。safrontend 生成的页面组件内部硬编码了 mock 数据（`const products = ref([...])`），仅靠 Step 4 的认证层接入，**业务接口仍不会真实调用**。本页负责把每个页面的 mock 数据替换为 `apiClient.get/post/...` 调用。
+
+#### 4.5.1 扫描页面 mock 数据硬编码
+
+```bash
+# 扫描所有页面组件（含 .vue / .tsx / .jsx）
+grep -rEn "const\s+\w+\s*=\s*(ref|useState)\(\s*\[|const\s+(mock|hardcoded|hardCoded|sample|demo)\w*\s*=" frontend/src/pages/ frontend/src/views/ 2>/dev/null
+# 扫描硬编码 token / 假用户字段
+grep -rEn "'mock-|fake-|test-|hardcode-" frontend/src/pages/ frontend/src/views/ 2>/dev/null
+# 扫描 inline JSON 假数据数组
+grep -rEn "=\s*\[\s*\{[^]]*id:\s*[0-9]+" frontend/src/pages/ frontend/src/views/ 2>/dev/null
+```
+
+**结果归类**：
+
+| 匹配模式 | 处理方式 |
+|---------|---------|
+| `const xxx = ref([{...}])` | 改为「`ref<API.Xxx[]>([])` + `onMounted(() => fetchXxx())`」 |
+| `setTimeout(() => xxx = [...], 300)` | 改为真实 `await apiClient.get(...)` |
+| 静态 const 对象（用户信息 / 站点配置） | 改为「首次 `onMounted` 从 `/api/v1/xxx` 拉取 + Pinia/Zustand 缓存」 |
+| 路由 guard 里的 `if (mock) return mockData` | 删除整段 if，改为真实 store 读取 |
+
+#### 4.5.2 建立页面 ↔ 接口映射表
+
+> 📌 从 `api/openapi.yaml` 的 `paths` 节点 + `api/mock-data.json` 的 key 反推每个页面需要哪些接口。
+
+生成映射表（写入 STEPS.md）：
+
+```markdown
+### 页面 ↔ 接口映射表
+
+| 页面 | 文件 | 调用的 API | 触发时机 |
+|------|------|----------|---------|
+| Home | pages/Home.vue | GET /api/v1/products?featured=true | onMounted |
+| ProductDetail | pages/ProductDetail.vue | GET /api/v1/products/:id | onMounted（路由参数） |
+| Cart | pages/Cart.vue | GET /api/v1/cart, DELETE /api/v1/cart/:id | onMounted + 事件 |
+| ... | ... | ... | ... |
+```
+
+#### 4.5.3 逐页面接入（按框架分支）
+
+> 📌 **按 Step 0.2 检测到的框架走对应分支**。每个页面按下列模板改写：声明 `loading`/`error` 状态、`onMounted` 调接口、把返回值赋给响应式 ref。
+
+##### A. Vue 3 + Composition API（Pinia / 无 Pinia 都适用）
+
+```vue
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
+import apiClient from '@/api/client';
+// 可选：import { useAuthStore } from '@/stores/auth';
+
+const route = useRoute();
+const product = ref<API.Product | null>(null);
+const loading = ref(false);
+const error = ref<string | null>(null);
+
+async function fetchProduct() {
+  loading.value = true;
+  error.value = null;
+  try {
+    // 后端约定响应格式：{ code: 0, data: ... }，interceptor 已 return response.data
+    const data = await apiClient.get(`/products/${route.params.id}`);
+    product.value = data.data;
+  } catch (e: any) {
+    error.value = e?.response?.data?.message || '加载失败';
+  } finally {
+    loading.value = false;
+  }
+}
+
+onMounted(fetchProduct);
+</script>
+
+<template>
+  <div v-if="loading">加载中…</div>
+  <div v-else-if="error">{{ error }}</div>
+  <div v-else-if="product">
+    <h1>{{ product.name }}</h1>
+    <p>¥{{ product.price }}</p>
+  </div>
+</template>
+```
+
+##### B. React 18 + Hooks（Zustand / RTK / 纯 hooks 都适用）
+
+```tsx
+import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import apiClient from '@/api/client';
+import type { Product } from '@/types/api';
+
+export default function ProductDetail() {
+  const { id } = useParams<{ id: string }>();
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const data = await apiClient.get(`/products/${id}`);
+        if (!cancelled) setProduct(data.data);
+      } catch (e: any) {
+        if (!cancelled) setError(e?.response?.data?.message || '加载失败');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [id]);
+
+  if (loading) return <div>加载中…</div>;
+  if (error) return <div>{error}</div>;
+  if (!product) return null;
+  return (
+    <div>
+      <h1>{product.name}</h1>
+      <p>¥{product.price}</p>
+    </div>
+  );
+}
+```
+
+#### 4.5.4 强制规则
+
+| 规则 | 说明 |
+|------|------|
+| ⛔ 禁止保留任何 `const mockProducts = [...]` 形式的硬编码数组 | 全部从 `api/openapi.yaml` 推导接口调用 |
+| ⛔ 禁止用 `setTimeout` 模拟接口延迟 | 真实 `await apiClient.xxx` |
+| ⛔ 禁止在页面组件里直接 `axios.get('http://...')` | 必须走 `apiClient`（自动带 JWT、自动处理 401） |
+| ✅ 每个页面必须处理 4 种状态 | `loading` / `error` / `empty` / `data` |
+| ✅ 接口路径必须与 `api/openapi.yaml` 一致 | 严格按 `paths` 节点；如发现页面用了 OpenAPI 没有的接口，立即提示用户「需先回 saapi 补接口」 |
+
+#### 4.5.5 提交类型定义（避免 `any`）
+
+**文件**：`frontend/src/types/api.d.ts`（新建）
+
+> 📌 从 `api/openapi.yaml` 的 `components.schemas` 反推类型定义，避免页面用 `any`。
+
+```ts
+// 示例：从 openapi.yaml 推导出的类型
+export interface API {
+  Product: {
+    id: number;
+    name: string;
+    price: number;
+    image: string;
+    description?: string;
+  };
+  User: {
+    id: number;
+    nickname: string;
+    avatar: string;
+  };
+  // ... 与 openapi.yaml 的 schemas 一一对应
+}
+
+declare global {
+  namespace API {}
+}
+```
+
+> AI 在接入过程中，**每个接口的响应都必须有对应类型**，禁止 `product.value = await ... as any`。
+
+#### 4.5.6 验证扫描（不可省略）
+
+```bash
+# 1. 页面组件中应无 mock 硬编码（除了空数组 []）
+grep -rEn "=\s*\[\s*\{[^]]*id:\s*[0-9]+" frontend/src/pages/ frontend/src/views/ 2>/dev/null
+# → 必须为 0 个匹配，或仅匹配 `ref<API.Xxx[]>([])` 的初始空数组
+
+# 2. 页面应全部使用 apiClient
+grep -rEn "axios\.(get|post|put|delete|patch)" frontend/src/pages/ frontend/src/views/ 2>/dev/null
+# → 必须为 0 个匹配（仅允许 apiClient.xxx）
+
+# 3. 页面应有 loading/error 状态
+grep -rEn "loading\.value\s*=\s*true|setLoading\(true" frontend/src/pages/ frontend/src/views/ 2>/dev/null
+# → 至少 N 个匹配（N = 页面数）
+```
+
+任一检查不通过 → 视为本步未完成，必须修复后重跑。
+
+**📝 本步完成后立即写入 STEPS.md**：
+```markdown
+| 2026-XX-XX | Step 4.5：业务页面 API 接入 | ✅/❌ |
+  - 扫描 <N> 处 mock 硬编码，全部替换为 apiClient 调用
+  - 新建 `frontend/src/types/api.d.ts`（从 openapi.yaml 推导）
+  - 接入 <M> 个页面（loading/error/empty/data 四态完整）
+  - 验证扫描 0 个硬编码 / 0 个裸 axios / <M> 个 loading 标记
 ```
 
 ---
