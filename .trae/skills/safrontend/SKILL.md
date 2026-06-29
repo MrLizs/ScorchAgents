@@ -371,6 +371,194 @@ frontend/
 > - 若 README.md 已包含「## 技术栈」与「## 本地开发」章节，且框架未变更：**跳过本步**
 > - 若框架发生变更（如 Vue 3 → React 18）：提示用户「检测到框架变更，是否覆盖更新 README.md 技术栈章节？」
 
+### Step 2.6：图标与按钮渲染策略（SVG 优先三级降级）
+
+> 📌 **本步骤为 safrontend 新增强制步骤**。在用户选定前端框架（Step 2）之后、生成 STEPS.md（Step 3）之前，AI **必须**判定图标/按钮的渲染方案，并写入 STEPS.md。判定结果会影响 README.md 的「技术栈」节、Phase 1 实施清单、以及最终产物的体积与可维护性。
+
+#### 2.6.1 三级降级决策流程
+
+```
+[Step 2 选定框架]
+        │
+        ▼
+① 框架是否原生支持 SVG？──查询 2.6.2 矩阵 + 必要时联网核实
+   ├─ ✅ 是 → 方案 A：SVG 内联绘制（**强制采用**）
+   └─ ❌ 否 ↓
+② 是否存在可用的第三方矢量渲染库？──AI 必须联网查询当年可用版本
+   ├─ ✅ 是 → 方案 B：第三方矢量库
+   └─ ❌ 否 ↓
+③ 让用户逐项提供所有按钮与图标素材
+   → 生成「页面 + 图标编号」菜单（2.6.5 模板），逐项收集
+```
+
+#### 2.6.2 框架 SVG 支持矩阵（AI 直接查询）
+
+| 框架 / 场景 | 原生 SVG | 推荐方案 | 备注 |
+|------------|---------|---------|------|
+| Vue 3（Web / Vite） | ✅ | 方案 A | 模板中可直接写 `<svg>` |
+| React 18（Web / Vite） | ✅ | 方案 A | JSX 中可直接写 `<svg>` |
+| React 18（Next.js） | ✅ | 方案 A | 同上 |
+| Tauri（Webview 内核） | ✅ | 方案 A | 默认 Chromium 内核 |
+| Electron | ✅ | 方案 A | 默认 Chromium 内核 |
+| React Native（bare） | ❌ | 方案 B | 需 react-native-svg |
+| Expo（React Native） | ❌ | 方案 B | 推荐 @expo/vector-icons（Expo 内置） |
+| 微信小程序 | ⚠️ 部分 | 方案 B | 推荐 iconfont / Iconfont-CSS |
+| 飞书 / 钉钉小程序 | ⚠️ 部分 | 方案 B | 需查询对应平台文档 |
+| Flutter（误选场景） | ❌ | 方案 B | flutter_svg |
+| 其它未知框架 | ❓ | — | **AI 必须联网查询后再决策，禁止脑补** |
+
+#### 2.6.3 方案 A：SVG 内联绘制（首选）
+
+**强制规则**：若框架原生支持 SVG，**所有按钮与图标必须使用 SVG 实现**，禁止使用位图（png/jpg/svg-from-design-tool 同样禁止直接外链）。
+
+**实施规范**：
+
+1. **存放位置**：
+   - Vue 3：`frontend/src/components/icons/IconXxx.vue`
+   - React 18：`frontend/src/components/icons/IconXxx.tsx`
+
+2. **命名规范**：PascalCase，文件名即组件名（`IconHome`、`IconSearch`、`IconUser`），按钮中的图标组件名与用途严格对应（如 `IconWechatLogin`、`IconPhoneLogin`）
+
+3. **Props 约定**：
+   ```ts
+   interface IconProps {
+     size?: number;        // 默认 24
+     color?: string;       // 默认 currentColor（继承父级文字色）
+     strokeWidth?: number; // 默认 1.5
+   }
+   ```
+
+4. **按钮 + 图标组合**：通过 `<BaseButton>` 通用组件包裹图标，**禁止**直接拼接 DOM（如 `<button><svg>...</svg></button>` 必须包一层 `<BaseButton>`）
+
+5. **样式参考**：[Heroicons](https://heroicons.com/) / [Feather Icons](https://feathericons.com/)，24×24 viewBox，统一 `stroke-linecap="round"` `stroke-linejoin="round"`
+
+**示例输出（Vue 3）**：
+
+```vue
+<!-- src/components/icons/IconHome.vue -->
+<template>
+  <svg :width="size" :height="size" viewBox="0 0 24 24" fill="none"
+       :stroke="color" :stroke-width="strokeWidth"
+       stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 12L12 4l9 8" />
+    <path d="M5 10v10h14V10" />
+  </svg>
+</template>
+
+<script setup lang="ts">
+withDefaults(defineProps<{
+  size?: number; color?: string; strokeWidth?: number
+}>(), { size: 24, color: 'currentColor', strokeWidth: 1.5 });
+</script>
+```
+
+**示例输出（React 18）**：
+
+```tsx
+// src/components/icons/IconHome.tsx
+interface IconProps { size?: number; color?: string; strokeWidth?: number; }
+
+export const IconHome: React.FC<IconProps> = ({
+  size = 24, color = 'currentColor', strokeWidth = 1.5,
+}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+       stroke={color} strokeWidth={strokeWidth}
+       strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 12L12 4l9 8" />
+    <path d="M5 10v10h14V10" />
+  </svg>
+);
+```
+
+#### 2.6.4 方案 B：第三方矢量库（第一级降级）
+
+若框架不原生支持 SVG，AI **必须先联网查询**当前可用的矢量渲染库（**严禁凭记忆推荐**——库版本与维护状态可能已变化）：
+
+| 场景 | 联网查询关键词 |
+|------|--------------|
+| React Native（bare） | `react-native-svg latest version 2026` |
+| Expo | `@expo/vector-icons built-in packages` |
+| 微信小程序 | `wechat miniprogram vector icons solution 2026` |
+| Flutter（误选场景） | `flutter_svg latest version` |
+| 其它 | `<framework name> svg rendering library 2026` |
+
+**集成规范**：
+- 选定的库必须固定版本号写入 `package.json`（如 `"react-native-svg": "15.x.y"`）
+- 在 README.md 的「技术栈」节**追加**「图标库」字段
+- 在 STEPS.md 的 Phase 1 列表中**追加**「Step X.X：集成图标库」
+- 若用户希望 AI 联网后自动给出 2~3 个候选库对比，由用户拍板
+
+#### 2.6.5 方案 C：用户提供全部素材（最终降级）
+
+若框架既不支持 SVG 也无可用矢量库，AI **必须**：
+
+1. **扫描 prototype/**，列出所有出现按钮与图标的页面
+2. **生成「页面 + 图标编号」菜单**（Markdown 表格），每项必须说明图片用途
+3. **要求用户逐项提供素材**（PNG / JPG / SVG）
+4. 用户将素材粘贴到 `frontend/public/icons/` 目录，文件名严格按编号命名
+5. AI 在通用组件库中按编号引用，缺失项**用灰色占位方块代替 + 标注 TODO**，**不阻塞**其他开发
+
+**菜单生成模板**：
+
+```markdown
+## 📋 图标素材清单（请逐项提供）
+
+> 存放目录：`frontend/public/icons/`
+> 文件命名：`<页码>-<序号>.<扩展名>`，如 `1-1.png`
+> 尺寸建议：单色图标 96×96，多色图标 192×192；Tab 图标需同时提供选中/未选中两态
+> 提交方式：将文件一次性粘贴到上述目录，文件名严格按编号
+
+### 页面 1：index.html（启动 + 登录）
+| 编号 | 位置 | 用途 | 用户提供 |
+|------|------|------|---------|
+| 1-1 | 顶部 Logo 区 | 应用 Logo 图标 | ⬜ 待提供 |
+| 1-2 | 登录按钮内 | 微信登录图标 | ⬜ 待提供 |
+| 1-3 | 登录按钮内 | 手机号登录图标 | ⬜ 待提供 |
+
+### 页面 2：home.html（首页）
+| 编号 | 位置 | 用途 | 用户提供 |
+|------|------|------|---------|
+| 2-1 | 底部 Tab | 首页图标（未选中） | ⬜ 待提供 |
+| 2-2 | 底部 Tab | 首页图标（选中） | ⬜ 待提供 |
+| 2-3 | 顶部导航 | 搜索图标 | ⬜ 待提供 |
+| 2-4 | 顶部导航 | 消息图标 | ⬜ 待提供 |
+...
+```
+
+**收集规则**：
+- AI 在用户提交后立即更新表格「用户提供」列（✅ 已提供 / ⬜ 仍待提供）
+- AI 通用组件库中通过 `<Icon name="1-1" />` 按编号引用
+- 缺失项用 `<div class="icon-placeholder">1-1</div>` 占位，**禁止**让开发停摆
+
+#### 2.6.6 决策结果必须写入 STEPS.md
+
+AI 选定方案后，**必须**在 STEPS.md 顶部「项目信息」节**追加**以下小节：
+
+```markdown
+### 🎨 图标渲染策略
+
+- **方案**：<A. SVG 内联 | B. 第三方库 | C. 用户提供素材>
+- **选定理由**：<例如：Vue 3 模板原生支持 SVG，无第三方依赖，构建产物最小>
+- **库名（如选 B）**：<react-native-svg | @expo/vector-icons | ...>
+- **图标存放路径**：<frontend/src/components/icons | frontend/public/icons | ...>
+- **命名规范**：<IconXxx.vue PascalCase | <页码>-<序号>.png | ...>
+```
+
+#### 2.6.7 验证输出
+
+```
+🎨 图标渲染策略判定：
+   • 框架：<Vue 3 | React 18 | React Native | ...>
+   • SVG 支持：<✅ 原生 | ❌ 不支持>
+   • 第三方库：<✅ 有：xxx | ❌ 无>
+   • 最终方案：<A. SVG 内联绘制 | B. 第三方库：xxx | C. 用户提供素材>
+   • 已写入 STEPS.md「图标渲染策略」节
+   • 已同步更新 README.md「技术栈」节（如选 B）
+   ✅ 判定完成，可进入 Step 3
+```
+
+> ⚠️ **本步骤必须先于 Step 3 执行**——STEPS.md 中的「图标渲染策略」字段依赖本步的决策结果。
+
 ### Step 3：生成 `STEPS.md`
 
 在项目根目录（与 `prototype/` 同级）创建 `STEPS.md`，包含完整开发步骤清单。
