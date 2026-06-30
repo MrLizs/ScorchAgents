@@ -86,7 +86,7 @@ description: "项目初始化路由器：识别用户描述的项目类型，并
 
 ## 统一行为：所有子 skill 在 prototype 完成后必须分流（Step 7）
 
-> 📌 **本节是路由与子 skill 的契约**。所有 `sainit-*` 子 skill 在 `prototype/` 生成完毕 + `STEPS.md` 写入完毕 + `README.md` 写入完毕之后，**必须执行 Step 7「原型后续流程选择（用户分流）」**，用 `AskUserQuestion` 让用户在「重新设计」与「进入前端代码开发」之间二选一。
+> 📌 **本节是路由与子 skill 的契约**。所有 `sainit-*` 子 skill 在 `prototype/` 生成完毕 + `STEPS.md` 写入完毕 + `README.md` 写入完毕之后，**必须先执行 Step 6.5「自动预览 prototype」（自动打开浏览器预览），再执行 Step 7「原型后续流程选择（用户分流）」**，直接以对话形式询问用户下一步是「重新设计」还是「开始前端开发」。
 
 ### 子 skill 的 Step 7 固定选项
 

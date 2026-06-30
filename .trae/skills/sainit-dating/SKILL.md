@@ -434,16 +434,25 @@ TAB_CONFIG="<Step 4 Tab 配置>"
 > A~E 可链式循环（如先 `color-font-skill` 改配色 → 再 `frontend-design` 重做 → 最后选 F 进 safrontend）。详见本 skill 的 **Step 7「原型后续流程选择（用户分流）」**。
 ```
 
+### Step 6.5：自动预览 prototype
+
+> 📌 **本步骤为强制步骤**。`prototype/` 所有文件已生成完毕，必须自动打开预览让用户直观体验。
+
+1. prototype 为静态 HTML 文件，可直接用浏览器打开
+2. 使用 `Start` 命令直接打开 `<project-name>\prototype\index.html`（Windows）或 `open` 命令（macOS），或直接双击 `prototype/index.html` 文件
+3. 浏览器会自动展示完整的原型页面，无需启动本地服务器
+
 ### Step 7：原型后续流程选择（用户分流）
 
 > 📌 **本步骤为强制步骤**。`prototype/` + `STEPS.md` + `README.md` 均已生成 → 在宣告完成与进入正式开发之间，必须让用户在「继续设计优化」与「开始前端开发」之间二选一。
 
-#### 7.1 用 AskUserQuestion 询问用户
+#### 7.1 直接询问用户（不弹出选择框）
 
-```
-问题：prototype 已生成完毕，下一步如何进行？
-说明：如果对当前 prototype 的设计/视觉不满意，可调用专门的设计 skill 重新设计；若满意，可直接进入 /safrontend 开始前端代码开发。
-```
+prototype 已生成完毕，直接以对话文本向用户发出询问——直接输出以下文字询问用户：
+
+「prototype 已生成完毕，请问你是想重新设计一下视觉风格（配色/字体/整体UI等），还是直接开始前端代码开发？」
+
+然后根据用户的文字回复，参考下面的选项清单进行分流处理。
 
 #### 7.2 选项清单
 
