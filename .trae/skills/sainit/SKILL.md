@@ -33,6 +33,7 @@ description: "项目初始化路由器：识别用户描述的项目类型，并
 | 商城 / 电商 / 购物 / 商店 / 订单 / 商品 | **ecommerce** | `sainit-shop` |
 | 博客 / 文章 / 资讯 / 笔记 / 阅读 / 专栏 | **blog** | `sainit-blog` |
 | 待办 / 记账 / 工具 / 效率 / 提醒 / 清单 | **tool** | `sainit-tool` |
+| SaaS / API 平台 / 开发者平台 / 模型平台 / 云服务 / 开放平台 / AI 平台 | **saas** | `sainit-saas` |
 | 都不匹配 / 跨类型 / 全新领域 | **other** | `sainit-other` |
 
 #### 识别结果处理
@@ -180,6 +181,7 @@ description: "项目初始化路由器：识别用户描述的项目类型，并
 | `/sainit-shop` | 电商/商城 | ✅ |
 | `/sainit-blog` | 博客/内容 | ✅ |
 | `/sainit-tool` | 工具/效率 | ✅ |
+| `/sainit-saas` | SaaS/API 平台 🆕 | ✅ |
 | `/sainit-other` | 通用/兜底 | ✅ |
 
 ## 修改记录（skill 自身演进）
@@ -193,6 +195,35 @@ description: "项目初始化路由器：识别用户描述的项目类型，并
 
 ## 关联 Skill
 
-- `sainit-dating` / `sainit-shop` / `sainit-blog` / `sainit-tool` / `sainit-other` — 子 skill
-- `frontend-design` — 高保真 UI（子 skill 内部使用）
-- `color-font-skill` — 配色字体（子 skill 内部使用）
+### 核心链路（按执行顺序）
+
+| Skill | 阶段 | 产出 |
+|-------|------|------|
+| `sainit-*` | 原型生成 | `prototype/` + `STEPS.md` 项目元信息 |
+| `safrontend` | Web 前端 | `frontend/`（Vue 3 / React 18） |
+| `saapi` | 消费者 API 设计 | `api/openapi.yaml` |
+| `sabackend` | 后端实现 | `backend/` |
+| `saapi-connect` | 前后端接通 | 环境变量 + JWT + 错误处理 |
+
+### API 平台扩展（核心链路后，构建 SaaS/API 平台专用）
+
+| Skill | 场景 | 产出 |
+|-------|------|------|
+| `saapi-platform` | 平台级 API 设计（API Key / SSE 流式 / 按量计费 / OpenAI 兼容） | `api/platform-openapi.yaml` + `api/streaming-extensions.yaml` + `api/gateway-spec.yaml` |
+| `sainference` | 模型推理集成（对接 vLLM / TGI / Ollama / Triton） | `inference/` + 自动填充 gateway-spec.yaml upstreams |
+
+### 跨平台扩展（核心链路后可选）
+
+| Skill | 场景 | 产出 |
+|-------|------|------|
+| `sacrossplatform` | Web → iOS + Android App | `mobile/`（uni-app / Expo / Taro / Flutter） |
+| `sadesktop` | Web → Windows + macOS + Linux 桌面应用 | `desktop/`（Electron / Tauri） |
+| `sanative-bridge` | 原生能力封装（相机/定位/推送等） | `mobile/src/native/` 或 `desktop/src/native/` |
+
+### 设计迭代（原型阶段可用）
+
+- `frontend-design` — 高保真 UI
+- `color-font-skill` — 配色字体
+- `ui-ux-pro-max` — UI/UX 设计智能
+- `frontend-dev` — 全栈前端
+- `design-style-skill` — PPT/视觉风格统一

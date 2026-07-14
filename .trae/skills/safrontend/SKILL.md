@@ -125,6 +125,15 @@ fi
 
 ##### B. React 18 用户（选 B）
 
+> 📌 **React 18 用户需先选择目标平台，再选 UI 库**。AI 先追问平台类型：
+
+> 请选择目标平台（决定 UI 库推荐）：
+> - **1. 桌面 Web / 中后台** → 推荐 Ant Design / MUI / Chakra UI
+> - **2. 移动端 H5** → 推荐 Ant Design Mobile / Taro UI
+> - **3. 全平台（响应式）** → 推荐 Ant Design（响应式内置）+ 移动端补充
+
+**分支 1：桌面 Web / 中后台**
+
 > 请选择 UI 组件库：
 > - **A. Ant Design**（推荐，国内最成熟，适合中后台 / 商城 / 工具）
 > - **B. MUI (Material UI)**（推荐，海外项目、Google 风格）
@@ -132,6 +141,23 @@ fi
 > - **D. 不安装**（纯手写组件，后续需自建 toast / Modal / Form 等）
 >   - 选 D 时 AI 必须警告：「未选 UI 库将导致 saapi-connect 无法使用组件级 toast」
 > - **E. 其他**（请说明）
+
+**分支 2：移动端 H5**
+
+> 请选择移动端 UI 组件库：
+> - **A. Ant Design Mobile**（推荐，Ant Design 移动版，国内生态成熟，适合 H5 / WebView）
+> - **B. Taro UI**（推荐，京东出品，专为 H5 + 小程序设计，跨端能力强）
+> - **C. Vant**（React 版 Vant，轻量移动端组件库，适合轻交互 H5）
+> - **D. 不安装**（纯手写组件）
+>   - 选 D 时 AI 必须警告：「未选 UI 库将导致 saapi-connect 无法使用组件级 toast」
+> - **E. 其他**（如：NutUI React、Zarm 等，请说明）
+
+**分支 3：全平台（响应式）**
+
+> 请选择 UI 组件库：
+> - **A. Ant Design**（推荐，内置响应式 Grid，搭配 antd-mobile 可覆盖桌面 + 移动）
+> - **B. MUI**（推荐，内置 responsive breakpoints，桌面 + 移动一套代码）
+> - **C. 组合方案**：桌面用 Ant Design + 移动端用 Ant Design Mobile（按设备动态加载）
 
 ##### C. 其它框架（选 C）
 
@@ -177,6 +203,148 @@ cd frontend && npm install antd@^5.0.0
   - 已安装：<npm install 输出>
   - 已写入 STEPS.md「🧩 UI 组件库」节
   - Phase 1 Step 3 改为基于 UI 库封装
+```
+
+### Step 2.3：选择渲染模式（SPA / SSR / SSG）
+
+> 📌 **本步骤为 safrontend 新增步骤**。SPA（单页应用）对 SEO 不友好且首屏加载慢，对于内容型项目（博客、资讯、电商）必须提供 SSR/SSG 选项。
+
+#### 2.3.1 询问渲染模式
+
+使用 `AskUserQuestion`：
+
+> 请选择前端渲染模式（影响 SEO 与首屏性能）：
+> - **A. SPA（单页应用，默认）**
+>   - 大白话：一个 HTML + JS 搞定全部页面切换；纯前端渲染
+>   - 适合：后台管理、工具类、不需要 SEO 的项目
+>   - 构建工具：Vite
+> - **B. SSR（服务端渲染）**
+>   - 大白话：页面在服务器渲染好再发给浏览器，首屏快、SEO 好
+>   - 适合：博客、资讯、电商、需要 SEO 的面向用户页面
+>   - Vue 3 → **Nuxt 3**；React 18 → **Next.js 14**
+> - **C. SSG（静态站点生成）**
+>   - 大白话：构建时生成所有静态 HTML，部署到 CDN 飞一样快
+>   - 适合：文档站、博客、企业官网等內容不频繁变动的项目
+>   - Vue 3 → **Nuxt 3**（SSG 模式）；React 18 → **Next.js 14**（静态导出）
+
+#### 2.3.2 按所选分支变更脚手架
+
+| 原始选择 | SSR/SSG 选择 | 实际操作 |
+|---------|------------|---------|
+| Vue 3 + Vite + SPA | → Nuxt 3 (SSR/SSG) | 改用 `npx nuxi@latest init frontend` 替代 `npm create vite` |
+| React 18 + Vite + SPA | → Next.js 14 (SSR/SSG) | 改用 `npx create-next-app@latest frontend` 替代 `npm create vite` |
+| 已选 SPA | → SPA | 保持不变 |
+
+> ⚠️ **选 SSR/SSG 时的影响**：
+> - 目录结构变化（Vite → Nuxt/Next.js 约定目录）
+> - 状态管理需调整为 SSR 兼容方案（Pinia → Nuxt 内置 / Zustand → 需 SSR 配置）
+> - README.md 技术栈节同步更新
+> - **saapi-connect** 的 Vite proxy 步骤替换为 Nuxt/Next.js 对应中间件配置
+
+**📝 本步完成后立即写入 STEPS.md**：
+```markdown
+| YYYY-MM-DD | Step 2.3：渲染模式 | ✅ |
+  - 选定：<SPA | SSR (Nuxt 3) | SSR (Next.js 14) | SSG>
+  - 构建工具：<Vite | Nuxt 3 | Next.js 14>
+  - 目录结构：<frontend/src/ | frontend/ (Nuxt/Next.js 约定目录)>
+```
+
+### Step 2.4：PWA 离线支持（可选）
+
+> 📌 **本步骤为 safrontend 新增步骤**。PWA（Progressive Web App）可让 H5 页面具备离线访问、添加到主屏幕、推送通知等类原生 App 能力，是 H5 向 App 体验靠拢的关键一步。
+
+#### 2.4.1 询问是否启用 PWA
+
+使用 `AskUserQuestion`：
+
+> 是否启用 PWA（渐进式 Web 应用）？
+> - **A. 是**（推荐 H5 项目，支持离线访问 + 添加到主屏幕 + 推送通知）
+> - **B. 否**（默认，纯 Web 应用）
+
+> 📌 **PWA 适用场景**：
+> - ✅ H5 移动端项目（让用户"添加到桌面"，体验接近 App）
+> - ✅ 需要离线访问的内容型项目（博客、资讯）
+> - ❌ 纯后台管理系统（PWA 意义不大）
+
+#### 2.4.2 PWA 实施内容
+
+若选 A，在 Phase 1/2 中增加以下文件：
+
+| 文件 | 说明 |
+|------|------|
+| `frontend/public/manifest.json` | PWA 清单（应用名、图标、主题色、启动 URL） |
+| `frontend/public/sw.js` | Service Worker（离线缓存策略、推送事件） |
+| `frontend/public/icons/icon-192.png` | 192x192 应用图标（占位） |
+| `frontend/public/icons/icon-512.png` | 512x512 应用图标（占位） |
+| `frontend/src/utils/registerSW.ts` | Service Worker 注册逻辑（开发/生产环境判断） |
+
+**manifest.json 模板**（根据 Step 0 项目元信息自动填充）：
+
+```json
+{
+  "name": "<项目中文名>",
+  "short_name": "<项目中文简称>",
+  "description": "<项目描述>",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "<主色 --primary>",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
+```
+
+**sw.js 核心策略**（缓存优先 + 网络回退）：
+
+```js
+// 安装：预缓存关键资源
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open('<project-key>-v1').then((cache) => {
+      return cache.addAll(['/', '/index.html', '/assets/css/tokens.css']);
+    })
+  );
+});
+
+// 请求：缓存优先，网络回退
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request).then((cached) => {
+      return cached || fetch(event.request).then((response) => {
+        return caches.open('<project-key>-v1').then((cache) => {
+          cache.put(event.request, response.clone());
+          return response;
+        });
+      });
+    })
+  );
+});
+```
+
+**registerSW.ts**（Vite 兼容）：
+
+```ts
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').then((reg) => {
+      console.log('✅ SW registered:', reg.scope);
+    }).catch((err) => {
+      console.log('❌ SW registration failed:', err);
+    });
+  });
+}
+```
+
+> ⚠️ **PWA 与 SSR/SSG 组合**：若同时选了 SSR（Next.js / Nuxt），优先使用框架内置的 PWA 方案（`next-pwa` / `@nuxtjs/pwa`），不手写上述文件。
+
+**📝 本步完成后立即写入 STEPS.md**：
+```markdown
+| YYYY-MM-DD | Step 2.4：PWA 支持 | ✅ |
+  - 启用：<是 / 否>
+  - 生成文件：<manifest.json / sw.js / registerSW.ts / icons>
+  - 离线策略：缓存优先 + 网络回退
 ```
 
 ### Step 2.5：写入 README.md 技术栈与运行指南
@@ -630,6 +798,141 @@ AI 选定方案后，**必须**在 STEPS.md 顶部「项目信息」节**追加*
 ```
 
 > ⚠️ **本步骤必须先于 Step 3 执行**——STEPS.md 中的「图标渲染策略」字段依赖本步的决策结果。
+
+### Step 2.7：响应式设计策略（多端适配）
+
+> 📌 **本步骤为 safrontend 新增步骤**。sainit-* 原型默认移动端布局（`max-width: 100vw`），当目标平台包含桌面端时，必须制定响应式设计策略，确保同一套代码在手机、平板、桌面端均有良好体验。
+
+#### 2.7.1 读取平台选择与断点变量
+
+| 来源 | 信息 |
+|------|------|
+| Step 2.2（UI 库选择） | 用户选的目标平台（桌面 / 移动 / 全平台） |
+| Step 2.3（SSR 选择） | 是否为 SSR 模式（影响响应式实现方式） |
+| `prototype/assets/css/tokens.css` | `--bp-sm/md/lg/xl/2xl` + `--container-sm/md/lg/xl` 断点变量 |
+
+#### 2.7.2 按平台分支实施策略
+
+##### 分支 A：纯移动端 H5（用户选 Step 2.2 分支 2）
+
+```
+📱 目标平台：纯移动端 H5
+   → 策略：**移动端固定布局 + 平板居中留白**
+   → 实施：
+     1. 页面容器 `max-width: var(--container-md)`（768px）并居中
+     2. 大于 768px 时两侧自动留白，不拉伸内容
+     3. 字体/间距/触摸目标保持移动端尺寸
+   → 无需桌面端导航改造
+```
+
+##### 分支 B：纯桌面 Web（用户选 Step 2.2 分支 1）
+
+```
+🖥️ 目标平台：纯桌面 Web
+   → 策略：**桌面优先 + 移动端降级为最小可用**
+   → 实施：
+     1. 默认桌面布局：侧边栏 + 内容区 或 顶部导航 + 宽屏内容
+     2. @media (max-width: 768px) 时：隐藏侧边栏 → 底部 Tab；宽屏卡片 → 堆叠列表
+     3. 字体/间距按桌面标准（可偏大），移动端适当缩小
+     4. 页面容器 `max-width: var(--container-xl)` 居中
+   → Phase 1 增加「Step X：桌面/移动端布局切换」子步骤
+```
+
+##### 分支 C：全平台响应式（用户选 Step 2.2 分支 3）
+
+```
+🌐 目标平台：全平台响应式
+   → 策略：**移动端优先（Mobile First）+ 层层增强**
+   → 断点策略：
+     • < 640px（--bp-sm）：单列、底部 Tab、全宽卡片
+     • 640-768px（--bp-md）：双列、保留底部 Tab
+     • 768-1024px（--bp-lg）：侧边栏 + 内容区、多列网格
+     • > 1024px（--bp-xl）：宽屏居中、更多列
+     • > 1280px（--bp-2xl）：超大屏优化
+   → 实施：
+     1. 基础样式 = 移动端（无 @media 包裹即移动端默认）
+     2. @media (min-width: 768px) → 平板增强
+     3. @media (min-width: 1024px) → 桌面布局
+     4. CSS 容器统一：`.page-container { max-width: var(--container-xl); margin: 0 auto; }`
+   → STEPS.md Phase 1 增加「Step X：响应式断点组件」子步骤
+```
+
+#### 2.7.3 全局响应式工具类（生成到 `frontend/src/styles/responsive.css`）
+
+```css
+/* ===== 响应式工具类（基于 tokens.css 断点变量） ===== */
+
+/* 容器：移动端全宽 → 桌面端居中 */
+.container {
+  width: 100%;
+  max-width: var(--container-xl);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+@media (min-width: 768px) {
+  .container { padding-left: 24px; padding-right: 24px; }
+}
+@media (min-width: 1024px) {
+  .container { padding-left: 32px; padding-right: 32px; }
+}
+
+/* 栅格：移动端单列 → 桌面端多列 */
+.responsive-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+@media (min-width: 640px) {
+  .responsive-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 1024px) {
+  .responsive-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (min-width: 1280px) {
+  .responsive-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* 显示/隐藏：按断点控制元素可见性 */
+.hide-on-desktop { display: block; }    /* 移动端显示 */
+.show-on-desktop { display: none; }     /* 移动端隐藏 */
+@media (min-width: 1024px) {
+  .hide-on-desktop { display: none; }
+  .show-on-desktop { display: block; }
+}
+
+/* 底部 Tab → 侧边栏切换 */
+.bottom-tab { /* 移动端：底部固定 */ }
+@media (min-width: 1024px) {
+  .bottom-tab { /* 桌面端：转为左侧固定侧边栏 */
+    position: fixed; left: 0; top: 0; bottom: 0;
+    width: 240px; flex-direction: column;
+  }
+}
+```
+
+#### 2.7.4 桌面端导航模板（补充到 STEPS.md Phase 1）
+
+若用户选了分支 B（桌面）或 C（全平台），Phase 1 增加以下实施项：
+
+| Step | 内容 | 桌面端 | 移动端 |
+|------|------|--------|--------|
+| X.1 | 导航组件 | `DesktopSidebar.vue`（固定侧边栏 240px） | `MobileTabBar.vue`（底部 Tab） |
+| X.2 | 布局壳 | `DesktopLayout.vue`（侧边栏 + 内容区） | `MobileLayout.vue`（全宽 + Tab 占位） |
+| X.3 | 路由切换 | 侧边栏链接高亮 | 底部 Tab 图标高亮 |
+| X.4 | 响应式卡片 | 卡片网格（3-4 列） | 卡片列表（单列） |
+| X.5 | 响应式表单 | 标签左对齐 + 宽输入框 | 标签顶部 + 全宽输入框 |
+
+**📝 本步完成后立即写入 STEPS.md**：
+```markdown
+| YYYY-MM-DD | Step 2.7：响应式设计策略 | ✅ |
+  - 目标平台：<纯移动 H5 | 纯桌面 Web | 全平台响应式>
+  - 策略：<移动端固定 | 桌面优先 | Mobile First>
+  - 断点引用：tokens.css --bp-sm/md/lg/xl/2xl
+  - 已生成：frontend/src/styles/responsive.css
+  - Phase 1 新增步骤：<无 | Step X：桌面/移动端布局切换>
+```
 
 ### Step 3：生成 `STEPS.md`
 

@@ -1308,6 +1308,95 @@ curl -H "Authorization: Bearer invalid" http://localhost:3000/api/v1/users/me
 
 ---
 
+## 🌐 多端调试方案（Step 7 扩展）
+
+> 📌 **当 safrontend 选择了全平台响应式（Step 2.7 分支 C）或非纯 Web 平台时，Step 7 的验证流程需要覆盖多端场景。**
+
+### 场景 1：Web H5 + 桌面响应式（同源调试）
+
+开发阶段只需一个 Vite dev server + 一个后端：
+
+```bash
+# 同一套代码，在不同设备上验证
+# 1. 桌面端：浏览器直接打开 http://localhost:5173
+# 2. 移动端 H5：手机连接同一 WiFi，访问 http://<本机IP>:5173
+#    （Vite 默认监听 0.0.0.0，可用 ifconfig/ipconfig 查本机 IP）
+# 3. Chrome DevTools → Device Toolbar → 切换 iPhone/Android 模拟
+```
+
+> ⚠️ **移动端真机调试注意事项**：
+> - `VITE_API_BASE_URL` 在 `.env.development` 中不能用 `localhost`（手机访问会指向手机自身）
+> - 改为 `VITE_API_BASE_URL=http://<本机局域网IP>:3000`
+> - 后端 CORS 需额外允许该 IP 来源
+> - 🔒 **HTTPS 要求**：部分浏览器（iOS Safari 14+）要求 `localhost` 以外的连接必须 HTTPS；如遇此问题，使用 `mkcert` 生成本地证书或改用 `ngrok` 反向代理
+
+### 场景 2：SSR 模式（Next.js / Nuxt）调试
+
+若 safrontend Step 2.3 选了 SSR：
+
+| 项目 | Vite SPA | Next.js SSR | Nuxt 3 SSR |
+|------|---------|------------|-----------|
+| 前端端口 | 5173 | 3000（默认，可能与后端冲突→改为 3001） | 3000（同上→改为 3001） |
+| API baseURL | `VITE_API_BASE_URL` | `NEXT_PUBLIC_API_BASE_URL` | `NUXT_PUBLIC_API_BASE_URL` |
+| 代理方式 | `vite.config.ts` proxy | `next.config.js` rewrites | `nuxt.config.ts` nitro.devProxy |
+| 环境变量文件 | `.env.development` | `.env.local` | `.env`（nuxt 自动加载） |
+| SSR API 调用 | 不需要（客户端 fetch） | `getServerSideProps` 需直连后端或走内部网络 | `useFetch` / `useAsyncData` |
+
+**Next.js 代理配置示例**（`next.config.js`）：
+```js
+module.exports = {
+  async rewrites() {
+    return [
+      { source: '/api/:path*', destination: 'http://localhost:3000/api/:path*' }
+    ];
+  }
+};
+```
+
+**Nuxt 3 代理配置示例**（`nuxt.config.ts`）：
+```ts
+export default defineNuxtConfig({
+  nitro: {
+    devProxy: {
+      '/api': { target: 'http://localhost:3000', changeOrigin: true }
+    }
+  }
+});
+```
+
+### 场景 3：PWA 离线调试
+
+若 safrontend Step 2.4 启用了 PWA：
+
+1. **Service Worker 更新**：开发时 SW 可能缓存旧资源，打开 DevTools → Application → Service Workers → 勾选 "Update on reload"
+2. **离线测试**：DevTools → Network → 勾选 "Offline" → 刷新页面 → 应从 SW 缓存加载
+3. **添加到主屏幕**：Chrome DevTools → Application → Manifest → 检查清单完整性
+4. **推送通知测试**：需 HTTPS（`localhost` 例外）→ 生产环境必须 HTTPS
+
+### 场景 4：移动端 WebView 调试（App 内嵌 H5）
+
+若用户未来将 H5 打包进 App WebView：
+
+```bash
+# Android WebView 调试
+# 1. 手机开启 USB 调试
+# 2. Chrome 打开 chrome://inspect → 远程调试 WebView
+# 3. 前端 .env 用局域网 IP（不能用 localhost）
+
+# iOS WKWebView 调试
+# 1. Safari → 开发 → [设备名] → 选择 WebView 上下文
+# 2. 同样需要局域网 IP 或 ngrok 代理
+```
+
+**WebView 环境变量模板**（追加到 `.env.example`）：
+```bash
+# App WebView 嵌入模式（部署时填写）
+# VITE_API_BASE_URL=https://api.example.com
+# VITE_IS_WEBVIEW=true            # 开启时：隐藏浏览器地址栏相关 UI、使用原生分享/支付
+```
+
+---
+
 ## 关键约定速查
 
 | 项目 | 约定 |
@@ -1334,6 +1423,12 @@ curl -H "Authorization: Bearer invalid" http://localhost:3000/api/v1/users/me
 | 登录后仍 401 | 检查后端 `system_config.jwt_secret` 是否被改、auth.controller 是否真校验 token |
 | refresh 接口 401 | refresh token 已过期；清除 localStorage 让用户重新登录 |
 | 用户已上线、想再次接入 | 检测现有 `.env.development` 是否已含 `VITE_API_BASE_URL`；提示「是否重新生成」 |
+| 移动端真机访问 localhost 失败 | `VITE_API_BASE_URL` 改为局域网 IP + 后端 CORS 追加该来源 |
+| iOS Safari 非 localhost 要求 HTTPS | 使用 `mkcert` 生成本地证书或 `ngrok` 临时反向代理 |
+| SSR 模式代理不生效 | 检查 `next.config.js` rewrites / `nuxt.config.ts` devProxy 是否覆盖 `/api` |
+| PWA SW 缓存导致旧页面 | DevTools → Application → Service Workers → Update on reload |
+| WebView 中 JWT Cookie 丢失 | WebView 可能不共享浏览器 Cookie；改用 localStorage 存储 token（当前已是 localStorage） |
+| 多端 baseURL 不一致 | 按 `.env.development`（Web）/ `.env.webview`（App WebView）/ `.env.production`（上线）分别管理 |
 
 ## 修改记录（skill 自身演进）
 

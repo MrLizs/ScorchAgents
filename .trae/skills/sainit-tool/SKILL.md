@@ -102,6 +102,19 @@ description: "初始化一个工具/效率类软件项目的产品原型。Invok
   --text: #1F2937; --text-sub: #6B7280; --border: #F1F1F4;
   --radius-sm: 6px; --radius: 10px; --radius-lg: 16px;
   --shadow: 0 2px 8px rgba(0,0,0,0.06);
+
+  /* ===== 响应式断点（供 @media 查询与 safrontend 响应式组件引用） ===== */
+  --bp-sm: 640px;    /* 小屏手机 */
+  --bp-md: 768px;    /* 平板 / 大屏手机横屏 */
+  --bp-lg: 1024px;   /* 桌面 / 笔记本 */
+  --bp-xl: 1280px;   /* 宽屏桌面 */
+  --bp-2xl: 1536px;  /* 超大屏 */
+
+  /* ===== 容器最大宽度（桌面端居中布局） ===== */
+  --container-sm: 640px;
+  --container-md: 768px;
+  --container-lg: 1024px;
+  --container-xl: 1280px;
 }
 ```
 
