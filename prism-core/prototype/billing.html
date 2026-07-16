@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>PrismCore - 账单与充值</title>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/components.css">
+  <style>
+    /* 账单页面专用样式 */
+
+    /* 子页面布局（无 tab bar 底部留白较少） */
+    .sub-page {
+      padding-top: calc(var(--header-height) + var(--spacing-md));
+      padding-bottom: var(--spacing-xl);
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding-left: var(--spacing-md);
+      padding-right: var(--spacing-md);
+    }
+
+    /* 返回按钮 */
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      font-size: var(--font-size-sm);
+      color: var(--text-sub);
+      cursor: pointer;
+      padding: var(--spacing-xs) 0;
+      margin-bottom: var(--spacing-sm);
+      border: none;
+      background: none;
+      transition: color 0.15s;
+    }
+    .back-link:hover {
+      color: var(--primary);
+    }
+
+    /* 余额卡片 */
+    .balance-card {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-lg);
+      color: white;
+      margin-bottom: var(--spacing-lg);
+      position: relative;
+      overflow: hidden;
+    }
+    .balance-card::after {
+      content: '';
+      position: absolute;
+      right: -30px;
+      top: -30px;
+      width: 180px;
+      height: 180px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 50%;
+    }
+    .balance-card .balance-label {
+      font-size: var(--font-size-sm);
+      opacity: 0.8;
+      position: relative;
+      z-index: 1;
+    }
+    .balance-card .balance-amount {
+      font-size: 36px;
+      font-weight: var(--font-weight-bold);
+      margin: var(--spacing-sm) 0;
+      position: relative;
+      z-index: 1;
+    }
+    .balance-card .balance-sub {
+      font-size: var(--font-size-xs);
+      opacity: 0.65;
+      position: relative;
+      z-index: 1;
+    }
+    .balance-card .balance-action {
+      position: absolute;
+      right: var(--spacing-lg);
+      bottom: var(--spacing-lg);
+      z-index: 1;
+    }
+
+    /* 快速充值网格 */
+    .topup-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--spacing-md);
+      margin-bottom: var(--spacing-lg);
+    }
+    .topup-card {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: var(--spacing-md);
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .topup-card:hover {
+      border-color: var(--primary-light);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-2px);
+    }
+    .topup-card.selected {
+      border-color: var(--primary);
+      background: var(--primary-bg);
+    }
+    .topup-card .topup-amount {
+      font-size: var(--font-size-lg);
+      font-weight: var(--font-weight-bold);
+      color: var(--text);
+    }
+    .topup-card .topup-bonus {
+      font-size: var(--font-size-xs);
+      color: var(--success);
+      margin-top: var(--spacing-xs);
+    }
+    .topup-card.selected .topup-amount {
+      color: var(--primary);
+    }
+
+    /* 账单表格 */
+    .billing-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--font-size);
+    }
+    .billing-table th {
+      text-align: left;
+      padding: var(--spacing-sm) var(--spacing-md);
+      font-size: var(--font-size-sm);
+      color: var(--text-muted);
+      font-weight: var(--font-weight-medium);
+      border-bottom: 1px solid var(--border);
+    }
+    .billing-table td {
+      padding: var(--spacing-md);
+      border-bottom: 1px solid var(--border-light);
+      vertical-align: middle;
+    }
+    .billing-table tr:last-child td {
+      border-bottom: none;
+    }
+    .billing-table .bill-desc {
+      font-weight: var(--font-weight-medium);
+    }
+    .billing-table .bill-desc-sub {
+      font-size: var(--font-size-xs);
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    .billing-table .bill-amount {
+      font-weight: var(--font-weight-semibold);
+      text-align: right;
+    }
+    .billing-table .bill-amount.consume {
+      color: var(--danger);
+    }
+    .billing-table .bill-amount.topup {
+      color: var(--success);
+    }
+    .billing-table .bill-status {
+      text-align: center;
+    }
+
+    /* 适配小屏 */
+    @media (max-width: 600px) {
+      .topup-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .billing-table thead {
+        display: none;
+      }
+      .billing-table tr {
+        display: block;
+        padding: var(--spacing-md);
+        border-bottom: 1px solid var(--border-light);
+      }
+      .billing-table td {
+        display: block;
+        padding: 2px 0;
+        border: none;
+      }
+      .billing-table .bill-status {
+        text-align: left;
+      }
+      .billing-table .bill-amount {
+        text-align: left;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- 顶部导航 -->
+  <header class="app-header">
+    <div class="brand" onclick="goTo('home.html')" style="cursor:pointer;">
+      <span class="logo-icon">P</span>
+      <span>PrismCore</span>
+    </div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:var(--spacing-sm);">
+      <button class="btn btn-ghost btn-sm" onclick="toggleTheme()" title="切换主题" style="color:var(--text-sub);font-size:16px;">🌓</button>
+      <span style="font-size:var(--font-size-sm);color:var(--text-sub);" id="user-name-display">用户</span>
+      <div class="avatar" onclick="goTo('me.html')" style="width:32px;height:32px;border-radius:50%;background:var(--primary);color:white;display:flex;align-items:center;justify-content:center;font-size:var(--font-size-sm);cursor:pointer;font-weight:var(--font-weight-semibold);" id="user-avatar-display">P</div>
+    </div>
+  </header>
+
+  <div class="sub-page">
+    <!-- 返回按钮 -->
+    <button class="back-link" onclick="goTo('me.html')">← 返回</button>
+
+    <!-- 页面标题 -->
+    <h1 class="page-title">账单与充值</h1>
+
+    <!-- 余额卡片 -->
+    <div class="balance-card">
+      <div class="balance-label">账户余额</div>
+      <div class="balance-amount">¥128.50</div>
+      <div class="balance-sub">已累计充值 ¥500.00 · 今日消费 ¥32.50</div>
+      <div class="balance-action">
+        <button class="btn" style="background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.3);" onclick="showTopupModal()">充值</button>
+      </div>
+    </div>
+
+    <!-- 快速充值 -->
+    <div class="card-header">
+      <span class="card-title">快速充值</span>
+    </div>
+    <div class="topup-grid">
+      <div class="topup-card" onclick="selectTopup(this, 50)" data-amount="50">
+        <div class="topup-amount">¥50</div>
+        <div class="topup-bonus">赠送 ¥2</div>
+      </div>
+      <div class="topup-card" onclick="selectTopup(this, 100)" data-amount="100">
+        <div class="topup-amount">¥100</div>
+        <div class="topup-bonus">赠送 ¥5</div>
+      </div>
+      <div class="topup-card" onclick="selectTopup(this, 200)" data-amount="200">
+        <div class="topup-amount">¥200</div>
+        <div class="topup-bonus">赠送 ¥15</div>
+      </div>
+      <div class="topup-card" onclick="selectTopup(this, 500)" data-amount="500">
+        <div class="topup-amount">¥500</div>
+        <div class="topup-bonus">赠送 ¥50</div>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-block" id="topup-confirm-btn" onclick="confirmTopup()" style="margin-bottom:var(--spacing-lg);">充值 ¥50</button>
+
+    <!-- 最近账单 -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">最近账单</span>
+        <span style="font-size:var(--font-size-xs);color:var(--text-muted);">近 30 天记录</span>
+      </div>
+      <table class="billing-table" id="billing-table">
+        <thead>
+          <tr>
+            <th>日期</th>
+            <th>描述</th>
+            <th>金额</th>
+            <th class="bill-status">状态</th>
+          </tr>
+        </thead>
+        <tbody id="billing-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 充值确认模态框 -->
+  <div class="modal-overlay" id="topup-modal">
+    <div class="modal">
+      <div class="modal-title">确认充值</div>
+      <p style="color:var(--text-sub);margin-bottom:var(--spacing-md);">
+        确定要充值 <strong style="color:var(--primary);" id="topup-modal-amount">¥50</strong> 吗？
+      </p>
+      <p style="font-size:var(--font-size-sm);color:var(--text-muted);margin-bottom:var(--spacing-md);">
+        充值金额将立即到账，赠送金额将在充值成功后自动发放。
+      </p>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeTopupModal()">取消</button>
+        <button class="btn btn-primary" onclick="doTopup()">确认充值</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/js/common.js"></script>
+  <script>
+    // ===== 状态 =====
+    var selectedAmount = 50;
+    var billingRecords = [
+      { date: '2026-07-16T10:23:00', desc: 'GPT-4o API 调用消耗', sub: 'tokens: 2,156 · 模型: GPT-4o', amount: -12.50, status: 'success' },
+      { date: '2026-07-15T14:05:00', desc: 'Claude 3.5 Sonnet API 调用消耗', sub: 'tokens: 843 · 模型: Claude 3.5 Sonnet', amount: -8.20, status: 'success' },
+      { date: '2026-07-14T09:30:00', desc: '账户充值', sub: '微信支付 · 充值赠送 ¥5', amount: 100.00, status: 'success' },
+      { date: '2026-07-13T16:45:00', desc: 'Qwen2-72B API 调用消耗', sub: 'tokens: 3,421 · 模型: Qwen2-72B', amount: -6.80, status: 'success' },
+      { date: '2026-07-12T11:15:00', desc: 'Llama 3.1 405B API 调用消耗', sub: 'tokens: 1,678 · 模型: Llama 3.1 405B', amount: -0.55, status: 'failed' }
+    ];
+
+    // ===== 渲染账单 =====
+    function renderBills() {
+      var tbody = document.getElementById('billing-body');
+      var html = '';
+      for (var i = 0; i < billingRecords.length; i++) {
+        var r = billingRecords[i];
+        var isTopup = r.amount > 0;
+        var amountClass = isTopup ? 'topup' : 'consume';
+        var amountSign = isTopup ? '+' : '';
+        var statusText = '';
+        var statusBadge = '';
+        if (r.status === 'success') {
+          statusText = '成功';
+          statusBadge = 'badge-green';
+        } else if (r.status === 'pending') {
+          statusText = '处理中';
+          statusBadge = 'badge-yellow';
+        } else {
+          statusText = '失败';
+          statusBadge = 'badge-red';
+        }
+
+        html +=
+          '<tr>' +
+            '<td style="white-space:nowrap;">' + formatDate(r.date) + '</td>' +
+            '<td>' +
+              '<div class="bill-desc">' + r.desc + '</div>' +
+              '<div class="bill-desc-sub">' + r.sub + '</div>' +
+            '</td>' +
+            '<td class="bill-amount ' + amountClass + '">' + amountSign + formatCurrency(Math.abs(r.amount)) + '</td>' +
+            '<td class="bill-status"><span class="' + statusBadge + '">' + statusText + '</span></td>' +
+          '</tr>';
+      }
+      tbody.innerHTML = html;
+    }
+
+    // ===== 充值选额 =====
+    function selectTopup(el, amount) {
+      var cards = document.querySelectorAll('.topup-card');
+      for (var i = 0; i < cards.length; i++) {
+        cards[i].classList.remove('selected');
+      }
+      el.classList.add('selected');
+      selectedAmount = amount;
+      document.getElementById('topup-confirm-btn').textContent = '充值 ¥' + amount;
+    }
+
+    // ===== 充值弹窗 =====
+    function showTopupModal() {
+      document.getElementById('topup-modal-amount').textContent = '¥' + selectedAmount;
+      document.getElementById('topup-modal').classList.add('show');
+    }
+
+    function closeTopupModal() {
+      document.getElementById('topup-modal').classList.remove('show');
+    }
+
+    function doTopup() {
+      closeTopupModal();
+      showToast('充值 ¥' + selectedAmount + ' 成功，已到账', 'success');
+    }
+
+    // ===== 点击模态框外部关闭 =====
+    document.addEventListener('click', function(e) {
+      var overlay = document.getElementById('topup-modal');
+      if (e.target === overlay) closeTopupModal();
+    });
+
+    // ===== 页面初始化 =====
+    document.addEventListener('DOMContentLoaded', function() {
+      if (!checkAuth()) return;
+      var user = getUser();
+      if (user) {
+        document.getElementById('user-name-display').textContent = user.name || user.email;
+        document.getElementById('user-avatar-display').textContent = (user.name || user.email || 'P').charAt(0).toUpperCase();
+      }
+      renderBills();
+    });
+  </script>
+</body>
+</html>

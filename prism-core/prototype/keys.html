@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>PrismCore - API Key 管理</title>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/components.css">
+  <style>
+    /* API Key 管理专用样式 */
+
+    /* 页面布局 */
+    .keys-page {
+      padding-top: calc(var(--header-height) + var(--spacing-md));
+      padding-bottom: calc(var(--tab-height) + var(--spacing-md));
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding-left: var(--spacing-md);
+      padding-right: var(--spacing-md);
+    }
+
+    /* 页面标题栏 */
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--spacing-lg);
+    }
+    .page-header .page-title {
+      margin-bottom: 0;
+    }
+
+    /* Key 卡片 */
+    .key-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      padding: var(--spacing-md);
+      margin-bottom: var(--spacing-sm);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+      transition: all 0.2s;
+    }
+    .key-card:hover {
+      border-color: var(--primary-light);
+      box-shadow: var(--shadow-sm);
+    }
+    .key-card .key-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .key-card .key-name {
+      font-size: var(--font-size-md);
+      font-weight: var(--font-weight-semibold);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+    .key-card .key-name .key-name-text {
+      cursor: pointer;
+      border-bottom: 1px dashed transparent;
+      transition: border-color 0.15s;
+    }
+    .key-card .key-name .key-name-text:hover {
+      border-bottom-color: var(--text-sub);
+    }
+    .key-card .key-name .badge-disabled {
+      background: var(--border);
+      color: var(--text-muted);
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 999px;
+      font-size: var(--font-size-xs);
+      font-weight: var(--font-weight-medium);
+    }
+    .key-card .key-value-display {
+      font-family: var(--font-mono);
+      font-size: var(--font-size-sm);
+      color: var(--text-sub);
+      margin-top: 4px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .key-card .key-meta {
+      font-size: var(--font-size-xs);
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    .key-card .key-actions {
+      display: flex;
+      gap: var(--spacing-xs);
+      flex-shrink: 0;
+    }
+    .key-card .key-permissions {
+      font-size: var(--font-size-xs);
+      color: var(--text-muted);
+      display: flex;
+      gap: var(--spacing-xs);
+      margin-top: 4px;
+    }
+    .key-card .key-permissions .perm-tag {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: var(--primary-soft);
+      color: var(--primary);
+      font-size: 11px;
+    }
+
+    /* 模态框中权限切换 */
+    .perm-toggle {
+      display: flex;
+      gap: var(--spacing-sm);
+      margin-top: var(--spacing-xs);
+    }
+    .perm-toggle label {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      font-size: var(--font-size-sm);
+      color: var(--text-sub);
+      cursor: pointer;
+    }
+    .perm-toggle input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+    /* 内联编辑 key name */
+    .key-name-edit {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+    }
+    .key-name-edit input {
+      width: 140px;
+      padding: 2px 8px;
+      border: 1px solid var(--primary);
+      border-radius: var(--radius-sm);
+      font-size: var(--font-size-md);
+      font-weight: var(--font-weight-semibold);
+      color: var(--text);
+      background: var(--surface);
+      outline: none;
+    }
+
+    /* 响应式 */
+    @media (max-width: 480px) {
+      .key-card {
+        flex-wrap: wrap;
+      }
+      .key-card .key-actions {
+        width: 100%;
+        justify-content: flex-end;
+        padding-top: var(--spacing-xs);
+        border-top: 1px solid var(--border-light);
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- 顶部导航 -->
+  <header class="app-header">
+    <div class="brand" onclick="goTo('home.html')" style="cursor:pointer;">
+      <span class="logo-icon">P</span>
+      <span>PrismCore</span>
+    </div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:var(--spacing-sm);">
+      <button class="btn btn-ghost btn-sm" onclick="toggleTheme()" title="切换主题" style="color:var(--text-sub);font-size:16px;">🌓</button>
+      <span style="font-size:var(--font-size-sm);color:var(--text-sub);" id="user-name-display">用户</span>
+      <div class="avatar" onclick="goTo('me.html')" style="width:32px;height:32px;border-radius:50%;background:var(--primary);color:white;display:flex;align-items:center;justify-content:center;font-size:var(--font-size-sm);cursor:pointer;font-weight:var(--font-weight-semibold);" id="user-avatar-display">P</div>
+    </div>
+  </header>
+
+  <div class="keys-page">
+    <!-- 页面标题栏 -->
+    <div class="page-header">
+      <div class="page-title">API Key 管理</div>
+      <button class="btn btn-primary btn-sm" onclick="showCreateModal()">+ 创建 Key</button>
+    </div>
+
+    <!-- 提示信息 -->
+    <div class="card" style="margin-bottom:var(--spacing-lg);background:var(--primary-bg);border-color:var(--primary-soft);padding:var(--spacing-sm) var(--spacing-md);">
+      <p style="font-size:var(--font-size-sm);color:var(--primary);">
+        🔑 API Key 是调用 PrismCore API 的身份凭证，请妥善保管，不要泄露给他人。
+      </p>
+    </div>
+
+    <!-- Key 列表容器 -->
+    <div id="key-list"></div>
+
+    <!-- 空状态 -->
+    <div class="empty-state" id="empty-state" style="display:none;">
+      <div class="empty-icon">🔑</div>
+      <div class="empty-text">暂无 API Key</div>
+      <p style="font-size:var(--font-size-sm);margin-top:var(--spacing-sm);color:var(--text-muted);">点击上方「创建 Key」按钮生成第一个密钥</p>
+    </div>
+  </div>
+
+  <!-- 底部 Tab 导航 -->
+  <nav class="tab-bar">
+    <button class="tab-item" data-href="home.html" onclick="goTo('home.html')">
+      <span class="tab-icon">🏠</span> 首页
+    </button>
+    <button class="tab-item" data-href="models.html" onclick="goTo('models.html')">
+      <span class="tab-icon">🧠</span> 模型
+    </button>
+    <button class="tab-item" data-href="stats.html" onclick="goTo('stats.html')">
+      <span class="tab-icon">📊</span> 统计
+    </button>
+    <button class="tab-item" data-href="me.html" onclick="goTo('me.html')">
+      <span class="tab-icon">👤</span> 我的
+    </button>
+  </nav>
+
+  <!-- 创建 Key 模态框 -->
+  <div class="modal-overlay" id="create-modal">
+    <div class="modal">
+      <div class="modal-title">创建 API Key</div>
+      <div class="form-group">
+        <label class="form-label">Key 名称</label>
+        <input class="form-input" id="new-key-name" placeholder="例如：生产环境、开发环境..." maxlength="30">
+      </div>
+      <div class="form-group">
+        <label class="form-label">权限</label>
+        <div class="perm-toggle">
+          <label>
+            <input type="checkbox" id="perm-read" checked disabled>
+            读取（必选）
+          </label>
+          <label>
+            <input type="checkbox" id="perm-write" checked>
+            写入
+          </label>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeCreateModal()">取消</button>
+        <button class="btn btn-primary" onclick="createKey()">创建</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 编辑 Key 名称模态框 -->
+  <div class="modal-overlay" id="rename-modal">
+    <div class="modal">
+      <div class="modal-title">修改 Key 名称</div>
+      <div class="form-group">
+        <label class="form-label">新名称</label>
+        <input class="form-input" id="rename-key-input" placeholder="输入新的 Key 名称..." maxlength="30">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeRenameModal()">取消</button>
+        <button class="btn btn-primary" onclick="confirmRename()">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/js/common.js"></script>
+  <script>
+    // ===== 数据管理 =====
+    var STORAGE_KEY = 'prismcore:api_keys';
+
+    // 默认示例数据
+    var defaultKeys = [
+      {
+        id: 'key_001',
+        name: '生产环境',
+        key: 'sk-pc-' + genId() + genId() + 'aB3x',
+        createdAt: '2026-06-15T08:00:00',
+        enabled: true,
+        permissions: ['read', 'write']
+      },
+      {
+        id: 'key_002',
+        name: '开发环境',
+        key: 'sk-pc-' + genId() + genId() + 'Cd4y',
+        createdAt: '2026-06-20T10:30:00',
+        enabled: true,
+        permissions: ['read', 'write']
+      },
+      {
+        id: 'key_003',
+        name: '测试环境',
+        key: 'sk-pc-' + genId() + genId() + 'Ef5z',
+        createdAt: '2026-07-01T14:00:00',
+        enabled: true,
+        permissions: ['read']
+      },
+      {
+        id: 'key_004',
+        name: '临时密钥',
+        key: 'sk-pc-' + genId() + genId() + 'Gh6a',
+        createdAt: '2026-07-05T09:15:00',
+        enabled: false,
+        permissions: ['read', 'write']
+      },
+      {
+        id: 'key_005',
+        name: 'CI/CD 流水线',
+        key: 'sk-pc-' + genId() + genId() + 'Ij7b',
+        createdAt: '2026-07-10T16:45:00',
+        enabled: true,
+        permissions: ['read']
+      }
+    ];
+
+    // 加载或初始化数据
+    function loadKeys() {
+      var data = localStorage.getItem(STORAGE_KEY);
+      if (data) {
+        try { return JSON.parse(data); }
+        catch { return []; }
+      }
+      // 首次使用，写入默认数据
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultKeys));
+      return defaultKeys;
+    }
+
+    function saveKeys(keys) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(keys));
+    }
+
+    // 获取 key 的部分显示
+    function maskKey(keyStr) {
+      if (keyStr.length <= 10) return keyStr;
+      return keyStr.substring(0, 6) + '...' + keyStr.substring(keyStr.length - 4);
+    }
+
+    // ===== 渲染 Key 列表 =====
+    function renderKeys() {
+      var keys = loadKeys();
+      var container = document.getElementById('key-list');
+      var emptyEl = document.getElementById('empty-state');
+
+      if (keys.length === 0) {
+        container.innerHTML = '';
+        emptyEl.style.display = 'block';
+        return;
+      }
+      emptyEl.style.display = 'none';
+
+      var html = '';
+      for (var i = 0; i < keys.length; i++) {
+        var k = keys[i];
+        var statusBadge = k.enabled
+          ? '<span class="badge-green">启用</span>'
+          : '<span class="badge-red" style="background:var(--border);color:var(--text-muted);">禁用</span>';
+
+        var permHtml = '';
+        for (var p = 0; p < k.permissions.length; p++) {
+          var permLabel = k.permissions[p] === 'read' ? '读取' : '写入';
+          permHtml += '<span class="perm-tag">' + permLabel + '</span>';
+        }
+
+        html +=
+          '<div class="key-card" data-key-id="' + k.id + '">' +
+            '<div class="key-info">' +
+              '<div class="key-name">' +
+                '<span class="key-name-text" onclick="openRenameModal(\'' + k.id + '\')" title="点击修改名称">' + escapeHtml(k.name) + '</span> ' +
+                statusBadge +
+              '</div>' +
+              '<div class="key-value-display">' + maskKey(k.key) + '</div>' +
+              '<div class="key-meta">创建于 ' + formatDate(k.createdAt) + '</div>' +
+              '<div class="key-permissions">' + permHtml + '</div>' +
+            '</div>' +
+            '<div class="key-actions">' +
+              '<button class="btn btn-ghost btn-sm" onclick="copyKey(\'' + k.id + '\')" title="复制 Key">📋</button>' +
+              '<button class="btn btn-ghost btn-sm" onclick="openRenameModal(\'' + k.id + '\')" title="重命名">✏️</button>' +
+              '<button class="btn btn-ghost btn-sm" onclick="toggleKey(\'' + k.id + '\')" title="' + (k.enabled ? '禁用' : '启用') + '">' + (k.enabled ? '⏸' : '▶️') + '</button>' +
+              '<button class="btn btn-ghost btn-sm" onclick="deleteKey(\'' + k.id + '\')" title="删除" style="color:var(--danger);">🗑️</button>' +
+            '</div>' +
+          '</div>';
+      }
+      container.innerHTML = html;
+    }
+
+    // 简单的 HTML 转义
+    function escapeHtml(str) {
+      var div = document.createElement('div');
+      div.appendChild(document.createTextNode(str));
+      return div.innerHTML;
+    }
+
+    // ===== 创建 Key =====
+    function showCreateModal() {
+      document.getElementById('new-key-name').value = '';
+      document.getElementById('perm-write').checked = true;
+      document.getElementById('create-modal').classList.add('show');
+      setTimeout(function() {
+        document.getElementById('new-key-name').focus();
+      }, 200);
+    }
+
+    function closeCreateModal() {
+      document.getElementById('create-modal').classList.remove('show');
+    }
+
+    function createKey() {
+      var name = document.getElementById('new-key-name').value.trim();
+      if (!name) {
+        showToast('请输入 Key 名称', 'error');
+        return;
+      }
+
+      var hasWrite = document.getElementById('perm-write').checked;
+      var permissions = ['read'];
+      if (hasWrite) permissions.push('write');
+
+      // 生成模拟 Key
+      var keyStr = 'sk-pc-' + genId() + genId() + genId().substring(0, 4);
+
+      var newKey = {
+        id: 'key_' + genId(),
+        name: name,
+        key: keyStr,
+        createdAt: new Date().toISOString(),
+        enabled: true,
+        permissions: permissions
+      };
+
+      var keys = loadKeys();
+      keys.unshift(newKey);
+      saveKeys(keys);
+      renderKeys();
+      closeCreateModal();
+      showToast('Key "' + name + '" 创建成功', 'success');
+    }
+
+    // ===== 复制 Key =====
+    function copyKey(id) {
+      var keys = loadKeys();
+      for (var i = 0; i < keys.length; i++) {
+        if (keys[i].id === id) {
+          copyToClipboard(keys[i].key);
+          return;
+        }
+      }
+    }
+
+    // ===== 重命名 Key =====
+    var renameTargetId = null;
+
+    function openRenameModal(id) {
+      renameTargetId = id;
+      var keys = loadKeys();
+      for (var i = 0; i < keys.length; i++) {
+        if (keys[i].id === id) {
+          document.getElementById('rename-key-input').value = keys[i].name;
+          break;
+        }
+      }
+      document.getElementById('rename-modal').classList.add('show');
+      setTimeout(function() {
+        document.getElementById('rename-key-input').focus();
+      }, 200);
+    }
+
+    function closeRenameModal() {
+      document.getElementById('rename-modal').classList.remove('show');
+      renameTargetId = null;
+    }
+
+    function confirmRename() {
+      if (!renameTargetId) return;
+      var newName = document.getElementById('rename-key-input').value.trim();
+      if (!newName) {
+        showToast('请输入 Key 名称', 'error');
+        return;
+      }
+
+      var keys = loadKeys();
+      for (var i = 0; i < keys.length; i++) {
+        if (keys[i].id === renameTargetId) {
+          var oldName = keys[i].name;
+          keys[i].name = newName;
+          saveKeys(keys);
+          renderKeys();
+          closeRenameModal();
+          showToast('已重命名为 "' + newName + '"', 'success');
+          return;
+        }
+      }
+    }
+
+    // ===== 切换启用/禁用 =====
+    function toggleKey(id) {
+      var keys = loadKeys();
+      for (var i = 0; i < keys.length; i++) {
+        if (keys[i].id === id) {
+          keys[i].enabled = !keys[i].enabled;
+          saveKeys(keys);
+          renderKeys();
+          showToast(keys[i].enabled ? 'Key 已启用' : 'Key 已禁用', 'info');
+          return;
+        }
+      }
+    }
+
+    // ===== 删除 Key =====
+    function deleteKey(id) {
+      showConfirm('删除 API Key', '确定要删除此 Key 吗？删除后将无法恢复，正在使用该 Key 的应用将立即失效。').then(function(confirmed) {
+        if (!confirmed) return;
+        var keys = loadKeys();
+        var newKeys = [];
+        for (var i = 0; i < keys.length; i++) {
+          if (keys[i].id !== id) {
+            newKeys.push(keys[i]);
+          }
+        }
+        saveKeys(newKeys);
+        renderKeys();
+        showToast('Key 已删除', 'success');
+      });
+    }
+
+    // ===== 点击模态框外部关闭 =====
+    document.addEventListener('click', function(e) {
+      var createOverlay = document.getElementById('create-modal');
+      var renameOverlay = document.getElementById('rename-modal');
+      if (e.target === createOverlay) closeCreateModal();
+      if (e.target === renameOverlay) closeRenameModal();
+    });
+
+    // ===== 页面初始化 =====
+    document.addEventListener('DOMContentLoaded', function() {
+      if (!checkAuth()) return;
+      var user = getUser();
+      if (user) {
+        document.getElementById('user-name-display').textContent = user.name || user.email;
+        document.getElementById('user-avatar-display').textContent = (user.name || user.email || 'P').charAt(0).toUpperCase();
+      }
+      renderKeys();
+    });
+  </script>
+</body>
+</html>

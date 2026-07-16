@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>PrismCore - 在线测试</title>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/components.css">
+  <style>
+    /* Playground 专用样式 */
+
+    /* 页面容器 - 无底部 tab 时减少 padding */
+    .playground-page {
+      padding-top: calc(var(--header-height) + var(--spacing-md));
+      padding-bottom: var(--spacing-2xl);
+      max-width: 800px;
+      margin: 0 auto;
+      padding-left: var(--spacing-md);
+      padding-right: var(--spacing-md);
+    }
+
+    /* 模型选择器行 */
+    .model-selector-row {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+      margin-bottom: var(--spacing-lg);
+      flex-wrap: wrap;
+    }
+    .model-selector-row label {
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-medium);
+      color: var(--text-sub);
+      flex-shrink: 0;
+    }
+    .model-selector-row select {
+      flex: 1;
+      min-width: 200px;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      font-size: var(--font-size);
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .model-selector-row select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-soft);
+    }
+    .model-selector-row .model-select-badge {
+      font-size: var(--font-size-xs);
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-weight: var(--font-weight-medium);
+      flex-shrink: 0;
+    }
+
+    /* 折叠面板 */
+    .collapse-card {
+      margin-bottom: var(--spacing-md);
+    }
+    .collapse-card .collapse-header {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-sm) var(--spacing-md);
+      cursor: pointer;
+      user-select: none;
+      border-radius: var(--radius);
+      transition: background 0.15s;
+    }
+    .collapse-card .collapse-header:hover {
+      background: var(--surface-hover);
+    }
+    .collapse-card .collapse-header .collapse-icon {
+      font-size: 12px;
+      color: var(--text-muted);
+      transition: transform 0.2s;
+    }
+    .collapse-card .collapse-header .collapse-icon.open {
+      transform: rotate(90deg);
+    }
+    .collapse-card .collapse-header .collapse-title {
+      font-size: var(--font-size);
+      font-weight: var(--font-weight-medium);
+      color: var(--text-sub);
+    }
+    .collapse-card .collapse-header .collapse-badge {
+      margin-left: auto;
+      font-size: var(--font-size-xs);
+      color: var(--text-muted);
+    }
+    .collapse-card .collapse-body {
+      padding: var(--spacing-sm) var(--spacing-md) var(--spacing-md);
+      display: none;
+    }
+    .collapse-card .collapse-body.open {
+      display: block;
+    }
+
+    /* 消息输入区 */
+    .message-input-area {
+      margin-bottom: var(--spacing-md);
+    }
+    .message-input-area textarea {
+      width: 100%;
+      min-height: 100px;
+      padding: var(--spacing-md);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      font-size: var(--font-size);
+      line-height: 1.6;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .message-input-area textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-soft);
+    }
+    .message-input-area textarea::placeholder {
+      color: var(--text-muted);
+    }
+
+    /* 参数区域 */
+    .param-row {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+      margin-bottom: var(--spacing-sm);
+    }
+    .param-row:last-child {
+      margin-bottom: 0;
+    }
+    .param-row .param-label {
+      font-size: var(--font-size-sm);
+      color: var(--text-sub);
+      min-width: 90px;
+      flex-shrink: 0;
+    }
+    .param-row .param-value {
+      font-size: var(--font-size-sm);
+      color: var(--text);
+      font-weight: var(--font-weight-medium);
+      min-width: 36px;
+      text-align: center;
+    }
+    .param-row input[type="range"] {
+      flex: 1;
+      height: 4px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: var(--border);
+      border-radius: 2px;
+      outline: none;
+    }
+    .param-row input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--primary);
+      cursor: pointer;
+      border: 2px solid white;
+      box-shadow: var(--shadow-sm);
+    }
+    .param-row input[type="number"] {
+      width: 100px;
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      font-size: var(--font-size-sm);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .param-row input[type="number"]:focus {
+      border-color: var(--primary);
+    }
+
+    /* 操作栏 */
+    .action-bar {
+      display: flex;
+      gap: var(--spacing-sm);
+      margin-bottom: var(--spacing-lg);
+    }
+    .action-bar .btn {
+      flex: 1;
+    }
+
+    /* 响应区域 */
+    .response-section {
+      margin-bottom: var(--spacing-lg);
+    }
+    .response-section .response-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--spacing-sm);
+    }
+    .response-section .response-header .rh-title {
+      font-size: var(--font-size);
+      font-weight: var(--font-weight-semibold);
+    }
+    .response-section .response-header .rh-actions {
+      display: flex;
+      gap: var(--spacing-xs);
+    }
+
+    /* 使用统计 */
+    .usage-stats {
+      display: flex;
+      gap: var(--spacing-lg);
+      padding: var(--spacing-sm) var(--spacing-md);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: var(--spacing-lg);
+    }
+    .usage-stat {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      font-size: var(--font-size-sm);
+      color: var(--text-sub);
+    }
+    .usage-stat .us-value {
+      color: var(--text);
+      font-weight: var(--font-weight-medium);
+    }
+
+    /* 历史对话 */
+    .history-item {
+      display: flex;
+      gap: var(--spacing-md);
+      padding: var(--spacing-md);
+      border-bottom: 1px solid var(--border-light);
+    }
+    .history-item:last-child {
+      border-bottom: none;
+    }
+    .history-item .hi-role {
+      flex-shrink: 0;
+      width: 60px;
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-semibold);
+      text-align: right;
+      color: var(--text-muted);
+    }
+    .history-item .hi-role.user { color: var(--primary); }
+    .history-item .hi-role.assistant { color: var(--success); }
+    .history-item .hi-content {
+      flex: 1;
+      font-size: var(--font-size-sm);
+      color: var(--text-sub);
+      line-height: 1.6;
+    }
+    .history-item .hi-content code {
+      display: inline-block;
+      padding: 1px 6px;
+      background: var(--primary-soft);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: var(--font-size-xs);
+      color: var(--primary);
+    }
+
+    /* 响应加载动画 */
+    .response-loading {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-md);
+      color: var(--text-muted);
+      font-size: var(--font-size-sm);
+    }
+    .response-loading .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* 响应式 */
+    @media (max-width: 480px) {
+      .param-row {
+        flex-wrap: wrap;
+      }
+      .param-row .param-label {
+        min-width: 70px;
+      }
+      .param-row input[type="number"] {
+        width: 80px;
+      }
+      .usage-stats {
+        flex-wrap: wrap;
+        gap: var(--spacing-sm);
+      }
+      .model-selector-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .model-selector-row select {
+        min-width: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- 顶部导航 -->
+  <header class="app-header">
+    <div style="display:flex;align-items:center;gap:var(--spacing-sm);flex:1;min-width:0;">
+      <button class="btn btn-ghost btn-sm" onclick="goTo('models.html')" title="返回模型广场" style="font-size:18px;padding:4px 6px;">←</button>
+      <div class="brand" onclick="goTo('home.html')" style="cursor:pointer;">
+        <span class="logo-icon">P</span>
+        <span>PrismCore</span>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:var(--spacing-sm);flex-shrink:0;">
+      <button class="btn btn-ghost btn-sm" onclick="toggleTheme()" title="切换主题" style="color:var(--text-sub);font-size:16px;">🌓</button>
+      <div class="avatar" onclick="goTo('me.html')" style="width:32px;height:32px;border-radius:50%;background:var(--primary);color:white;display:flex;align-items:center;justify-content:center;font-size:var(--font-size-sm);cursor:pointer;font-weight:var(--font-weight-semibold);" id="user-avatar-display">P</div>
+    </div>
+  </header>
+
+  <div class="playground-page">
+    <!-- 模型选择器 -->
+    <div class="model-selector-row">
+      <label for="model-select">选择模型</label>
+      <select id="model-select" onchange="onModelChange()"></select>
+      <span class="model-select-badge status-stable" id="model-status-badge">稳定</span>
+    </div>
+
+    <!-- 系统提示词（折叠） -->
+    <div class="collapse-card card">
+      <div class="collapse-header" onclick="toggleCollapse('system-prompt-body',this)">
+        <span class="collapse-icon" id="sys-icon">▶</span>
+        <span class="collapse-title">系统提示词</span>
+        <span class="collapse-badge">可选</span>
+      </div>
+      <div class="collapse-body" id="system-prompt-body">
+        <textarea class="form-input" id="system-prompt" placeholder="设置系统提示词，定义 AI 的行为和角色..." style="min-height:80px;">你是一个有帮助的 AI 助手。</textarea>
+      </div>
+    </div>
+
+    <!-- 参数设置（折叠） -->
+    <div class="collapse-card card">
+      <div class="collapse-header" onclick="toggleCollapse('params-body',this)">
+        <span class="collapse-icon" id="params-icon">▶</span>
+        <span class="collapse-title">参数设置</span>
+        <span class="collapse-badge">高级</span>
+      </div>
+      <div class="collapse-body" id="params-body">
+        <div class="param-row">
+          <span class="param-label">Temperature</span>
+          <input type="range" id="temperature" min="0" max="2" step="0.1" value="0.7" oninput="document.getElementById('temp-value').textContent=this.value">
+          <span class="param-value" id="temp-value">0.7</span>
+        </div>
+        <div class="param-row">
+          <span class="param-label">最大 Token</span>
+          <input type="number" id="max-tokens" value="2048" min="1" max="8192" step="1">
+          <span style="font-size:var(--font-size-xs);color:var(--text-muted);">(1-8192)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 用户消息输入 -->
+    <div class="message-input-area">
+      <textarea id="user-message" placeholder="输入您的消息..."></textarea>
+    </div>
+
+    <!-- 操作按钮 -->
+    <div class="action-bar">
+      <button class="btn btn-primary btn-lg" onclick="sendMessage()">
+        🚀 发送
+      </button>
+      <button class="btn btn-outline btn-lg" onclick="clearAll()">
+        🗑 清空
+      </button>
+    </div>
+
+    <!-- 响应输出 -->
+    <div class="response-section">
+      <div class="response-header">
+        <span class="rh-title">📤 响应输出</span>
+        <div class="rh-actions">
+          <button class="btn btn-ghost btn-sm" onclick="copyResponse()" title="复制">📋 复制</button>
+        </div>
+      </div>
+      <div class="playground-area" id="response-output">
+        点击「发送」按钮开始测试模型...
+      </div>
+    </div>
+
+    <!-- 使用统计 -->
+    <div class="usage-stats" id="usage-stats" style="display:none;">
+      <div class="usage-stat">
+        <span>📊 Token 用量：</span>
+        <span class="us-value" id="usage-tokens">-</span>
+      </div>
+      <div class="usage-stat">
+        <span>💰 费用：</span>
+        <span class="us-value" id="usage-cost">-</span>
+      </div>
+      <div class="usage-stat">
+        <span>⏱ 响应时间：</span>
+        <span class="us-value" id="usage-time">-</span>
+      </div>
+    </div>
+
+    <!-- 示例对话历史 -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">💬 示例对话</span>
+        <button class="btn btn-ghost btn-sm" onclick="loadExample(0)">加载示例</button>
+      </div>
+      <div id="example-history"></div>
+    </div>
+  </div>
+
+  <script src="assets/js/common.js"></script>
+  <script>
+    // ===== 模型数据（与 models.html 一致） =====
+    var playgroundModels = [
+      { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', status: 'hot', statusLabel: '热门' },
+      { id: 'claude-3.5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'Anthropic', status: 'stable', statusLabel: '稳定' },
+      { id: 'deepseek-v3', name: 'DeepSeek V3', provider: 'DeepSeek', status: 'hot', statusLabel: '热门' },
+      { id: 'qwen2.5-72b', name: 'Qwen2.5 72B', provider: 'Alibaba Cloud', status: 'stable', statusLabel: '稳定' },
+      { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'Google', status: 'stable', statusLabel: '稳定' },
+      { id: 'llama-3.1-405b', name: 'Llama 3.1 405B', provider: 'Meta', status: 'new', statusLabel: '新上线' },
+      { id: 'mistral-large', name: 'Mistral Large', provider: 'Mistral AI', status: 'stable', statusLabel: '稳定' },
+      { id: 'doubao-pro', name: 'Doubao Pro', provider: 'ByteDance', status: 'new', statusLabel: '新上线' },
+    ];
+
+    // ===== 示例对话数据 =====
+    var exampleConversations = [
+      {
+        title: 'Python 代码生成',
+        messages: [
+          { role: 'user', content: '用 Python 写一个快速排序算法' },
+          { role: 'assistant', content: '以下是用 Python 实现的快速排序算法：\n\n```python\ndef quick_sort(arr):\n    if len(arr) <= 1:\n        return arr\n    pivot = arr[len(arr) // 2]\n    left = [x for x in arr if x < pivot]\n    middle = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    return quick_sort(left) + middle + quick_sort(right)\n```\n\n该算法时间复杂度为 O(n log n)，是一种高效的排序算法。' },
+          { role: 'user', content: '可以加上注释吗？' },
+          { role: 'assistant', content: '当然，以下是添加了详细注释的版本：\n\n```python\ndef quick_sort(arr):\n    """快速排序算法\n    \n    Args:\n        arr: 待排序的列表\n    Returns:\n        排序后的列表\n    """\n    # 基本情况：空列表或单元素列表无需排序\n    if len(arr) <= 1:\n        return arr\n    # 选择中间元素作为基准\n    pivot = arr[len(arr) // 2]\n    # 分区操作\n    left = [x for x in arr if x < pivot]    # 小于基准的元素\n    middle = [x for x in arr if x == pivot]  # 等于基准的元素\n    right = [x for x in arr if x > pivot]   # 大于基准的元素\n    # 递归排序并合并结果\n    return quick_sort(left) + middle + quick_sort(right)\n```' },
+        ]
+      },
+      {
+        title: '文本翻译与润色',
+        messages: [
+          { role: 'user', content: '请将以下中文翻译成英文，并使其更正式：\n"你好，我想问一下你们的产品多少钱？"' },
+          { role: 'assistant', content: '中文原文：你好，我想问一下你们的产品多少钱？\n\n英文翻译（正式版）：\n"Hello, I would like to inquire about the pricing of your products. Could you please provide me with the relevant information?"\n\n备选表达（更简洁）：\n"I am writing to request information regarding the pricing of your products."' },
+        ]
+      },
+      {
+        title: '创意写作',
+        messages: [
+          { role: 'user', content: '写一首关于 AI 的短诗，现代风格，4行' },
+          { role: 'assistant', content: '# 硅基之梦\n\n电流在黑暗中织网，\n神经元绽放无声的光。\n从数据的汪洋里捧起一粒沙，\n世界在其中重新排列。' },
+        ]
+      },
+    ];
+
+    // ===== 页面初始化 =====
+    document.addEventListener('DOMContentLoaded', function () {
+      if (!checkAuth()) return;
+
+      // 加载用户头像
+      var user = getUser();
+      if (user) {
+        document.getElementById('user-avatar-display').textContent = (user.name || user.email || 'P').charAt(0).toUpperCase();
+      }
+
+      // 填充模型下拉
+      var select = document.getElementById('model-select');
+      var optionsHtml = '';
+      for (var i = 0; i < playgroundModels.length; i++) {
+        var m = playgroundModels[i];
+        optionsHtml += '<option value="' + m.id + '">' + m.name + ' (' + m.provider + ')</option>';
+      }
+      select.innerHTML = optionsHtml;
+
+      // 读取 URL 参数自动选中模型
+      var params = new URLSearchParams(window.location.search);
+      var modelParam = params.get('model');
+      if (modelParam) {
+        for (var j = 0; j < select.options.length; j++) {
+          if (select.options[j].value === modelParam) {
+            select.selectedIndex = j;
+            break;
+          }
+        }
+      }
+      onModelChange();
+
+      // 渲染示例对话
+      renderExamples();
+    });
+
+    // ===== 模型切换 =====
+    function onModelChange() {
+      var id = document.getElementById('model-select').value;
+      var badge = document.getElementById('model-status-badge');
+      for (var i = 0; i < playgroundModels.length; i++) {
+        if (playgroundModels[i].id === id) {
+          var m = playgroundModels[i];
+          badge.textContent = m.statusLabel;
+          badge.className = 'model-select-badge';
+          if (m.status === 'hot') badge.classList.add('status-hot');
+          else if (m.status === 'new') badge.classList.add('status-new');
+          else badge.classList.add('status-stable');
+          break;
+        }
+      }
+    }
+
+    // ===== 折叠面板 =====
+    function toggleCollapse(bodyId, headerEl) {
+      var body = document.getElementById(bodyId);
+      var icon = headerEl.querySelector('.collapse-icon');
+      body.classList.toggle('open');
+      icon.classList.toggle('open');
+    }
+
+    // ===== 发送消息 =====
+    function sendMessage() {
+      var message = document.getElementById('user-message').value.trim();
+      if (!message) {
+        showToast('请输入消息内容', 'error');
+        return;
+      }
+
+      // 显示加载状态
+      var output = document.getElementById('response-output');
+      output.innerHTML = '<div class="response-loading"><div class="spinner"></div>正在生成响应...</div>';
+
+      // 模拟延迟后展示响应
+      var modelName = document.getElementById('model-select').options[document.getElementById('model-select').selectedIndex].text.split(' (')[0];
+      var systemPrompt = document.getElementById('system-prompt').value.trim();
+
+      setTimeout(function () {
+        var responseText = generateDemoResponse(message, modelName, systemPrompt);
+        output.textContent = responseText;
+
+        // 显示使用统计
+        var tokens = Math.floor(100 + Math.random() * 500);
+        var cost = (tokens * (0.5 + Math.random() * 2) / 1000000).toFixed(6);
+        var time = (200 + Math.random() * 1800).toFixed(0);
+        document.getElementById('usage-tokens').textContent = tokens.toLocaleString() + ' tokens';
+        document.getElementById('usage-cost').textContent = '¥' + cost;
+        document.getElementById('usage-time').textContent = time + ' ms';
+        document.getElementById('usage-stats').style.display = 'flex';
+
+        showToast('响应生成完成', 'success');
+      }, 1200);
+    }
+
+    // ===== 生成模拟响应 =====
+    function generateDemoResponse(message, modelName, systemPrompt) {
+      var responses = [
+        '这是一个很好的问题！让我为你详细解答。\n\n根据最新的研究成果和数据分析，这个问题可以从以下几个维度来理解：\n\n1. **技术层面**\n   当前 AI 技术的发展已经进入了一个全新的阶段，尤其是在大语言模型领域。\n\n2. **应用层面**\n   实际应用中需要考虑性能、成本和可用性等多方面因素。\n\n3. **未来展望**\n   随着技术的持续迭代，我们将会看到更多令人兴奋的突破。\n\n希望以上分析对你有所帮助！如果你有更具体的问题，欢迎继续提问。',
+        '感谢你的提问！\n\n以下是针对你提到的内容的详细分析：\n\n```\n结论：\n- 该方案在理论上可行\n- 实际部署时需要注意性能优化\n- 建议进行小规模验证后再推广\n```\n\n如果你需要更详细的技术方案，我可以进一步展开说明。',
+        '让我来帮你梳理一下。\n\n核心要点如下：\n\n> "简单是可靠的前提" — 在工程设计领域，这一原则尤为重要。\n\n**建议方案：**\n1. 首先明确需求边界\n2. 选择合适的技术栈\n3. 建立完善的测试体系\n4. 持续迭代优化\n\n每一步都需要谨慎对待，这样才能确保最终交付的质量。',
+      ];
+      return responses[Math.floor(Math.random() * responses.length)];
+    }
+
+    // ===== 清空 =====
+    function clearAll() {
+      document.getElementById('user-message').value = '';
+      document.getElementById('response-output').textContent = '点击「发送」按钮开始测试模型...';
+      document.getElementById('usage-stats').style.display = 'none';
+      document.getElementById('usage-tokens').textContent = '-';
+      document.getElementById('usage-cost').textContent = '-';
+      document.getElementById('usage-time').textContent = '-';
+    }
+
+    // ===== 复制响应 =====
+    function copyResponse() {
+      var text = document.getElementById('response-output').textContent;
+      if (text === '点击「发送」按钮开始测试模型...') {
+        showToast('暂无响应内容可复制', 'info');
+        return;
+      }
+      copyToClipboard(text);
+    }
+
+    // ===== 渲染示例对话 =====
+    function renderExamples() {
+      var container = document.getElementById('example-history');
+      var html = '';
+      for (var i = 0; i < exampleConversations.length; i++) {
+        var conv = exampleConversations[i];
+        html += '<div class="list-item" onclick="loadExample(' + i + ')" style="cursor:pointer;">' +
+                  '<div class="item-icon" style="background:var(--primary-soft);color:var(--primary);">💬</div>' +
+                  '<div class="item-content">' +
+                    '<div class="item-title">' + conv.title + '</div>' +
+                    '<div class="item-desc">' + conv.messages.length + ' 条消息</div>' +
+                  '</div>' +
+                  '<div class="item-meta">' +
+                    '<span class="btn btn-ghost btn-sm">加载</span>' +
+                  '</div>' +
+                '</div>';
+      }
+      container.innerHTML = html;
+    }
+
+    // ===== 加载示例对话 =====
+    function loadExample(index) {
+      var conv = exampleConversations[index];
+      if (!conv) return;
+
+      // 将示例的最后一条用户消息填入输入框
+      for (var i = conv.messages.length - 1; i >= 0; i--) {
+        if (conv.messages[i].role === 'user') {
+          document.getElementById('user-message').value = conv.messages[i].content;
+          break;
+        }
+      }
+
+      // 将示例的最后一条助手消息填入响应区
+      for (var j = conv.messages.length - 1; j >= 0; j--) {
+        if (conv.messages[j].role === 'assistant') {
+          document.getElementById('response-output').textContent = conv.messages[j].content;
+          break;
+        }
+      }
+
+      // 模拟使用统计
+      var tokens = Math.floor(150 + Math.random() * 400);
+      var cost = (tokens * 0.002).toFixed(6);
+      var time = (300 + Math.random() * 1000).toFixed(0);
+      document.getElementById('usage-tokens').textContent = tokens.toLocaleString() + ' tokens';
+      document.getElementById('usage-cost').textContent = '¥' + cost;
+      document.getElementById('usage-time').textContent = time + ' ms';
+      document.getElementById('usage-stats').style.display = 'flex';
+
+      showToast('已加载示例：' + conv.title, 'success');
+    }
+  </script>
+</body>
+</html>
