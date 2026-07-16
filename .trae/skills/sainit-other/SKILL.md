@@ -113,6 +113,19 @@ description: "通用项目初始化子 skill：处理未匹配到 dating/shop/bl
   --text: #4A3F35; --text-sub: #8B7E72; --border: #F0E6D8;
   --radius-sm: 8px; --radius: 12px; --radius-lg: 20px;
   --shadow: 0 4px 16px rgba(74, 63, 53, 0.06);
+
+  /* ===== 响应式断点（供 @media 查询与 safrontend 响应式组件引用） ===== */
+  --bp-sm: 640px;    /* 小屏手机 */
+  --bp-md: 768px;    /* 平板 / 大屏手机横屏 */
+  --bp-lg: 1024px;   /* 桌面 / 笔记本 */
+  --bp-xl: 1280px;   /* 宽屏桌面 */
+  --bp-2xl: 1536px;  /* 超大屏 */
+
+  /* ===== 容器最大宽度（桌面端居中布局） ===== */
+  --container-sm: 640px;
+  --container-md: 768px;
+  --container-lg: 1024px;
+  --container-xl: 1280px;
 }
 /* 风格 A 简约清新
    --primary: #6EC1E4; --primary-soft: #E0F2FB; --bg: #FAFCFE; --text: #1F2937;
