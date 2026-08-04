@@ -186,6 +186,126 @@ Hero 区用极简风格（如纯色块 + 大图标 + slogan"专注效率"），�
 3. 凡是目标不在清单内的 → 修复 href 或补建缺失页面
 4. 输出扫描报告：`✅ X 个链接全部可达` / `❌ 缺失：xxx.html`
 
+### Step 5.5：创建 STEPS.md（项目元信息持久化）
+
+> 📌 **本步骤为强制步骤**。sainit-* 阶段用户的关键决策（项目名、UI 风格、功能清单、页面映射）必须写入**项目根目录** `STEPS.md`，供后续 `/safrontend` `/saapi` `/sabackend` 读取。
+
+#### 5.5.1 前置检查
+
+```bash
+# 1. STEPS.md 是否已存在（极少见，可能用户已用 safrontend）
+if [ -f STEPS.md ]; then
+  echo "⚠️ STEPS.md 已存在，将追加「项目初始化」章节"
+  # 不覆盖已有内容
+else
+  echo "✅ 创建 STEPS.md"
+fi
+
+# 2. 准备项目元信息（从前置步骤汇总）
+PROJECT_NAME_EN="<Step 1 推导的英文名>"
+PROJECT_NAME_CN="<Step 1.5 反问的项目中文名>"
+PROJECT_TYPE="tool"
+UI_STYLE="<A|B|C|D|E>"
+CORE_FEATURES="<Step 3 选中的核心功能>"
+VALUE_FEATURES="<Step 3 选中的增值功能>"
+GENERATED_PAGES="<Step 5 实际生成的 HTML 文件清单>"
+TAB_CONFIG="首页 / 统计 / 我的"
+```
+
+#### 5.5.2 反问项目中文名（必填）
+
+> ⚠️ **必须反问，不能从英文名推断**——后端表前缀拼音依赖中文名。
+>
+> 使用 `AskUserQuestion`（填空题）：
+> - **问题**：项目的中文名是什么？（用于后端生成数据库表前缀，例如「简记」→ `jj_`）
+> - **说明**：1-6 个汉字，例如"简记"、"随手记"
+> - **默认**：若用户 30 秒内未答，使用项目英文名的中文音译或直接问一次
+
+#### 5.5.3 生成 STEPS.md
+
+**若 STEPS.md 不存在**（典型场景），创建并写入：
+
+```markdown
+# 开发步骤 - <PROJECT_NAME_EN>
+
+> 创建时间：YYYY-MM-DD HH:mm
+> 当前阶段：项目初始化（/sainit-tool）
+
+---
+
+## 🏷 项目元信息（/sainit-* 阶段写入）
+
+> ⚠️ 本节是后续所有 skill（safrontend/saapi/sabackend/saapi-connect）的**信息源**。请勿随意修改。
+
+| 字段 | 值 |
+|------|-----|
+| **项目名（英文 / kebab-case）** | `<PROJECT_NAME_EN>` |
+| **项目名（中文）** | `<PROJECT_NAME_CN>` |
+| **项目类型** | `tool` |
+| **UI 风格** | <A 简约清新 \| B 霓虹灯风格 \| C 温馨治愈 \| D 商务专业 \| E 复古文艺> |
+| **核心功能** | <逗号分隔> |
+| **增值功能** | <逗号分隔> |
+| **生成的页面** | <`index.html`, `home.html`, `edit.html`, `stats.html`, `me.html`, ...> |
+| **Tab 配置** | 首页 / 统计 / 我的 |
+| **localStorage 键名前缀** | `<PROJECT_NAME_EN>:` |
+| **占位图服务** | picsum + pravatar |
+| **设计令牌文件** | `prototype/assets/css/tokens.css` |
+| **公共 JS 文件** | `prototype/assets/js/common.js` |
+
+### 页面与功能映射
+
+| 选中功能 | 生成的页面 | Tab |
+|---------|----------|-----|
+| <注册/登录> | `index.html` | ☐ |
+| <数据列表> | `home.html` | ☑ |
+| <新增/编辑> | `edit.html` | ☐ |
+| <数据统计> | `stats.html` | ☑ |
+| <个人中心> | `me.html` | ☑ |
+| <数据导出> | `export.html` | ☐ |
+| <提醒/通知> | `notifications.html` | ☐ |
+| <主题切换> | 内嵌到 `me.html` | - |
+
+### 后续 skill 读取指引
+
+- **/safrontend**：读取本节获取项目名、UI 风格、页面清单；前端框架与 TS/JS 由 safrontend 阶段询问用户
+- **/saapi**：读取本节获取项目名（中文/英文）、项目类型、已有功能清单作为接口发现来源
+- **/sabackend**：读取本节获取项目中文名（用于推导数据库表前缀拼音）
+- **/saapi-connect**：间接依赖（通过 sabackend 写入的命名规范）
+
+### 修改记录
+
+| 时间 | 阶段 | 改动内容 |
+|------|------|---------|
+| YYYY-MM-DD HH:mm | 项目初始化 | 创建 STEPS.md + 写入项目元信息 |
+```
+
+**若 STEPS.md 已存在**（极少见），仅追加一个章节（保留 safrontend 阶段已有的内容）：
+
+```markdown
+---
+
+## 🏷 项目元信息（/sainit-* 阶段补充）
+
+> ⚠️ 补写时间：YYYY-MM-DD HH:mm
+
+（与上面的项目元信息表 + 页面与功能映射 + 修改记录 相同内容，但时间戳为补写时间）
+```
+
+#### 5.5.4 验收标准
+
+- [ ] STEPS.md 已生成（或追加）且位于**项目根目录**
+- [ ] 「项目元信息」节 12 个字段全部填写
+- [ ] 「页面与功能映射」表与 Step 5 实际生成文件一致
+- [ ] 「后续 skill 读取指引」4 条说明完整
+- [ ] 修改记录已追加
+
+#### 5.5.5 失败处理
+
+- **若 STEPS.md 写入失败**：打印错误并提示用户「请检查项目根目录权限」，但不阻断后续流程（README.md 仍生成）
+- **若项目中文名获取失败**：使用项目英文名首字母（去元音）作为兜底，例如 `note-app` → `na`
+
+> ⚠️ **重要性**：后续 `/safrontend` 会读取 STEPS.md 中的「项目名（中文）」用于浏览器标题与 PWA 配置；`/sabackend` 会读取它用于数据库表前缀推导。缺失此节会导致后续环节反复追问用户。
+
 ### Step 6：生成 README.md
 
 ```markdown
@@ -299,6 +419,7 @@ prototype 已生成完毕，直接以对话文本向用户发出询问——直�
 |------|------|
 | 2026-06-29-1 | 初始化「修改记录（skill 自身演进）」section；约定时间格式为「年-月-日-当天变动次数」；AI 写入前必须用 PowerShell `Get-Date -Format "yyyy-MM-dd"` 校准北京时间；变动次数 N 按「该 skill 文件落地次数」自增（同一天多次改动依次为 1,2,3...） |
 | 2026-06-29-2 | 在 Step 7 新增「原型后续流程选择（用户分流）」节点；选项 A~E 对应 frontend-design / ui-ux-pro-max / frontend-dev / color-font-skill / design-style-skill 5 个设计 skill，选项 F 直接进入 safrontend；约定 A~E 可链式循环、不能清空 prototype/；工具类特别强调数据卡片密度优化优先选 E；原 Step 7 顺延为 Step 8 |
+| 2026-08-04-1 | 新增强制 Step 5.5「创建 STEPS.md（项目元信息持久化）」：Step 5 完成后、Step 6 之前，在**项目根目录**创建/追加 STEPS.md，写入项目元信息（12 字段）+ 页面与功能映射 + 后续 skill 读取指引；对齐 sainit-other/dating 模板 |
 
 ---
 
