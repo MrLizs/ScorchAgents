@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>成员管理 - PrismCore 企业后台</title>
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/components.css">
+<link rel="stylesheet" href="assets/css/admin.css">
+<style>
+  /* 成员管理页局部样式 */
+  .role-badge { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-xs); }
+</style>
+</head>
+<body>
+
+<!-- ============ 侧边栏 ============ -->
+<aside class="admin-sidebar" id="ent-sidebar">
+  <div class="sidebar-brand">
+    <span class="logo-icon">E</span>
+    <span class="brand-name"><span class="highlight">Prism</span>Core</span>
+  </div>
+  <div class="sidebar-nav">
+    <div class="sidebar-section-label">总览</div>
+    <button class="nav-item" data-page="overview.html" onclick="goTo('overview.html')"><span class="nav-icon">📊</span>企业概览</button>
+    <div class="sidebar-section-label">管理</div>
+    <button class="nav-item" data-page="keys.html" onclick="goTo('keys.html')"><span class="nav-icon">🔑</span>API Key 管理</button>
+    <button class="nav-item" data-page="dialogues.html" onclick="goTo('dialogues.html')"><span class="nav-icon">💬</span>对话审计</button>
+    <div class="sidebar-section-label">分析</div>
+    <button class="nav-item" data-page="usage.html" onclick="goTo('usage.html')"><span class="nav-icon">📈</span>用量统计</button>
+    <button class="nav-item" data-page="audit.html" onclick="goTo('audit.html')"><span class="nav-icon">🕐</span>调用审计</button>
+    <div class="sidebar-section-label">企业</div>
+    <button class="nav-item" data-page="members.html" onclick="goTo('members.html')"><span class="nav-icon">👥</span>成员管理</button>
+    <button class="nav-item" data-page="settings.html" onclick="goTo('settings.html')"><span class="nav-icon">⚙️</span>企业设置</button>
+  </div>
+  <div class="sidebar-footer">
+    <div class="admin-info">
+      <span class="avatar" id="ent-avatar">E</span>
+      <div>
+        <div id="ent-org-name" style="font-weight:var(--font-weight-semibold);color:#fff;font-size:var(--text-sm);">企业名称</div>
+        <div id="ent-user-name" style="font-size:var(--text-xs);color:rgba(255,255,255,0.5);">管理员</div>
+      </div>
+    </div>
+    <button class="logout-btn" onclick="entLogout()">🚪 退出登录</button>
+  </div>
+</aside>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<!-- ============ 顶栏 ============ -->
+<header class="admin-header">
+  <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+  <h1 class="header-title">成员管理</h1>
+  <div class="header-right">
+    <button class="btn btn-ghost btn-sm" onclick="goTo('../prototype-web/index.html')">🌐 用户端</button>
+  </div>
+</header>
+
+<!-- ============ 内容区 ============ -->
+<main class="admin-main">
+  <div class="admin-content">
+
+    <div class="page-header">
+      <div>
+        <h2 class="page-title">企业成员管理</h2>
+        <p class="page-subtitle">管理企业子账号及其在 Key 管理、用量查看上的角色权限</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn btn-primary" onclick="openInviteModal()">+ 邀请成员</button>
+      </div>
+    </div>
+
+    <!-- 统计 -->
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-accent" style="background:var(--primary);"></div>
+        <span class="stat-icon">👥</span>
+        <div class="stat-value" id="stat-members">-</div>
+        <div class="stat-label">全部成员</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-accent" style="background:var(--success);"></div>
+        <span class="stat-icon">✅</span>
+        <div class="stat-value" id="stat-active">-</div>
+        <div class="stat-label">已启用</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-accent" style="background:var(--accent);"></div>
+        <span class="stat-icon">🛡️</span>
+        <div class="stat-value" id="stat-admin">-</div>
+        <div class="stat-label">管理员</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-accent" style="background:var(--warning);"></div>
+        <span class="stat-icon">🚫</span>
+        <div class="stat-value" id="stat-disabled">-</div>
+        <div class="stat-label">已禁用</div>
+      </div>
+    </div>
+
+    <!-- 筛选 -->
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <div class="search-input">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="member-search" placeholder="搜索成员姓名 / 邮箱..." onkeydown="if(event.key==='Enter')renderMembers()">
+        </div>
+        <select class="form-select" id="member-role-filter" onchange="renderMembers()" style="width:140px;padding:8px 32px 8px 12px;border:1.5px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:var(--text-sm);cursor:pointer;outline:none;">
+          <option value="全部">角色：全部</option>
+          <option value="企业管理员">企业管理员</option>
+          <option value="Key 管理员">Key 管理员</option>
+          <option value="开发者">开发者</option>
+          <option value="审计员">审计员</option>
+        </select>
+        <button class="btn btn-primary" onclick="renderMembers()">搜索</button>
+      </div>
+      <div class="toolbar-right">
+        <span style="font-size:var(--text-sm);color:var(--text-muted);" id="member-count"></span>
+      </div>
+    </div>
+
+    <!-- 成员列表 -->
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>成员</th>
+            <th>角色</th>
+            <th>状态</th>
+            <th>最近登录</th>
+            <th>管理 Key 数</th>
+            <th style="text-align:right;">操作</th>
+          </tr>
+        </thead>
+        <tbody id="members-tbody"></tbody>
+      </table>
+    </div>
+
+  </div>
+</main>
+
+<!-- ============ 邀请成员弹窗 ============ -->
+<div class="modal-overlay" id="invite-modal">
+  <div class="modal">
+    <h3 class="modal-title">邀请成员</h3>
+    <p class="modal-desc">邀请同事加入企业空间，被邀请人将收到邮件通知。</p>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">姓名</label>
+        <input class="form-input" id="invite-name" placeholder="请输入姓名">
+      </div>
+      <div class="form-group">
+        <label class="form-label">邮箱</label>
+        <input class="form-input" type="email" id="invite-email" placeholder="name@acmecorp.com">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">角色</label>
+      <select class="form-select" id="invite-role">
+        <option value="企业管理员">企业管理员（全部权限）</option>
+        <option value="Key 管理员">Key 管理员（管理 Key 与用量）</option>
+        <option value="开发者">开发者（仅使用 Key）</option>
+        <option value="审计员">审计员（仅查看日志）</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeInviteModal()">取消</button>
+      <button class="btn btn-primary" onclick="inviteMember()">发送邀请</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/common.js"></script>
+<script>
+/* ================================================================== */
+/*  渲染                                                              */
+/* ================================================================== */
+function renderStats() {
+  var members = getEntData('members') || [];
+  document.getElementById('stat-members').textContent = formatNumber(members.length);
+  document.getElementById('stat-active').textContent = formatNumber(members.filter(function (m) { return m.status === '启用'; }).length);
+  document.getElementById('stat-admin').textContent = formatNumber(members.filter(function (m) { return m.role === '企业管理员'; }).length);
+  document.getElementById('stat-disabled').textContent = formatNumber(members.filter(function (m) { return m.status === '禁用'; }).length);
+}
+
+function renderMembers() {
+  var kw = document.getElementById('member-search').value.trim().toLowerCase();
+  var rf = document.getElementById('member-role-filter').value;
+  var members = (getEntData('members') || []).filter(function (m) {
+    var okKw = !kw || m.name.toLowerCase().indexOf(kw) > -1 || m.email.toLowerCase().indexOf(kw) > -1;
+    var okR = rf === '全部' || m.role === rf;
+    return okKw && okR;
+  });
+  var tbody = document.getElementById('members-tbody');
+  document.getElementById('member-count').textContent = '共 ' + members.length + ' 名成员';
+  if (!members.length) {
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state" style="padding:var(--space-12) var(--space-4);">'
+      + '<div class="empty-icon">👥</div><div class="empty-title">没有匹配的成员</div></div></td></tr>';
+    return;
+  }
+  var roleClass = { '企业管理员': 'badge-red', 'Key 管理员': 'badge-blue', '开发者': 'badge-gray', '审计员': 'badge-yellow' };
+  tbody.innerHTML = members.map(function (m) {
+    var stBadge = m.status === '启用' ? 'badge-green' : 'badge-gray';
+    var actions = '<button class="btn btn-ghost btn-sm" onclick="editMember(\'' + m.id + '\')">编辑</button>';
+    if (m.status === '启用') {
+      actions += '<button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="toggleMember(\'' + m.id + '\')">禁用</button>';
+    } else {
+      actions += '<button class="btn btn-ghost btn-sm" style="color:var(--success);" onclick="toggleMember(\'' + m.id + '\')">启用</button>';
+    }
+    return '<tr>'
+      + '<td><div class="cell-user"><span class="user-avatar">' + m.name.charAt(0) + '</span><div><div>' + m.name + '</div><div style="font-size:var(--text-xs);color:var(--text-muted);">' + m.email + '</div></div></div></td>'
+      + '<td><span class="badge ' + (roleClass[m.role] || 'badge-gray') + '">' + m.role + '</span></td>'
+      + '<td><span class="badge ' + stBadge + '">' + m.status + '</span></td>'
+      + '<td>' + m.lastLogin + '</td>'
+      + '<td>' + m.keys + '</td>'
+      + '<td><div class="cell-actions">' + actions + '</div></td>'
+      + '</tr>';
+  }).join('');
+}
+
+/* ================================================================== */
+/*  成员操作                                                          */
+/* ================================================================== */
+async function toggleMember(id) {
+  var members = getEntData('members') || [];
+  var m = members.find(function (x) { return x.id === id; });
+  if (!m) return;
+  var toDisable = m.status === '启用';
+  var ok = await showConfirm(
+    toDisable ? '禁用成员' : '启用成员',
+    toDisable ? '确定要禁用 ' + m.name + ' 吗？禁用后其将无法登录企业后台。' : '确定要重新启用 ' + m.name + ' 吗？'
+  );
+  if (!ok) return;
+  members.forEach(function (x) { if (x.id === id) x.status = toDisable ? '禁用' : '启用'; });
+  saveEntData('members', members);
+  renderStats();
+  renderMembers();
+  showToast('成员 ' + m.name + ' 已' + (toDisable ? '禁用' : '启用'), 'success');
+}
+
+function editMember(id) {
+  showToast('成员编辑功能演示：请使用邀请/禁用操作', 'info');
+}
+
+/* ================================================================== */
+/*  邀请成员                                                          */
+/* ================================================================== */
+function openInviteModal() {
+  document.getElementById('invite-name').value = '';
+  document.getElementById('invite-email').value = '';
+  document.getElementById('invite-role').value = '开发者';
+  document.getElementById('invite-modal').classList.add('show');
+  setTimeout(function () { document.getElementById('invite-name').focus(); }, 100);
+}
+
+function closeInviteModal() {
+  document.getElementById('invite-modal').classList.remove('show');
+}
+
+function inviteMember() {
+  var name = document.getElementById('invite-name').value.trim();
+  var email = document.getElementById('invite-email').value.trim();
+  var role = document.getElementById('invite-role').value;
+  if (!name || !email) { showToast('请填写姓名和邮箱', 'warning'); return; }
+  if (email.indexOf('@') < 0) { showToast('邮箱格式不正确', 'warning'); return; }
+  var members = getEntData('members') || [];
+  members.push({
+    id: 'm_' + genId(),
+    name: name,
+    email: email,
+    role: role,
+    status: '启用',
+    lastLogin: '尚未登录',
+    keys: 0
+  });
+  saveEntData('members', members);
+  closeInviteModal();
+  renderStats();
+  renderMembers();
+  showToast('邀请已发送至 ' + email, 'success');
+}
+
+/* ================================================================== */
+/*  初始化                                                            */
+/* ================================================================== */
+document.addEventListener('DOMContentLoaded', function () {
+  requireEntLogin();
+  var user = getEntUser();
+  var org = getEntOrg();
+  if (org) document.getElementById('ent-org-name').textContent = org.name;
+  if (user) {
+    document.getElementById('ent-user-name').textContent = user.name + '（' + user.role + '）';
+    document.getElementById('ent-avatar').textContent = (org ? org.name.charAt(0) : 'E').toUpperCase();
+  }
+  renderStats();
+  renderMembers();
+});
+</script>
+</body>
+</html>

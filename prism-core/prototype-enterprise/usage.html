@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>用量统计 - PrismCore 企业后台</title>
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/components.css">
+<link rel="stylesheet" href="assets/css/admin.css">
+<style>
+  /* 用量统计页局部样式 */
+  .dim-toggle { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .dim-toggle .dt-btn { padding: 7px 16px; font-size: var(--text-sm); border: none; background: var(--surface); color: var(--text-sub); cursor: pointer; transition: all var(--transition-fast); }
+  .dim-toggle .dt-btn.active { background: var(--primary); color: white; }
+
+  .range-btns { display: flex; gap: 6px; }
+  .range-btn { padding: 5px 14px; border-radius: var(--radius-full); border: 1px solid var(--border); background: var(--surface); font-size: var(--text-sm); color: var(--text-sub); cursor: pointer; transition: all var(--transition-fast); }
+  .range-btn.active { background: var(--primary-50); border-color: var(--primary); color: var(--primary); font-weight: var(--font-weight-semibold); }
+
+  .h-bar-row { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-3) 0; border-bottom: 1px solid var(--border-light); }
+  .h-bar-row:last-child { border-bottom: none; }
+  .h-bar-row .hb-name { width: 200px; flex-shrink: 0; font-size: var(--text-sm); font-weight: var(--font-weight-medium); color: var(--text); }
+  .h-bar-row .hb-bar { flex: 1; }
+  .h-bar-row .hb-val { width: 220px; flex-shrink: 0; text-align: right; font-size: var(--text-sm); color: var(--text-sub); }
+
+  .stats-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-4); margin-bottom: var(--space-6); }
+  @media (min-width: 1024px) { .stats-row { grid-template-columns: repeat(4, 1fr); } }
+  .s-mini { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: var(--space-5); box-shadow: var(--shadow-sm); }
+  .s-mini .s-label { font-size: var(--text-sm); color: var(--text-sub); }
+  .s-mini .s-value { font-size: var(--text-3xl); font-weight: var(--font-weight-bold); color: var(--text); margin-top: var(--space-2); letter-spacing: var(--tracking-tight); }
+  .s-mini .s-sub { font-size: var(--text-xs); color: var(--text-muted); margin-top: var(--space-1); }
+</style>
+</head>
+<body>
+
+<!-- ============ 侧边栏 ============ -->
+<aside class="admin-sidebar" id="ent-sidebar">
+  <div class="sidebar-brand">
+    <span class="logo-icon">E</span>
+    <span class="brand-name"><span class="highlight">Prism</span>Core</span>
+  </div>
+  <div class="sidebar-nav">
+    <div class="sidebar-section-label">总览</div>
+    <button class="nav-item" data-page="overview.html" onclick="goTo('overview.html')"><span class="nav-icon">📊</span>企业概览</button>
+    <div class="sidebar-section-label">管理</div>
+    <button class="nav-item" data-page="keys.html" onclick="goTo('keys.html')"><span class="nav-icon">🔑</span>API Key 管理</button>
+    <button class="nav-item" data-page="dialogues.html" onclick="goTo('dialogues.html')"><span class="nav-icon">💬</span>对话审计</button>
+    <div class="sidebar-section-label">分析</div>
+    <button class="nav-item" data-page="usage.html" onclick="goTo('usage.html')"><span class="nav-icon">📈</span>用量统计</button>
+    <button class="nav-item" data-page="audit.html" onclick="goTo('audit.html')"><span class="nav-icon">🕐</span>调用审计</button>
+    <div class="sidebar-section-label">企业</div>
+    <button class="nav-item" data-page="members.html" onclick="goTo('members.html')"><span class="nav-icon">👥</span>成员管理</button>
+    <button class="nav-item" data-page="settings.html" onclick="goTo('settings.html')"><span class="nav-icon">⚙️</span>企业设置</button>
+  </div>
+  <div class="sidebar-footer">
+    <div class="admin-info">
+      <span class="avatar" id="ent-avatar">E</span>
+      <div>
+        <div id="ent-org-name" style="font-weight:var(--font-weight-semibold);color:#fff;font-size:var(--text-sm);">企业名称</div>
+        <div id="ent-user-name" style="font-size:var(--text-xs);color:rgba(255,255,255,0.5);">管理员</div>
+      </div>
+    </div>
+    <button class="logout-btn" onclick="entLogout()">🚪 退出登录</button>
+  </div>
+</aside>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<!-- ============ 顶栏 ============ -->
+<header class="admin-header">
+  <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+  <h1 class="header-title">用量统计</h1>
+  <div class="header-right">
+    <button class="btn btn-ghost btn-sm" onclick="goTo('../prototype-web/index.html')">🌐 用户端</button>
+  </div>
+</header>
+
+<!-- ============ 内容区 ============ -->
+<main class="admin-main">
+  <div class="admin-content">
+
+    <div class="page-header">
+      <div>
+        <h2 class="page-title">用量统计报表</h2>
+        <p class="page-subtitle">按模型 / Key 维度分析企业调用次数、Token 与费用</p>
+      </div>
+      <div class="page-actions">
+        <div class="range-btns" id="range-btns">
+          <button class="range-btn active" data-range="today" onclick="switchRange('today', this)">今日</button>
+          <button class="range-btn" data-range="7d" onclick="switchRange('7d', this)">近 7 天</button>
+          <button class="range-btn" data-range="month" onclick="switchRange('month', this)">本月</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 汇总 -->
+    <div class="stats-row">
+      <div class="s-mini">
+        <div class="s-label">调用次数</div>
+        <div class="s-value" id="sum-calls">-</div>
+        <div class="s-sub">合计企业全部 Key</div>
+      </div>
+      <div class="s-mini">
+        <div class="s-label">Token 消耗</div>
+        <div class="s-value" id="sum-tokens">-</div>
+        <div class="s-sub">输入 + 输出合计</div>
+      </div>
+      <div class="s-mini">
+        <div class="s-label">费用</div>
+        <div class="s-value" id="sum-cost">-</div>
+        <div class="s-sub">按量计费总额</div>
+      </div>
+      <div class="s-mini">
+        <div class="s-label">平均单次 Token</div>
+        <div class="s-value" id="sum-avg">-</div>
+        <div class="s-sub">Token / 调用次数</div>
+      </div>
+    </div>
+
+    <!-- 维度切换 -->
+    <div class="toolbar" style="margin-bottom:var(--space-4);">
+      <div class="toolbar-left">
+        <div class="dim-toggle" id="dim-toggle">
+          <button class="dt-btn active" data-dim="model" onclick="switchDim('model', this)">按模型</button>
+          <button class="dt-btn" data-dim="key" onclick="switchDim('key', this)">按 Key</button>
+        </div>
+      </div>
+      <div class="toolbar-right">
+        <button class="btn btn-outline btn-sm" onclick="showToast('报表已导出为 CSV（演示）', 'success')">⬇ 导出报表</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title" id="dim-title">按模型统计</div>
+        <span style="font-size:var(--text-sm);color:var(--text-muted);">点击行查看明细</span>
+      </div>
+      <div class="card-body">
+        <!-- 占比条 -->
+        <div id="h-bars"></div>
+        <!-- 表格 -->
+        <div class="table-wrap" style="margin-top:var(--space-4);margin-bottom:0;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th id="th-dim">模型</th>
+                <th style="text-align:right;">调用次数</th>
+                <th style="text-align:right;">Token</th>
+                <th style="text-align:right;">费用</th>
+                <th style="text-align:right;">平均 Token/次</th>
+              </tr>
+            </thead>
+            <tbody id="usage-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script src="assets/js/common.js"></script>
+<script>
+/* ================================================================== */
+/*  状态与聚合                                                        */
+/* ================================================================== */
+var currentDim = 'model';
+var currentRange = 'today';
+var RANGE_FACTOR = { today: 1, '7d': 7, month: 30 };
+
+function aggregate(dim) {
+  var usage = getEntData('usage') || {};
+  var keys = getEntData('keys') || [];
+  var agg = {};
+  Object.keys(usage).forEach(function (kid) {
+    Object.keys(usage[kid]).forEach(function (mid) {
+      var u = usage[kid][mid];
+      var key = dim === 'model' ? mid : kid;
+      var name = dim === 'model' ? getModelName(mid) : (keys.find(function (k) { return k.id === kid; }) || {}).name || kid;
+      if (!agg[key]) agg[key] = { id: key, name: name, calls: 0, tokens: 0, cost: 0 };
+      agg[key].calls += u.calls;
+      agg[key].tokens += u.tokens;
+      agg[key].cost += u.cost;
+    });
+  });
+  return Object.keys(agg).map(function (k) { return agg[k]; })
+    .sort(function (a, b) { return b.calls - a.calls; })
+    .map(function (r) {
+      r.calls = Math.round(r.calls / RANGE_FACTOR[currentRange]);
+      r.tokens = Math.round(r.tokens / RANGE_FACTOR[currentRange]);
+      r.cost = r.cost / RANGE_FACTOR[currentRange];
+      return r;
+    });
+}
+
+/* ================================================================== */
+/*  渲染                                                              */
+/* ================================================================== */
+function render() {
+  var rows = aggregate(currentDim);
+  var totalCalls = 0, totalTokens = 0, totalCost = 0;
+  rows.forEach(function (r) { totalCalls += r.calls; totalTokens += r.tokens; totalCost += r.cost; });
+
+  document.getElementById('sum-calls').textContent = formatNumber(totalCalls);
+  document.getElementById('sum-tokens').textContent = formatTokens(totalTokens);
+  document.getElementById('sum-cost').textContent = formatCurrency(totalCost);
+  document.getElementById('sum-avg').textContent = totalCalls ? Math.round(totalTokens / totalCalls) + ' tok' : '-';
+
+  document.getElementById('dim-title').textContent = currentDim === 'model' ? '按模型统计' : '按 Key 统计';
+  document.getElementById('th-dim').textContent = currentDim === 'model' ? '模型' : 'API Key';
+
+  // 占比条
+  var bars = document.getElementById('h-bars');
+  if (!rows.length) {
+    bars.innerHTML = '<div class="empty-state" style="padding:var(--space-8) var(--space-4);">'
+      + '<div class="empty-icon">📈</div><div class="empty-title">当前范围内暂无用量数据</div></div>';
+  } else {
+    var max = Math.max.apply(null, rows.map(function (r) { return r.calls; }));
+    bars.innerHTML = rows.map(function (r) {
+      var pct = max ? Math.round(r.calls / max * 100) : 0;
+      return '<div class="h-bar-row">'
+        + '<span class="hb-name">' + r.name + '</span>'
+        + '<div class="hb-bar"><div class="progress"><div class="progress-bar" style="width:' + pct + '%;"></div></div></div>'
+        + '<span class="hb-val">' + formatNumber(r.calls) + ' 次 · ' + formatTokens(r.tokens) + ' · ' + formatCurrency(r.cost) + '</span>'
+        + '</div>';
+    }).join('');
+  }
+
+  // 表格
+  var tbody = document.getElementById('usage-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state" style="padding:var(--space-8) var(--space-4);">'
+      + '<div class="empty-icon">📈</div><div class="empty-title">当前范围内暂无用量数据</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(function (r) {
+    var link = currentDim === 'key'
+      ? '<span class="key-detail-link" onclick="goTo(\'key-detail.html?id=' + r.id + '\')">' + r.name + '</span>'
+      : '<span class="cell-mono" style="font-size:var(--text-base);">' + r.name + '</span>';
+    return '<tr>'
+      + '<td>' + link + '</td>'
+      + '<td style="text-align:right;">' + formatNumber(r.calls) + '</td>'
+      + '<td style="text-align:right;">' + formatTokens(r.tokens) + '</td>'
+      + '<td style="text-align:right;">' + formatCurrency(r.cost) + '</td>'
+      + '<td style="text-align:right;">' + (r.calls ? Math.round(r.tokens / r.calls) + ' tok' : '-') + '</td>'
+      + '</tr>';
+  }).join('');
+}
+
+/* ================================================================== */
+/*  切换                                                              */
+/* ================================================================== */
+function switchDim(dim, btn) {
+  currentDim = dim;
+  document.querySelectorAll('#dim-toggle .dt-btn').forEach(function (b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  render();
+}
+
+function switchRange(range, btn) {
+  currentRange = range;
+  document.querySelectorAll('#range-btns .range-btn').forEach(function (b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  render();
+}
+
+/* ================================================================== */
+/*  初始化                                                            */
+/* ================================================================== */
+document.addEventListener('DOMContentLoaded', function () {
+  requireEntLogin();
+  var user = getEntUser();
+  var org = getEntOrg();
+  if (org) document.getElementById('ent-org-name').textContent = org.name;
+  if (user) {
+    document.getElementById('ent-user-name').textContent = user.name + '（' + user.role + '）';
+    document.getElementById('ent-avatar').textContent = (org ? org.name.charAt(0) : 'E').toUpperCase();
+  }
+  render();
+});
+</script>
+</body>
+</html>

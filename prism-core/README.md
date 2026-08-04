@@ -48,3 +48,27 @@
 双击 `prototype-admin/index.html` 登录体验。
 
 演示账号：`admin@prismcore.ai` / `admin123`
+
+---
+
+## 企业后台（`prototype-enterprise/`）
+
+面向企业客户的**企业控制台**，企业管理员可自助管理企业全部 API Key、查看每个 Key 的模型调用情况与 Token 消耗，并按时间审计每个 Key 做了什么。
+
+| 页面 | 文件 |
+|------|------|
+| 企业登录 | `prototype-enterprise/index.html` |
+| 企业概览 | `prototype-enterprise/overview.html` |
+| API Key 管理（企业全部 Key） | `prototype-enterprise/keys.html` |
+| 对话审计（AI 分类 + 项目/功能标签） | `prototype-enterprise/dialogues.html` |
+| Key 详情（模型/次数/Token + 时间线 + 对话审计） | `prototype-enterprise/key-detail.html` |
+| 用量统计报表（按模型 / Key） | `prototype-enterprise/usage.html` |
+| 调用审计日志（Key 何时做了什么） | `prototype-enterprise/audit.html` |
+| 成员管理 | `prototype-enterprise/members.html` |
+| 企业设置 | `prototype-enterprise/settings.html` |
+
+### 企业后台预览
+
+双击 `prototype-enterprise/index.html` 登录体验。
+
+演示账号：`admin@acmecorp.com` / `ent123`
