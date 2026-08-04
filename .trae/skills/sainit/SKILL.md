@@ -85,6 +85,89 @@ description: "项目初始化路由器：识别用户描述的项目类型，并
 - ⚠️ **新增类型**：要新增类型时，建一个 `sainit-<type>/SKILL.md` 子 skill，并在上方映射表中加一行即可
 - ⚠️ **STEPS.md 由子 skill 创建**：本路由 skill 不创建 STEPS.md，统一由子 skill 在 Step 5.5（创建项目元信息节）创建
 
+## 多工程目录命名规范
+
+> 📌 **背景**：复杂项目可能包含多个"工程"（如 SaaS 平台同时有面向用户的 Web 端、开发者控制台、后台管理面板）。当项目涉及多个工程时，`prototype/`、`frontend/`、`backend/` 等目录应带清晰的后缀标识，避免所有产物堆在同一个扁平目录中。
+
+### 何时启用多工程目录
+
+| 场景 | 是否需要多目录 | 典型工程 |
+|------|-------------|---------|
+| 单一用户端（电商、交友、博客、工具） | ❌ 不需要 | `prototype/` `frontend/` `backend/`（保持现有扁平命名） |
+| SaaS 平台（落地页 + 控制台 + 管理后台） | ✅ 需要 | `prototype-web/` `prototype-console/` `prototype-admin/` |
+| 多端应用（Web + 移动端 + 桌面端） | ✅ 需要 | `prototype-web/` `mobile/` `desktop/`（跨端由 sacrossplatform/sadesktop 生成，不在此列） |
+| 有独立商家端（如电商平台含商家后台） | ✅ 需要 | `prototype-shop/` `prototype-merchant/` |
+| 用户端 + 运营后台 | ✅ 需要 | `prototype-app/` `prototype-admin/` |
+
+> 💡 **判断标准**：如果不同角色看到的页面完全不同（不同导航、不同功能集、不同认证方式），就应该拆分为独立工程目录。同一角色下的不同页面（如电商的首页/详情/购物车/订单）仍在同一个 `prototype/` 目录内。
+
+### 目录命名后缀规范
+
+| 后缀 | 含义 | 典型角色 | 示例 |
+|------|------|---------|------|
+| `-web` | 面向公众的 Web 端（落地页、文档等） | 访客 / 未登录用户 | `prototype-web/` `frontend-web/` |
+| `-app` | 面向核心用户的 Web 应用端 | 普通用户（登录后） | `prototype-app/` `frontend-app/` |
+| `-console` | 开发者控制台（SaaS 平台专属） | 注册开发者 | `prototype-console/` `frontend-console/` |
+| `-admin` | 后台管理面板 | 管理员 / 运营 | `prototype-admin/` `frontend-admin/` |
+| `-merchant` | 商家端（电商平台） | 商家 / 店主 | `prototype-merchant/` `frontend-merchant/` |
+| `-client` | 客户端（SDK 示范 / 嵌入式） | 集成方开发者 | `prototype-client/` |
+
+### 多目录下的项目结构
+
+启用多工程目录后，每个工程独立拥有完整的前端/后端子目录，**共享** `api/` 接口规范：
+
+```
+<project-name>/
+├── README.md
+├── STEPS.md                           # 统一追踪（含多工程元信息）
+├── api/                               # 共享：所有工程共用接口规范
+│   ├── openapi.yaml
+│   └── API.md
+├── prototype-web/                     # 工程 1：公众 Web 端原型
+│   ├── index.html
+│   └── assets/
+├── prototype-console/                 # 工程 2：开发者控制台原型
+│   ├── dashboard.html
+│   └── assets/
+├── prototype-admin/                   # 工程 3：后台管理原型
+│   ├── index.html
+│   └── assets/
+├── frontend-web/                      # 工程 1：公众 Web 端前端
+├── frontend-console/                  # 工程 2：开发者控制台前端
+├── frontend-admin/                    # 工程 3：后台管理前端
+├── backend-web/                       # 工程 1：公众 Web 端后端
+├── backend-console/                   # 工程 2：控制台后端（可合并为 backend/）
+└── backend/                           # 或：统一后端（多个 frontend-* 共享一个 backend/）
+```
+
+> 💡 **后端合并建议**：多个前端工程通常共享同一个后端服务（一套用户系统、一套数据库），此时可用统一的 `backend/` 目录而非拆分。仅当不同工程的认证体系、部署环境完全独立时，才拆分为 `backend-web/`、`backend-admin/` 等。
+
+### 子 skill 实施要求
+
+1. **sainit-* 子 skill**：在 Step 2（反问 UI 风格）之后、Step 3（反问功能）之前，**若项目类型可能涉及多工程**（尤其是 `sainit-saas`），必须增加一个反问步骤：
+
+   > 本项目的功能涉及多个不同角色的使用场景。是否需要拆分为独立工程目录？
+   > - **A. 拆分为独立工程**（如 Web 端 + 控制台 + 管理后台，各自独立 prototype）
+   > - **B. 合并在一起**（所有页面放在一个 prototype/ 中，通过页面内 Tab/导航区分角色）
+
+   - 选 A → 进入多工程模式，后续每个工程独立执行完整的 Step 2-8 流程
+   - 选 B → 按现有单工程模式执行
+
+2. **STEPS.md 元信息节**：多工程模式下，每个工程单独记录一条元信息（含独立的"生成的页面"和"Tab 配置"）。项目级元信息增加"工程清单"行：
+
+   ```markdown
+   | **工程清单** | `web`（公众端）、`console`（控制台）、`admin`（管理后台） |
+   | **目录映射** | web → `prototype-web/` `frontend-web/` `backend-web/`<br>console → `prototype-console/` `frontend-console/`<br>admin → `prototype-admin/` `frontend-admin/` |
+   ```
+
+3. **safrontend / sabackend / saapi-connect**：识别 STEPS.md 中的"工程清单"与"目录映射"，按工程逐个生成代码。若后端合并（统一 `backend/`），sabackend 只执行一次。
+
+### 向后兼容
+
+- 现有单工程项目（`prototype/`、`frontend/`、`backend/` 等扁平命名）**完全不受影响**
+- 下游 skill（safrontend、saapi、sabackend、saapi-connect、sacrossplatform、sadesktop）读取 STEPS.md 的"工程清单"字段来判断是单工程还是多工程模式
+- 若"工程清单"字段不存在 → 回退到单工程模式（向后兼容）
+
 ## 统一行为：所有子 skill 在 prototype 完成后必须分流（Step 7）
 
 > 📌 **本节是路由与子 skill 的契约**。所有 `sainit-*` 子 skill 在 `prototype/` 生成完毕 + `STEPS.md` 写入完毕 + `README.md` 写入完毕之后，**必须先执行 Step 6.5「自动预览 prototype」（自动打开浏览器预览），再执行 Step 7「原型后续流程选择（用户分流）」**，直接以对话形式询问用户下一步是「重新设计」还是「开始前端开发」。
@@ -133,16 +216,19 @@ description: "项目初始化路由器：识别用户描述的项目类型，并
 |------|-----|
 | **项目名（英文 / kebab-case）** | `<project-name>` |
 | **项目名（中文）** | `<用户填>` |
-| **项目类型** | <dating \| shop \| blog \| tool> |
-| **UI 风格** | <A 简约清新 \| B 霓虹灯风格 \| C 温馨治愈 \| D 商务专业 \| E 复古文艺> |
+| **项目类型** | <dating \| shop \| blog \| tool \| saas> |
+| **工程模式** | <单工程 \| 多工程>（单工程时此项省略，仅多工程时填写） |
+| **工程清单** | <`web`（公众端）、`console`（控制台）、`admin`（管理后台）……多工程时必填> |
+| **目录映射** | <web → `prototype-web/` `frontend-web/`<br>console → `prototype-console/` `frontend-console/`<br>……多工程时必填> |
+| **UI 风格** | <A 简约清新 \| B 霓虹灯风格 \| C 温馨治愈 \| D 商务专业 \| E 复古文艺 \| A 科技蓝 \| ……> |
 | **核心功能** | <已选功能列表> |
 | **增值功能** | <已选功能列表> |
 | **生成的页面** | <已生成的 HTML 文件名清单> |
 | **Tab 配置** | <Tab 列表> |
 | **localStorage 键名前缀** | `<projectName>:` |
 | **占位图服务** | <picsum + pravatar> |
-| **设计令牌文件** | `prototype/assets/css/tokens.css` |
-| **公共 JS 文件** | `prototype/assets/js/common.js` |
+| **设计令牌文件** | `prototype/assets/css/tokens.css`（多工程时按目录映射列出各工程的 tokens.css 路径） |
+| **公共 JS 文件** | `prototype/assets/js/common.js`（多工程时按目录映射列出各工程的 common.js 路径） |
 
 ### 页面与功能映射
 
@@ -154,10 +240,10 @@ description: "项目初始化路由器：识别用户描述的项目类型，并
 
 ### 后续 skill 读取指引
 
-- **/safrontend**：读取本节获取项目名、UI 风格、页面清单；前端框架与 TS/JS 由 safrontend 阶段询问用户
-- **/saapi**：读取本节获取项目名（中文/英文）、项目类型、已有功能清单作为接口发现来源
-- **/sabackend**：读取本节获取项目中文名（用于推导数据库表前缀拼音）
-- **/saapi-connect**：间接依赖（通过 sabackend 写入的命名规范）
+- **/safrontend**：读取本节获取项目名、UI 风格、页面清单；前端框架与 TS/JS 由 safrontend 阶段询问用户。**多工程模式下**按「工程清单」与「目录映射」逐工程生成 `frontend-{suffix}/` 目录
+- **/saapi**：读取本节获取项目名（中文/英文）、项目类型、已有功能清单作为接口发现来源。**多工程模式**下按工程后缀分别识别接口范围（如 `-console` 工程含开发者接口，`-admin` 工程含管理接口）
+- **/sabackend**：读取本节获取项目中文名（用于推导数据库表前缀拼音）。**多工程模式**下若后端合并（统一 `backend/`）则只执行一次，若拆分则按目录映射逐工程生成
+- **/saapi-connect**：间接依赖（通过 sabackend 写入的命名规范）。**多工程模式**下按目录映射配对连接（如 `frontend-web/` ↔ `backend/`，`frontend-console/` ↔ `backend/`）
 
 ### 修改记录
 
@@ -190,6 +276,7 @@ description: "项目初始化路由器：识别用户描述的项目类型，并
 |------|------|
 | 2026-06-29-1 | 初始化「修改记录（skill 自身演进）」section；约定时间格式为「年-月-日-当天变动次数」；AI 写入前必须用 PowerShell `Get-Date -Format "yyyy-MM-dd"` 校准北京时间；变动次数 N 按「该 skill 文件落地次数」自增（同一天多次改动依次为 1,2,3...） |
 | 2026-06-29-2 | 新增「统一行为：所有子 skill 在 prototype 完成后必须分流（Step 7）」契约节；约定子 skill 在 prototype + STEPS.md + README.md 写完后，必须用 AskUserQuestion 让用户在 A~E（重新设计 5 个设计 skill） / F（直接进 safrontend）之间做选择；声明 A~E 可链式循环、不要清空 prototype/ |
+| 2026-08-04-1 | 新增「多工程目录命名规范」节：定义何时启用多工程目录（SaaS 多角色/电商商家端等场景）、目录命名后缀规范（`-web`/`-app`/`-console`/`-admin`/`-merchant`/`-client`）、多目录项目结构示例、子 skill 实施要求（sainit-saas 增加 Step 2.5 反问工程拆分）、STEPS.md 元信息节新增「工程模式」「工程清单」「目录映射」字段；更新核心链路关联 Skill 表适配多工程产出；更新后续 skill 读取指引（safrontend/saapi/sabackend/saapi-connect 按多工程模式分支说明）；向后兼容单工程现有扁平命名
 
 ---
 
@@ -199,11 +286,13 @@ description: "项目初始化路由器：识别用户描述的项目类型，并
 
 | Skill | 阶段 | 产出 |
 |-------|------|------|
-| `sainit-*` | 原型生成 | `prototype/` + `STEPS.md` 项目元信息 |
-| `safrontend` | Web 前端 | `frontend/`（Vue 3 / React 18） |
-| `saapi` | 消费者 API 设计 | `api/openapi.yaml` |
-| `sabackend` | 后端实现 | `backend/` |
-| `saapi-connect` | 前后端接通 | 环境变量 + JWT + 错误处理 |
+| `sainit-*` | 原型生成 | `prototype/`（单工程）或 `prototype-{web,console,admin}/`（多工程） + `STEPS.md` 项目元信息 |
+| `safrontend` | Web 前端 | `frontend/`（单工程）或 `frontend-{suffix}/`（多工程）（Vue 3 / React 18） |
+| `saapi` | 消费者 API 设计 | `api/openapi.yaml`（所有工程共享） |
+| `sabackend` | 后端实现 | `backend/`（单工程或多工程合并后端）或 `backend-{suffix}/`（多工程拆分后端） |
+| `saapi-connect` | 前后端接通 | 环境变量 + JWT + 错误处理（多工程时按目录映射逐对连接） |
+
+> 📌 **多工程目录映射示例**：SaaS 平台拆分为 `prototype-web/` + `prototype-console/` + `prototype-admin/` → frontend 对应生成 `frontend-web/` + `frontend-console/` + `frontend-admin/` → 统一后端 `backend/`。详见上方「多工程目录命名规范」节。
 
 ### API 平台扩展（核心链路后，构建 SaaS/API 平台专用）
 

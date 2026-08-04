@@ -17,6 +17,8 @@ description: "初始化一个 SaaS/API 平台类软件项目的产品原型（�
 1. 提取项目关键词 → kebab-case 英文名
 2. 创建目录结构：
 
+**默认单工程模式**（所有页面在一个 prototype/ 内）：
+
 ```
 <project-name>/
 ├── README.md
@@ -37,6 +39,32 @@ description: "初始化一个 SaaS/API 平台类软件项目的产品原型（�
         └── img/
 ```
 
+**推荐多工程模式**（SaaS 平台通常涉及多角色，按「公众 Web 端 + 开发者控制台 + 后台管理」拆分）：
+
+```
+<project-name>/
+├── README.md
+├── prototype-web/              # 工程 1：公众 Web 端（落地页 + 文档）
+│   ├── index.html              # 落地页（Hero + 特性 + 定价 + CTA）
+│   ├── docs.html               # API 文档
+│   └── assets/{css,js,img}/
+├── prototype-console/          # 工程 2：开发者控制台
+│   ├── index.html              # 登录/注册
+│   ├── dashboard.html          # 控制台概览（Tab）
+│   ├── playground.html         # API Playground（Tab）
+│   ├── keys.html               # API Key 管理
+│   ├── billing.html            # 用量 + 计费
+│   └── assets/{css,js,img}/
+└── prototype-admin/            # 工程 3：后台管理（可选）
+    ├── index.html              # 管理员登录
+    ├── overview.html           # 平台概览
+    ├── users.html              # 用户管理
+    ├── models.html             # 模型管理
+    └── assets/{css,js,img}/
+```
+
+> 💡 **多工程 vs 单工程**：Step 2（UI 风格）后反问用户选择。判断依据见主 skill `sainit/SKILL.md` 的「多工程目录命名规范」节。
+
 ### Step 2：反问 UI 风格（5 选 1）
 
 | 选项 | 风格 | 典型色系 |
@@ -46,6 +74,21 @@ description: "初始化一个 SaaS/API 平台类软件项目的产品原型（�
 | C | 清新白 | 白底 + 品牌蓝 + 大量留白 |
 | D | 商务专业 | 深蓝 + 灰白 |
 | E | 紫黑科技 | 深紫黑 + 霓虹青 |
+
+### Step 2.5：反问工程拆分（SaaS 专属）
+
+> 📌 **本步骤为 SaaS 项目强制步骤**。由于 SaaS 平台天然涉及多角色（访客/开发者/管理员），需要在 UI 风格确认后询问是否拆分为多工程目录。
+
+使用 `AskUserQuestion`：
+
+> 本项目涉及多个不同角色（公众访客、注册开发者、平台管理员）。是否需要拆分为独立工程目录？
+> - **A. 拆分为独立工程（推荐）** → `prototype-web/`（公众端）+ `prototype-console/`（开发者控制台）+ `prototype-admin/`（后台管理）
+>   - 优点：各角色独立开发、独立部署、目录清晰
+> - **B. 合并在一起** → 所有页面放在 `prototype/` 中，通过页面内 Tab/导航区分角色
+>   - 优点：结构简单、开发快速
+
+- 选 A → 多工程模式，按下方「推荐多工程模式」目录结构生成，后续 Step 3 按工程分别反问功能
+- 选 B → 单工程模式，保持 `prototype/` 扁平结构
 
 ### Step 3：反问功能需求（多选）
 
@@ -419,3 +462,4 @@ document.addEventListener('DOMContentLoaded', highlightTab);
 | 时间 | 改动 |
 |------|------|
 | 2026-07-14-1 | 初版：SaaS/API 平台项目类型；7 页原型（落地页/控制台/Playground/Key管理/计费/文档/账户）；科技蓝 UI 风格；SaaS 专属组件（代码块/Key 卡片/Playground 分栏/定价卡片） |
+| 2026-08-04-1 | 新增多工程目录支持：Step 1 增加「推荐多工程模式」目录结构（`prototype-web/` + `prototype-console/` + `prototype-admin/`）；新增 Step 2.5「反问工程拆分（SaaS 专属）」强制步骤；页面按角色拆分到不同工程目录 |
