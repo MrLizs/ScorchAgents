@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>用户管理 - PrismCore 管理后台</title>
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/components.css">
+<link rel="stylesheet" href="assets/css/admin.css">
+<style>
+  /* 页面局部样式 */
+  .toolbar .form-select { width: 130px; padding: 8px 32px 8px 12px; border: 1.5px solid var(--border); border-radius: var(--radius); background-color: var(--surface); color: var(--text); font-size: var(--text-sm); cursor: pointer; outline: none; }
+  .toolbar .form-select:focus { border-color: var(--primary-500); box-shadow: 0 0 0 3px var(--primary-100); }
+  .detail-grid { display: grid; grid-template-columns: 108px 1fr; gap: var(--space-3) var(--space-4); margin-bottom: var(--space-5); }
+  .detail-grid .dl-label { color: var(--text-muted); font-size: var(--text-sm); }
+  .detail-grid .dl-value { color: var(--text); font-size: var(--text-base); word-break: break-all; }
+</style>
+</head>
+<body>
+
+<!-- ============ 侧边栏 ============ -->
+<aside class="admin-sidebar" id="admin-sidebar">
+  <div class="sidebar-brand">
+    <span class="logo-icon">P</span>
+    <span class="brand-name"><span class="highlight">Prism</span>Core</span>
+  </div>
+  <div class="sidebar-nav">
+    <div class="sidebar-section-label">管理</div>
+    <button class="nav-item" data-page="overview.html" onclick="goTo('overview.html')"><span class="nav-icon">📊</span>平台概览</button>
+    <button class="nav-item" data-page="users.html" onclick="goTo('users.html')"><span class="nav-icon">👥</span>用户管理</button>
+    <button class="nav-item" data-page="models.html" onclick="goTo('models.html')"><span class="nav-icon">🧠</span>模型管理</button>
+    <button class="nav-item" data-page="keys.html" onclick="goTo('keys.html')"><span class="nav-icon">🔑</span>API Key 监管</button>
+    <div class="sidebar-section-label">运营</div>
+    <button class="nav-item" data-page="orders.html" onclick="goTo('orders.html')"><span class="nav-icon">💰</span>订单/充值</button>
+    <button class="nav-item" data-page="reports.html" onclick="goTo('reports.html')"><span class="nav-icon">📈</span>用量报表</button>
+    <button class="nav-item" data-page="tickets.html" onclick="goTo('tickets.html')"><span class="nav-icon">🎫</span>工单管理</button>
+    <button class="nav-item" data-page="announcements.html" onclick="goTo('announcements.html')"><span class="nav-icon">📢</span>公告管理</button>
+    <div class="sidebar-section-label">系统</div>
+    <button class="nav-item" data-page="roles.html" onclick="goTo('roles.html')"><span class="nav-icon">🛡️</span>角色权限</button>
+    <button class="nav-item" data-page="logs.html" onclick="goTo('logs.html')"><span class="nav-icon">📋</span>操作日志</button>
+    <button class="nav-item" data-page="settings.html" onclick="goTo('settings.html')"><span class="nav-icon">⚙️</span>系统设置</button>
+  </div>
+  <div class="sidebar-footer">
+    <div class="admin-info">
+      <span class="avatar" style="width:28px;height:28px;font-size:var(--text-xs);" id="admin-avatar">A</span>
+      <span id="admin-name">管理员</span>
+    </div>
+    <button class="logout-btn" onclick="adminLogout()">🚪 退出登录</button>
+  </div>
+</aside>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<!-- ============ 顶栏 ============ -->
+<header class="admin-header">
+  <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+  <h1 class="header-title">用户管理</h1>
+  <div class="header-right">
+    <button class="btn btn-ghost btn-sm" onclick="goTo('../prototype-web/index.html')">🌐 用户端</button>
+  </div>
+</header>
+
+<!-- ============ 内容区 ============ -->
+<main class="admin-main">
+  <div class="admin-content">
+
+    <div class="page-header">
+      <div>
+        <h2 class="page-title">用户管理</h2>
+        <p class="page-subtitle">管理平台注册用户、账号状态与消费情况</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn btn-outline" onclick="exportUsers()">⬇ 导出用户</button>
+      </div>
+    </div>
+
+    <!-- 数据统计 -->
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-accent" style="background:var(--primary);"></div>
+        <span class="stat-icon">👥</span>
+        <div class="stat-value">23,456</div>
+        <div class="stat-label">总用户</div>
+        <span class="stat-change up">↑ 3.2% 较上月</span>
+      </div>
+      <div class="stat-card">
+        <div class="stat-accent" style="background:var(--success);"></div>
+        <span class="stat-icon">✨</span>
+        <div class="stat-value">128</div>
+        <div class="stat-label">今日新增</div>
+        <span class="stat-change up">↑ 12 较昨日</span>
+      </div>
+      <div class="stat-card">
+        <div class="stat-accent" style="background:var(--info);"></div>
+        <span class="stat-icon">🏢</span>
+        <div class="stat-value">86</div>
+        <div class="stat-label">企业账号</div>
+        <span class="stat-change up">↑ 4 本月新增</span>
+      </div>
+      <div class="stat-card">
+        <div class="stat-accent" style="background:var(--danger);"></div>
+        <span class="stat-icon">🚫</span>
+        <div class="stat-value">45</div>
+        <div class="stat-label">已封禁</div>
+        <span class="stat-change up">↑ 6.1% 较上月</span>
+      </div>
+    </div>
+
+    <!-- 账号类型 Tab -->
+    <div class="toolbar" style="margin-bottom:var(--space-4);">
+      <div class="btn-group" id="user-type-tabs">
+        <button class="btn btn-sm active" data-type="全部" onclick="switchUserType('全部',this)">全部账号</button>
+        <button class="btn btn-sm" data-type="企业" onclick="switchUserType('企业',this)">🏢 企业账号</button>
+        <button class="btn btn-sm" data-type="普通" onclick="switchUserType('普通',this)">👤 普通账号</button>
+      </div>
+      <button class="btn btn-primary btn-sm" style="margin-left:auto;" onclick="goTo('user-detail.html?user=new')">＋ 新建企业账号</button>
+    </div>
+
+    <!-- 筛选工具栏 -->
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <div class="search-input">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="user-search" placeholder="搜索姓名 / 邮箱..." onkeydown="if(event.key==='Enter')applyUserFilter()">
+        </div>
+        <select class="form-select" id="user-status-filter" onchange="applyUserFilter()">
+          <option value="全部">状态：全部</option>
+          <option value="正常">正常</option>
+          <option value="已封禁">已封禁</option>
+        </select>
+        <select class="form-select" id="user-role-filter" onchange="applyUserFilter()">
+          <option value="全部">角色：全部</option>
+          <option value="免费">免费</option>
+          <option value="专业">专业</option>
+          <option value="企业">企业</option>
+        </select>
+        <button class="btn btn-primary" onclick="applyUserFilter()">搜索</button>
+      </div>
+    </div>
+
+    <!-- 用户列表 -->
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width:36px;"><input type="checkbox" onchange="toggleAllUsers(this)"></th>
+            <th>用户</th>
+            <th>角色</th>
+            <th>状态</th>
+            <th>注册时间</th>
+            <th>最近活跃</th>
+            <th>累计消费</th>
+            <th style="text-align:right;">操作</th>
+          </tr>
+        </thead>
+        <tbody id="users-tbody"></tbody>
+      </table>
+      <div class="pagination" id="users-pagination">
+        <span class="page-info" id="users-page-info">第 1 页 共 23,456 条</span>
+        <div class="page-btns">
+          <button class="page-btn" id="users-prev-btn" onclick="goUserPage(1)" disabled>‹</button>
+          <button class="page-btn active" onclick="goUserPage(1)">1</button>
+          <button class="page-btn" onclick="goUserPage(2)">2</button>
+          <button class="page-btn" onclick="goUserPage(3)">3</button>
+          <button class="page-btn" id="users-next-btn" onclick="goUserPage(3)">›</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- ============ 用户详情弹窗 ============ -->
+<div class="modal-overlay" id="user-detail-overlay">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-title" id="user-detail-title">用户详情</div>
+    <div class="modal-desc">用户账号详细信息</div>
+    <div id="user-detail-body"></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="closeUserDetail()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/common.js"></script>
+<script>
+/* ================================================================== */
+/*  示例数据                                                          */
+/* ================================================================== */
+var USERS = [
+  { id: 'u_1001', name: '林晓宇', email: 'linxiaoyu@prismcore.ai', phone: '138****2865', role: '专业', status: '正常', reg: '2025-09-14', active: '2026-08-04 09:32', spend: 3286.50, req: 825300 },
+  { id: 'u_1002', name: '陈志远', email: 'chenzhiyuan@prismcore.ai', phone: '186****9041', role: '企业', status: '正常', reg: '2025-10-03', active: '2026-08-04 08:15', spend: 18942.00, req: 2156400, company: '星云科技', keyCount: 6 },
+  { id: 'u_1003', name: '王思涵', email: 'wangsihan@prismcore.ai', phone: '159****4417', role: '免费', status: '正常', reg: '2025-11-21', active: '2026-08-03 22:40', spend: 58.00, req: 12800 },
+  { id: 'u_1004', name: '张明轩', email: 'zhangmingxuan@prismcore.ai', phone: '135****7732', role: '免费', status: '已封禁', reg: '2025-12-05', active: '2026-06-18 14:02', spend: 120.00, req: 34500 },
+  { id: 'u_1005', name: '李若曦', email: 'liruoxi@prismcore.ai', phone: '177****6189', role: '专业', status: '正常', reg: '2026-01-08', active: '2026-08-04 07:58', spend: 1854.20, req: 468200 },
+  { id: 'u_1006', name: '刘昊然', email: 'liuhaoran@prismcore.ai', phone: '150****3526', role: '免费', status: '正常', reg: '2026-02-19', active: '2026-08-03 19:33', spend: 0, req: 5200 },
+  { id: 'u_1007', name: '赵雨桐', email: 'zhaoyutong@prismcore.ai', phone: '188****8354', role: '专业', status: '已封禁', reg: '2025-12-28', active: '2026-05-30 11:26', spend: 2100.00, req: 552000 },
+  { id: 'u_1008', name: '孙嘉怡', email: 'sunjiayi@prismcore.ai', phone: '166****2097', role: '企业', status: '正常', reg: '2026-03-11', active: '2026-08-04 08:47', spend: 9876.00, req: 1289000, company: '青云互动', keyCount: 3 },
+  { id: 'u_1009', name: '周子墨', email: 'zhouzimo@prismcore.ai', phone: '158****6621', role: '免费', status: '正常', reg: '2026-03-25', active: '2026-08-03 21:05', spend: 15.00, req: 890 },
+  { id: 'u_1010', name: '吴雨桐', email: 'wuyutong@prismcore.ai', phone: '137****4180', role: '企业', status: '正常', reg: '2026-04-02', active: '2026-08-04 06:50', spend: 6520.00, req: 745000, company: '灵犀智能', keyCount: 2 },
+  { id: 'u_1011', name: '郑浩然', email: 'zhenghaoran@prismcore.ai', phone: '180****7395', role: '企业', status: '已封禁', reg: '2026-04-18', active: '2026-07-20 10:12', spend: 12400.00, req: 1560000, company: '磐石数据', keyCount: 4 }
+];
+
+/* ================================================================== */
+/*  工具函数                                                          */
+/* ================================================================== */
+var currentUserType = '全部';
+
+function findUser(id) {
+  for (var i = 0; i < USERS.length; i++) { if (USERS[i].id === id) return USERS[i]; }
+  return null;
+}
+
+function isFiltering() {
+  return document.getElementById('user-search').value.trim() !== ''
+    || document.getElementById('user-status-filter').value !== '全部'
+    || document.getElementById('user-role-filter').value !== '全部'
+    || currentUserType !== '全部';
+}
+
+function getFilteredUsers() {
+  var kw = document.getElementById('user-search').value.trim().toLowerCase();
+  var st = document.getElementById('user-status-filter').value;
+  var rl = document.getElementById('user-role-filter').value;
+  return USERS.filter(function (u) {
+    var okKw = !kw || u.name.toLowerCase().indexOf(kw) > -1 || u.email.toLowerCase().indexOf(kw) > -1
+      || (u.company || '').toLowerCase().indexOf(kw) > -1;
+    var okSt = st === '全部' || u.status === st;
+    var okRl = rl === '全部' || u.role === rl;
+    var okType = currentUserType === '全部' || (currentUserType === '企业' ? u.role === '企业' : u.role !== '企业');
+    return okKw && okSt && okRl && okType;
+  });
+}
+
+function switchUserType(type, btn) {
+  currentUserType = type;
+  document.querySelectorAll('#user-type-tabs .btn').forEach(function (b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  renderUsers();
+}
+
+/* ================================================================== */
+/*  渲染                                                              */
+/* ================================================================== */
+function renderUsers() {
+  var rows = getFilteredUsers();
+  var tbody = document.getElementById('users-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state" style="padding:var(--space-10) var(--space-4);">'
+      + '<div class="empty-icon">🔍</div><div class="empty-title">未找到匹配的用户</div>'
+      + '<div class="empty-text">请调整搜索关键词或筛选条件后重试</div></div></td></tr>';
+    document.getElementById('users-page-info').textContent = '第 1 页 共 0 条';
+    return;
+  }
+  var total = isFiltering() ? rows.length : 23456;
+  tbody.innerHTML = rows.map(function (u) {
+    var isEnt = u.role === '企业';
+    var roleBadge = isEnt ? 'badge-green' : (u.role === '专业' ? 'badge-blue' : 'badge-gray');
+    var stBadge = u.status === '正常' ? 'badge-green' : 'badge-red';
+    var banBtn = u.status === '正常'
+      ? '<button class="btn btn-outline btn-sm" onclick="toggleBanUser(\'' + u.id + '\')">封禁</button>'
+      : '<button class="btn btn-outline btn-sm" style="color:var(--success);" onclick="toggleBanUser(\'' + u.id + '\')">解封</button>';
+    /* 企业账号与普通用户均可管理多个 API Key */
+    var keyMgmtBtn = '<button class="btn btn-primary-ghost btn-sm" onclick="goTo(\'user-detail.html?user=' + u.id + '\')">🔑 Key 管理</button>';
+    var nameDisplay = isEnt
+      ? '<strong>' + u.name + '</strong><span class="badge badge-blue" style="margin-left:6px;">' + (u.company || '') + '</span>'
+      : '<strong>' + u.name + '</strong>';
+    return '<tr>'
+      + '<td><input type="checkbox" class="row-check"></td>'
+      + '<td><div class="cell-user"><span class="user-avatar">' + (u.company ? u.company.charAt(0) : u.name.charAt(0)) + '</span>'
+      + '<span>' + nameDisplay + '<br><span class="cell-mono">' + u.email + '</span></span></div></td>'
+      + '<td><span class="badge ' + roleBadge + '">' + u.role + '</span></td>'
+      + '<td><span class="badge ' + stBadge + '">' + u.status + '</span></td>'
+      + '<td>' + u.reg + '</td>'
+      + '<td>' + u.active + '</td>'
+      + '<td><strong>' + formatCurrency(u.spend) + '</strong></td>'
+      + '<td><div class="cell-actions">'
+      + '<button class="btn btn-primary-ghost btn-sm" onclick="viewUser(\'' + u.id + '\')">查看</button>'
+      + keyMgmtBtn
+      + banBtn
+      + '<button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="deleteUser(\'' + u.id + '\')">删除</button>'
+      + '</div></td>'
+      + '</tr>';
+  }).join('');
+  document.getElementById('users-page-info').textContent = '第 1 页 共 ' + formatNumber(total) + ' 条';
+}
+
+function applyUserFilter() {
+  goUserPage(1, true);
+  renderUsers();
+}
+
+/* ================================================================== */
+/*  查看详情                                                          */
+/* ================================================================== */
+function viewUser(id) {
+  var u = findUser(id);
+  if (!u) return;
+  document.getElementById('user-detail-title').textContent = '用户详情';
+  document.getElementById('user-detail-body').innerHTML =
+    '<div style="display:flex;align-items:center;gap:var(--space-3);margin-bottom:var(--space-5);">'
+    + '<span class="avatar avatar-lg">' + u.name.charAt(0) + '</span>'
+    + '<div><strong style="font-size:var(--text-md);">' + u.name + '</strong><br>'
+    + '<span class="cell-mono">' + u.email + '</span></div></div>'
+    + '<div class="detail-grid">'
+    + '<span class="dl-label">用户 ID</span><span class="dl-value">' + u.id + '</span>'
+    + '<span class="dl-label">角色</span><span class="dl-value">' + u.role + '</span>'
+    + '<span class="dl-label">账号状态</span><span class="dl-value">' + u.status + '</span>'
+    + '<span class="dl-label">手机号</span><span class="dl-value">' + u.phone + '</span>'
+    + '<span class="dl-label">注册时间</span><span class="dl-value">' + u.reg + '</span>'
+    + '<span class="dl-label">最近活跃</span><span class="dl-value">' + u.active + '</span>'
+    + '<span class="dl-label">累计消费</span><span class="dl-value"><strong style="color:var(--primary);">' + formatCurrency(u.spend) + '</strong></span>'
+    + '<span class="dl-label">累计请求</span><span class="dl-value">' + formatNumber(u.req) + ' 次</span>'
+    + '</div>';
+  document.getElementById('user-detail-overlay').classList.add('show');
+}
+
+function closeUserDetail() {
+  document.getElementById('user-detail-overlay').classList.remove('show');
+}
+
+/* ================================================================== */
+/*  封禁 / 解封 / 删除                                                */
+/* ================================================================== */
+async function toggleBanUser(id) {
+  var u = findUser(id);
+  if (!u) return;
+  var isBan = u.status === '正常';
+  var ok = await showConfirm(
+    isBan ? '封禁用户' : '解除封禁',
+    isBan ? '确定要封禁用户「' + u.name + '」吗？封禁后该账号将无法登录并使用平台服务。'
+          : '确定要解除「' + u.name + '」的封禁吗？解除后可正常登录使用。'
+  );
+  if (!ok) return;
+  u.status = isBan ? '已封禁' : '正常';
+  renderUsers();
+  showToast(isBan ? '用户「' + u.name + '」已封禁' : '用户「' + u.name + '」已解封', 'success');
+}
+
+async function deleteUser(id) {
+  var idx = -1;
+  for (var i = 0; i < USERS.length; i++) { if (USERS[i].id === id) { idx = i; break; } }
+  if (idx < 0) return;
+  var u = USERS[idx];
+  var ok = await showConfirm('删除用户', '确定要删除用户「' + u.name + '」吗？删除后相关数据将不可恢复。');
+  if (!ok) return;
+  USERS.splice(idx, 1);
+  renderUsers();
+  showToast('用户「' + u.name + '」已删除', 'success');
+}
+
+/* ================================================================== */
+/*  其它交互                                                          */
+/* ================================================================== */
+function toggleAllUsers(cb) {
+  document.querySelectorAll('#users-tbody .row-check').forEach(function (c) { c.checked = cb.checked; });
+}
+
+function goUserPage(n, silent) {
+  if (n < 1 || n > 3) return;
+  document.querySelectorAll('#users-pagination .page-btn').forEach(function (b) {
+    if (b.id) return;
+    b.classList.toggle('active', parseInt(b.textContent, 10) === n);
+  });
+  document.getElementById('users-prev-btn').disabled = n === 1;
+  document.getElementById('users-next-btn').disabled = n === 3;
+  if (!silent) showToast('已切换到第 ' + n + ' 页（演示数据）', 'info');
+}
+
+function exportUsers() {
+  showToast('已导出 23,456 位用户数据（演示）', 'success');
+}
+
+/* ================================================================== */
+/*  初始化                                                            */
+/* ================================================================== */
+document.addEventListener('DOMContentLoaded', function () {
+  requireAdminLogin();
+  var admin = getAdmin();
+  if (admin) {
+    document.getElementById('admin-name').textContent = admin.name || '管理员';
+    document.getElementById('admin-avatar').textContent = (admin.name || 'A').charAt(0).toUpperCase();
+  }
+  renderUsers();
+});
+</script>
+</body>
+</html>

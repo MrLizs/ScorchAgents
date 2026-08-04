@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PrismCore 管理后台 - 用量统计报表</title>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/components.css">
+  <link rel="stylesheet" href="assets/css/admin.css">
+  <style>
+    /* 报表页专用样式 */
+    .btn-group .btn { font-size: var(--text-sm); }
+
+    .range-custom { display: none; align-items: center; gap: var(--space-2); }
+    .range-custom input[type="date"] {
+      padding: 6px 10px; border: 1.5px solid var(--border); border-radius: var(--radius);
+      font-size: var(--text-sm); color: var(--text); background: var(--surface); outline: none;
+      transition: all var(--transition-fast);
+    }
+    .range-custom input[type="date"]:focus { border-color: var(--primary-500); box-shadow: 0 0 0 3px var(--primary-100); }
+    .range-note { font-size: var(--text-xs); color: var(--text-muted); }
+
+    /* 柱状图 */
+    .bar-chart {
+      display: flex; align-items: flex-end; gap: 3px;
+      height: 240px; padding: 28px 4px 0;
+      background-image: repeating-linear-gradient(to top, var(--border-light) 0 1px, transparent 1px 40px);
+      border-bottom: 1px solid var(--border);
+    }
+    .bar {
+      flex: 1; position: relative;
+      background: linear-gradient(180deg, var(--primary-500), var(--primary-700));
+      border-radius: 3px 3px 0 0; min-height: 2px;
+      transition: background var(--transition-fast), transform var(--transition-fast);
+      cursor: default;
+    }
+    .bar:hover { background: linear-gradient(180deg, var(--primary-400), var(--primary-600)); }
+    .bar::after {
+      content: attr(data-label) ' · ' attr(data-value);
+      position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+      background: var(--gray-800); color: #fff; font-size: var(--text-xs);
+      padding: 4px 8px; border-radius: var(--radius-sm); white-space: nowrap;
+      opacity: 0; pointer-events: none; transition: opacity var(--transition-fast); z-index: 5;
+      box-shadow: var(--shadow-md);
+    }
+    .bar:hover::after { opacity: 1; }
+    .chart-footer { display: flex; justify-content: space-between; font-size: var(--text-xs); color: var(--text-muted); margin-top: var(--space-2); }
+
+    /* 双栏网格 */
+    .report-grid { display: grid; grid-template-columns: 1fr; gap: var(--space-4); }
+    @media (min-width: 1024px) { .report-grid.two-col { grid-template-columns: 1.6fr 1fr; } }
+
+    .progress { background: var(--gray-100); }
+    .cell-percent { font-size: var(--text-sm); font-weight: var(--font-weight-medium); color: var(--text-sub); }
+
+    /* 环形图 */
+    .donut-wrap { display: flex; align-items: center; gap: var(--space-6); flex-wrap: wrap; }
+    .donut {
+      width: 190px; height: 190px; border-radius: 50%; position: relative; flex-shrink: 0;
+      box-shadow: var(--shadow-md);
+    }
+    .donut::after { content: ''; position: absolute; inset: 40px; background: var(--surface); border-radius: 50%; box-shadow: var(--shadow-sm); }
+    .donut .donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1; }
+    .donut .donut-center .num { font-size: var(--text-xl); font-weight: var(--font-weight-bold); color: var(--text); }
+    .donut .donut-center .label { font-size: var(--text-xs); color: var(--text-muted); margin-top: 2px; }
+    .donut-legend { flex: 1; min-width: 180px; }
+    .donut-legend .legend-item { display: flex; align-items: center; gap: var(--space-2); padding: 7px 0; border-bottom: 1px dashed var(--border-light); }
+    .donut-legend .legend-item:last-child { border-bottom: none; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+    .legend-item .legend-name { font-size: var(--text-sm); color: var(--text); flex: 1; }
+    .legend-item .legend-pct { font-size: var(--text-sm); font-weight: var(--font-weight-semibold); color: var(--text); }
+
+    .rank-cell { display: flex; align-items: center; gap: var(--space-2); }
+    .rank-badge { width: 22px; height: 22px; border-radius: var(--radius-sm); background: var(--gray-100); color: var(--text-sub); display: flex; align-items: center; justify-content: center; font-size: var(--text-xs); font-weight: var(--font-weight-semibold); flex-shrink: 0; }
+    .rank-badge.top { background: var(--primary); color: #fff; }
+  </style>
+</head>
+<body>
+
+  <aside class="admin-sidebar" id="admin-sidebar">
+    <div class="sidebar-brand">
+      <span class="logo-icon">P</span>
+      <span class="brand-name"><span class="highlight">Prism</span>Core</span>
+    </div>
+    <div class="sidebar-nav">
+      <div class="sidebar-section-label">管理</div>
+      <button class="nav-item" data-page="overview.html" onclick="goTo('overview.html')"><span class="nav-icon">📊</span>平台概览</button>
+      <button class="nav-item" data-page="users.html" onclick="goTo('users.html')"><span class="nav-icon">👥</span>用户管理</button>
+      <button class="nav-item" data-page="models.html" onclick="goTo('models.html')"><span class="nav-icon">🧠</span>模型管理</button>
+      <button class="nav-item" data-page="keys.html" onclick="goTo('keys.html')"><span class="nav-icon">🔑</span>API Key 监管</button>
+      <div class="sidebar-section-label">运营</div>
+      <button class="nav-item" data-page="orders.html" onclick="goTo('orders.html')"><span class="nav-icon">💰</span>订单/充值</button>
+      <button class="nav-item" data-page="reports.html" onclick="goTo('reports.html')"><span class="nav-icon">📈</span>用量报表</button>
+      <button class="nav-item" data-page="tickets.html" onclick="goTo('tickets.html')"><span class="nav-icon">🎫</span>工单管理</button>
+      <button class="nav-item" data-page="announcements.html" onclick="goTo('announcements.html')"><span class="nav-icon">📢</span>公告管理</button>
+      <div class="sidebar-section-label">系统</div>
+      <button class="nav-item" data-page="roles.html" onclick="goTo('roles.html')"><span class="nav-icon">🛡️</span>角色权限</button>
+      <button class="nav-item" data-page="logs.html" onclick="goTo('logs.html')"><span class="nav-icon">📋</span>操作日志</button>
+      <button class="nav-item" data-page="settings.html" onclick="goTo('settings.html')"><span class="nav-icon">⚙️</span>系统设置</button>
+    </div>
+    <div class="sidebar-footer">
+      <div class="admin-info">
+        <span class="avatar" style="width:28px;height:28px;font-size:var(--text-xs);" id="admin-avatar">A</span>
+        <span id="admin-name">管理员</span>
+      </div>
+      <button class="logout-btn" onclick="adminLogout()">🚪 退出登录</button>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <header class="admin-header">
+    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+    <h1 class="header-title">用量统计报表</h1>
+    <div class="header-right">
+      <button class="btn btn-ghost btn-sm" onclick="goTo('../prototype-web/index.html')">🌐 用户端</button>
+    </div>
+  </header>
+
+  <main class="admin-main">
+    <div class="admin-content">
+
+      <div class="page-header">
+        <div>
+          <h2 class="page-title">用量统计报表</h2>
+          <p class="page-subtitle">平台调用量、Token 消耗与消费趋势分析</p>
+        </div>
+        <div class="page-actions">
+          <button class="btn btn-primary" onclick="exportReport()">⬇ 导出报表</button>
+        </div>
+      </div>
+
+      <!-- 时间范围筛选 -->
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <div class="btn-group" id="range-group">
+            <button class="btn" onclick="setRange('today', this)">今日</button>
+            <button class="btn" onclick="setRange('week', this)">近7天</button>
+            <button class="btn active" onclick="setRange('month', this)">本月</button>
+            <button class="btn" onclick="setRange('custom', this)">自定义</button>
+          </div>
+          <div class="range-custom" id="custom-range">
+            <input type="date" id="date-start" value="2026-07-01">
+            <span style="color:var(--text-muted);">至</span>
+            <input type="date" id="date-end" value="2026-08-04">
+            <button class="btn btn-primary btn-sm" onclick="applyCustomRange()">应用</button>
+          </div>
+        </div>
+        <div class="toolbar-right">
+          <span class="range-note" id="range-note">数据截至：本月（2026-08-01 至 08-04）</span>
+        </div>
+      </div>
+
+      <!-- 统计卡片 -->
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-accent" style="background:var(--primary);"></div>
+          <span class="stat-icon">📞</span>
+          <div class="stat-value" id="stat-calls">12.4M</div>
+          <div class="stat-label">总调用次数</div>
+          <span class="stat-change up">↑ 15.2%</span>
+        </div>
+        <div class="stat-card">
+          <div class="stat-accent" style="background:var(--info);"></div>
+          <span class="stat-icon">🧮</span>
+          <div class="stat-value" id="stat-tokens">8.2B</div>
+          <div class="stat-label">总 Token 消耗</div>
+          <span class="stat-change up">↑ 11.8%</span>
+        </div>
+        <div class="stat-card">
+          <div class="stat-accent" style="background:var(--success);"></div>
+          <span class="stat-icon">💵</span>
+          <div class="stat-value" id="stat-cost">¥586,420</div>
+          <div class="stat-label">总消费</div>
+          <span class="stat-change up">↑ 9.4%</span>
+        </div>
+        <div class="stat-card">
+          <div class="stat-accent" style="background:var(--warning);"></div>
+          <span class="stat-icon">⚡</span>
+          <div class="stat-value" id="stat-latency">312ms</div>
+          <div class="stat-label">平均延迟</div>
+          <span class="stat-change down">↓ 18ms</span>
+        </div>
+      </div>
+
+      <!-- 近 30 日调用趋势 -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">近 30 日调用趋势</span>
+          <span class="range-note">单位：万次 · 悬停查看数值</span>
+        </div>
+        <div class="bar-chart" id="trend-chart"></div>
+        <div class="chart-footer">
+          <span id="trend-start"></span>
+          <span id="trend-end"></span>
+        </div>
+      </div>
+
+      <!-- 按模型用量 + 模型占比 -->
+      <div class="report-grid two-col">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">按模型用量</span>
+            <span class="range-note">按消费金额排序</span>
+          </div>
+          <div class="table-wrap" style="border:none;margin-bottom:0;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>模型</th>
+                  <th>调用次数</th>
+                  <th>Token</th>
+                  <th>消费</th>
+                  <th style="width:140px;">占比</th>
+                </tr>
+              </thead>
+              <tbody id="model-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">模型占比</span>
+            <span class="range-note">按调用次数</span>
+          </div>
+          <div class="donut-wrap">
+            <div class="donut" id="donut">
+              <div class="donut-center">
+                <span class="num">12.4M</span>
+                <span class="label">总调用次数</span>
+              </div>
+            </div>
+            <div class="donut-legend" id="donut-legend"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 用户 TOP 10 消费排行 -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">用户 TOP 10 消费排行</span>
+          <span class="range-note">按消费金额降序</span>
+        </div>
+        <div class="table-wrap" style="border:none;margin-bottom:0;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width:70px;">排名</th>
+                <th>用户</th>
+                <th>消费金额</th>
+                <th>调用次数</th>
+                <th style="text-align:right;">操作</th>
+              </tr>
+            </thead>
+            <tbody id="user-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script src="assets/js/common.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      requireAdminLogin();
+      var admin = getAdmin();
+      if (admin) {
+        document.getElementById('admin-name').textContent = admin.name || '管理员';
+        document.getElementById('admin-avatar').textContent = (admin.name || 'A').charAt(0).toUpperCase();
+      }
+    });
+  </script>
+  <script>
+    /* ==================== 时间范围 ==================== */
+    var RANGE_STATS = {
+      today: { calls: '512K',   tokens: '320M',   cost: '¥18,420',  latency: '288ms' },
+      week:  { calls: '3.6M',   tokens: '2.4B',   cost: '¥168,500', latency: '304ms' },
+      month: { calls: '12.4M',  tokens: '8.2B',   cost: '¥586,420', latency: '312ms' }
+    };
+    var RANGE_NOTE = {
+      today: '数据截至：今日 12:00',
+      week:  '数据截至：近 7 天（07-29 至 08-04）',
+      month: '数据截至：本月（2026-08-01 至 08-04）'
+    };
+
+    function setRange(range, btn) {
+      document.querySelectorAll('#range-group .btn').forEach(function(b) { b.classList.remove('active'); });
+      if (btn) btn.classList.add('active');
+      var custom = document.getElementById('custom-range');
+      if (range === 'custom') {
+        custom.style.display = 'flex';
+        document.getElementById('range-note').textContent = '数据截至：自定义日期范围';
+        return;
+      }
+      custom.style.display = 'none';
+      var s = RANGE_STATS[range];
+      document.getElementById('stat-calls').textContent = s.calls;
+      document.getElementById('stat-tokens').textContent = s.tokens;
+      document.getElementById('stat-cost').textContent = s.cost;
+      document.getElementById('stat-latency').textContent = s.latency;
+      document.getElementById('range-note').textContent = RANGE_NOTE[range];
+    }
+
+    function applyCustomRange() {
+      var s = document.getElementById('date-start').value;
+      var e = document.getElementById('date-end').value;
+      if (!s || !e) { showToast('请先选择起止日期', 'warning'); return; }
+      if (s > e) { showToast('开始日期不能晚于结束日期', 'warning'); return; }
+      showToast('已应用自定义日期范围：' + s + ' 至 ' + e, 'success');
+    }
+
+    function exportReport() {
+      showToast('报表已开始生成，生成完成后将自动下载', 'success');
+    }
+
+    /* ==================== 近 30 日趋势柱状图 ==================== */
+    var TREND = [486, 512, 478, 534, 562, 548, 601, 587, 623, 598, 645, 671, 628, 689, 712, 698, 734, 759, 726, 781, 803, 775, 826, 849, 818, 872, 895, 863, 918, 942];
+
+    function buildTrend() {
+      var el = document.getElementById('trend-chart');
+      var max = Math.max.apply(null, TREND);
+      var today = new Date(2026, 7, 4);
+      var html = '';
+      for (var i = 0; i < TREND.length; i++) {
+        var d = new Date(today);
+        d.setDate(d.getDate() - (TREND.length - 1 - i));
+        var label = (d.getMonth() + 1) + '/' + d.getDate();
+        var h = Math.max(2, Math.round(TREND[i] / max * 100));
+        html += '<div class="bar" style="height:' + h + '%" data-label="' + label + '" data-value="' + (TREND[i] / 10).toFixed(1) + '万"></div>';
+      }
+      el.innerHTML = html;
+      var first = new Date(today); first.setDate(first.getDate() - (TREND.length - 1));
+      document.getElementById('trend-start').textContent = '开始：' + (first.getMonth() + 1) + '月' + first.getDate() + '日';
+      document.getElementById('trend-end').textContent = '结束：' + (today.getMonth() + 1) + '月' + today.getDate() + '日';
+    }
+
+    /* ==================== 按模型用量 ==================== */
+    var MODELS = [
+      { name: 'GPT-4o',           calls: '3,842,105', tokens: '2.9B', cost: '¥186,240', pct: 31.8, color: 'var(--primary)' },
+      { name: 'Claude 3.5 Sonnet', calls: '2,418,730', tokens: '1.8B', cost: '¥152,680', pct: 26.1, color: '#7C3AED' },
+      { name: 'DeepSeek-V3',      calls: '2,105,664', tokens: '1.6B', cost: '¥98,420',  pct: 16.8, color: '#0891B2' },
+      { name: 'Gemini 1.5 Pro',   calls: '1,682,444', tokens: '1.2B', cost: '¥84,650',  pct: 14.4, color: '#16A34A' },
+      { name: 'Qwen-Max',         calls: '986,320',   tokens: '0.4B', cost: '¥35,240',  pct: 6.0,  color: '#F59E0B' },
+      { name: '其他',              calls: '1,365,737', tokens: '0.3B', cost: '¥29,190',  pct: 4.9,  color: '#94A3B8' }
+    ];
+
+    function buildModels() {
+      var html = '';
+      MODELS.forEach(function(m) {
+        html += '<tr>' +
+          '<td><span class="cell-user"><span class="user-avatar" style="background:var(--gray-100);color:var(--gray-600);">' + m.name.charAt(0) + '</span>' + m.name + '</span></td>' +
+          '<td>' + m.calls + '</td>' +
+          '<td>' + m.tokens + '</td>' +
+          '<td>' + m.cost + '</td>' +
+          '<td><div class="progress" style="margin-bottom:4px;"><div class="progress-bar" style="width:' + m.pct + '%;background:' + m.color + ';"></div></div><span class="cell-percent">' + m.pct.toFixed(1) + '%</span></td>' +
+        '</tr>';
+      });
+      document.getElementById('model-tbody').innerHTML = html;
+    }
+
+    /* ==================== 模型占比环形图 ==================== */
+    function buildDonut() {
+      var acc = 0;
+      var stops = MODELS.map(function(m) {
+        var s = m.color + ' ' + acc.toFixed(1) + '% ' + (acc + m.pct).toFixed(1) + '%';
+        acc += m.pct;
+        return s;
+      });
+      document.getElementById('donut').style.background = 'conic-gradient(' + stops.join(', ') + ')';
+
+      var legend = '';
+      MODELS.forEach(function(m) {
+        legend += '<div class="legend-item"><span class="legend-dot" style="background:' + m.color + ';"></span><span class="legend-name">' + m.name + '</span><span class="legend-pct">' + m.pct.toFixed(1) + '%</span></div>';
+      });
+      document.getElementById('donut-legend').innerHTML = legend;
+    }
+
+    /* ==================== 用户 TOP 10 ==================== */
+    var TOP_USERS = [
+      { name: '深蓝科技', cost: '¥56,320', calls: 1283450 },
+      { name: '智算云创', cost: '¥48,950', calls: 1102380 },
+      { name: '星图智能', cost: '¥41,260', calls: 986540 },
+      { name: '云启网络', cost: '¥35,780', calls: 823110 },
+      { name: '极光数据', cost: '¥29,640', calls: 764920 },
+      { name: '未来出行', cost: '¥26,310', calls: 621480 },
+      { name: '量子脉冲', cost: '¥22,180', calls: 589230 },
+      { name: '山海传媒', cost: '¥19,450', calls: 512760 },
+      { name: '蓝湾教育', cost: '¥16,720', calls: 448390 },
+      { name: '恒信金融', cost: '¥14,890', calls: 402150 }
+    ];
+
+    function buildTopUsers() {
+      var html = '';
+      TOP_USERS.forEach(function(u, i) {
+        html += '<tr>' +
+          '<td><div class="rank-cell"><span class="rank-badge' + (i < 3 ? ' top' : '') + '">' + (i + 1) + '</span></div></td>' +
+          '<td><div class="cell-user"><span class="user-avatar">' + u.name.charAt(0) + '</span>' + u.name + '</div></td>' +
+          '<td style="font-weight:var(--font-weight-semibold);">' + u.cost + '</td>' +
+          '<td>' + formatNumber(u.calls) + '</td>' +
+          '<td><div class="cell-actions"><button class="btn btn-primary-ghost btn-sm" onclick="viewUser(\'' + u.name + '\')">查看</button></div></td>' +
+        '</tr>';
+      });
+      document.getElementById('user-tbody').innerHTML = html;
+    }
+
+    function viewUser(name) {
+      showToast('正在打开用户详情：' + name, 'info');
+    }
+
+    /* ==================== 初始化 ==================== */
+    buildTrend();
+    buildModels();
+    buildDonut();
+    buildTopUsers();
+  </script>
+</body>
+</html>

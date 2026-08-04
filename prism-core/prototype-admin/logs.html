@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PrismCore 管理后台 - 操作日志</title>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/components.css">
+  <link rel="stylesheet" href="assets/css/admin.css">
+  <style>
+    /* 操作日志页面 */
+    .log-toolbar .toolbar-left { flex: 1; }
+  </style>
+</head>
+<body>
+
+  <aside class="admin-sidebar" id="admin-sidebar">
+    <div class="sidebar-brand">
+      <span class="logo-icon">P</span>
+      <span class="brand-name"><span class="highlight">Prism</span>Core</span>
+    </div>
+    <div class="sidebar-nav">
+      <div class="sidebar-section-label">管理</div>
+      <button class="nav-item" data-page="overview.html" onclick="goTo('overview.html')"><span class="nav-icon">📊</span>平台概览</button>
+      <button class="nav-item" data-page="users.html" onclick="goTo('users.html')"><span class="nav-icon">👥</span>用户管理</button>
+      <button class="nav-item" data-page="models.html" onclick="goTo('models.html')"><span class="nav-icon">🧠</span>模型管理</button>
+      <button class="nav-item" data-page="keys.html" onclick="goTo('keys.html')"><span class="nav-icon">🔑</span>API Key 监管</button>
+      <div class="sidebar-section-label">运营</div>
+      <button class="nav-item" data-page="orders.html" onclick="goTo('orders.html')"><span class="nav-icon">💰</span>订单/充值</button>
+      <button class="nav-item" data-page="reports.html" onclick="goTo('reports.html')"><span class="nav-icon">📈</span>用量报表</button>
+      <button class="nav-item" data-page="tickets.html" onclick="goTo('tickets.html')"><span class="nav-icon">🎫</span>工单管理</button>
+      <button class="nav-item" data-page="announcements.html" onclick="goTo('announcements.html')"><span class="nav-icon">📢</span>公告管理</button>
+      <div class="sidebar-section-label">系统</div>
+      <button class="nav-item" data-page="roles.html" onclick="goTo('roles.html')"><span class="nav-icon">🛡️</span>角色权限</button>
+      <button class="nav-item" data-page="logs.html" onclick="goTo('logs.html')"><span class="nav-icon">📋</span>操作日志</button>
+      <button class="nav-item" data-page="settings.html" onclick="goTo('settings.html')"><span class="nav-icon">⚙️</span>系统设置</button>
+    </div>
+    <div class="sidebar-footer">
+      <div class="admin-info">
+        <span class="avatar" style="width:28px;height:28px;font-size:var(--text-xs);" id="admin-avatar">A</span>
+        <span id="admin-name">管理员</span>
+      </div>
+      <button class="logout-btn" onclick="adminLogout()">🚪 退出登录</button>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <header class="admin-header">
+    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+    <h1 class="header-title">操作日志</h1>
+    <div class="header-right">
+      <button class="btn btn-ghost btn-sm" onclick="goTo('../prototype-web/index.html')">🌐 用户端</button>
+    </div>
+  </header>
+
+  <main class="admin-main">
+    <div class="admin-content">
+
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">操作日志</h1>
+          <p class="page-subtitle">记录后台管理员的关键操作，支持按操作人、模块与级别筛选</p>
+        </div>
+        <div class="page-actions">
+          <button class="btn btn-outline" onclick="exportLogs()">⬇ 导出日志</button>
+        </div>
+      </div>
+
+      <div class="toolbar log-toolbar">
+        <div class="toolbar-left">
+          <div class="search-input">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="log-search" placeholder="搜索操作人 / 操作内容" oninput="onFilterChange()">
+          </div>
+          <select class="form-input form-select" id="log-module" style="width:120px;" onchange="onFilterChange()">
+            <option value="全部">全部模块</option>
+            <option value="用户">用户</option>
+            <option value="模型">模型</option>
+            <option value="订单">订单</option>
+            <option value="系统">系统</option>
+          </select>
+          <select class="form-input form-select" id="log-level" style="width:110px;" onchange="onFilterChange()">
+            <option value="全部">全部级别</option>
+            <option value="成功">成功</option>
+            <option value="警告">警告</option>
+            <option value="失败">失败</option>
+          </select>
+        </div>
+        <div class="toolbar-right">
+          <button class="btn btn-primary-ghost" onclick="simulateLog()">⚡ 模拟新日志</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>时间</th>
+              <th>操作人</th>
+              <th>模块</th>
+              <th>操作内容</th>
+              <th>IP 地址</th>
+              <th>级别</th>
+            </tr>
+          </thead>
+          <tbody id="log-tbody"></tbody>
+        </table>
+        <div class="pagination">
+          <span class="page-info" id="log-page-info"></span>
+          <div class="page-btns" id="log-page-btns"></div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script src="assets/js/common.js"></script>
+  <script>
+    /* ==================== 操作日志逻辑 ==================== */
+    var LOGS_KEY = 'prismcore-admin:logs';
+    var PAGE_SIZE = 5;
+    var currentPage = 1;
+
+    var DEFAULT_LOGS = [
+      { id: 'l1', time: '2026-07-31T14:32:10', operator: '陈晓峰', module: '用户', action: '封禁账号 user_102938（违规使用）', ip: '10.24.5.18', level: '成功' },
+      { id: 'l2', time: '2026-07-31T13:58:45', operator: '系统', module: '系统', action: '每日用量统计任务执行完成', ip: '127.0.0.1', level: '成功' },
+      { id: 'l3', time: '2026-07-31T13:21:07', operator: '林思远', module: '模型', action: '调整模型 glm-4-plus 单价（¥0.002/token）', ip: '10.24.5.23', level: '成功' },
+      { id: 'l4', time: '2026-07-31T12:47:33', operator: '陈晓峰', module: '订单', action: '审核充值订单 #20260731-0042 退款申请', ip: '10.24.5.18', level: '警告' },
+      { id: 'l5', time: '2026-07-31T11:36:52', operator: '王雨桐', module: '用户', action: '审核用户实名认证资料', ip: '10.24.5.31', level: '成功' },
+      { id: 'l6', time: '2026-07-31T10:52:14', operator: '系统', module: '系统', action: '短信服务接口调用失败（已重试 3 次）', ip: '127.0.0.1', level: '失败' },
+      { id: 'l7', time: '2026-07-31T09:40:26', operator: '林思远', module: '模型', action: '新增模型 deepseek-v3 上架', ip: '10.24.5.23', level: '成功' },
+      { id: 'l8', time: '2026-07-31T09:12:49', operator: '周子墨', module: '用户', action: '修改用户 user_087561 所属组织', ip: '10.24.5.27', level: '成功' },
+      { id: 'l9', time: '2026-07-30T18:05:31', operator: '陈晓峰', module: '订单', action: '导出 7 月充值订单报表', ip: '10.24.5.18', level: '成功' },
+      { id: 'l10', time: '2026-07-30T16:44:08', operator: '王雨桐', module: '模型', action: '下线模型 stable-diffusion-xl 灰度版本', ip: '10.24.5.31', level: '警告' }
+    ];
+
+    var SIM_OPERATORS = ['陈晓峰', '林思远', '王雨桐', '周子墨', '系统'];
+    var SIM_MODULES = ['用户', '模型', '订单', '系统'];
+    var SIM_LEVELS = ['成功', '警告', '失败'];
+    var SIM_ACTIONS = {
+      '用户': ['审核用户实名认证资料', '调整用户调用配额', '查看用户调用明细'],
+      '模型': ['更新模型版本信息', '调整模型调用价格', '下线模型灰度版本'],
+      '订单': ['审核充值订单到账', '处理订单退款申请', '导出订单数据报表'],
+      '系统': ['执行每日数据备份', '清理过期缓存数据', '更新系统配置项']
+    };
+    var SIM_IPS = ['10.24.5.18', '10.24.5.23', '10.24.5.31', '10.24.5.27', '127.0.0.1'];
+
+    function getLogs() {
+      try {
+        var saved = localStorage.getItem(LOGS_KEY);
+        if (saved) return JSON.parse(saved);
+      } catch (e) {}
+      return DEFAULT_LOGS.slice();
+    }
+
+    function saveLogs(list) {
+      localStorage.setItem(LOGS_KEY, JSON.stringify(list));
+    }
+
+    function escapeHtml(str) {
+      return String(str == null ? '' : str).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+
+    function setText(id, v) {
+      var el = document.getElementById(id);
+      if (el) el.textContent = v;
+    }
+
+    function moduleBadge(m) {
+      return { '用户': 'badge-blue', '模型': 'badge-blue', '订单': 'badge-yellow', '系统': 'badge-gray' }[m] || 'badge-gray';
+    }
+
+    function levelBadge(l) {
+      return { '成功': 'badge-green', '警告': 'badge-yellow', '失败': 'badge-red' }[l] || 'badge-gray';
+    }
+
+    /* ---------- 筛选与渲染 ---------- */
+    function applyFilters() {
+      var kw = document.getElementById('log-search').value.trim().toLowerCase();
+      var mod = document.getElementById('log-module').value;
+      var lvl = document.getElementById('log-level').value;
+      return getLogs().filter(function (l) {
+        if (mod !== '全部' && l.module !== mod) return false;
+        if (lvl !== '全部' && l.level !== lvl) return false;
+        if (kw && l.operator.toLowerCase().indexOf(kw) < 0 && l.action.toLowerCase().indexOf(kw) < 0) return false;
+        return true;
+      });
+    }
+
+    function renderLogs() {
+      var filtered = applyFilters();
+      var pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+      if (currentPage > pages) currentPage = pages;
+      var start = (currentPage - 1) * PAGE_SIZE;
+      var items = filtered.slice(start, start + PAGE_SIZE);
+
+      var html = '';
+      items.forEach(function (l) {
+        html += '<tr>'
+          + '<td class="cell-mono">' + formatDate(l.time) + '</td>'
+          + '<td><div class="cell-user"><span class="user-avatar">' + escapeHtml(l.operator.charAt(0)) + '</span>' + escapeHtml(l.operator) + '</div></td>'
+          + '<td><span class="badge ' + moduleBadge(l.module) + '">' + l.module + '</span></td>'
+          + '<td>' + escapeHtml(l.action) + '</td>'
+          + '<td class="cell-mono">' + l.ip + '</td>'
+          + '<td><span class="badge ' + levelBadge(l.level) + '">' + l.level + '</span></td>'
+          + '</tr>';
+      });
+      if (!items.length) {
+        html = '<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">暂无符合条件的日志</div><div class="empty-text">试试调整搜索关键词或筛选条件</div></div></td></tr>';
+      }
+      document.getElementById('log-tbody').innerHTML = html;
+
+      setText('log-page-info', '共 ' + filtered.length + ' 条 · 第 ' + currentPage + ' / ' + pages + ' 页');
+      var btnHtml = '';
+      btnHtml += '<button class="page-btn" onclick="goPage(' + (currentPage - 1) + ')"' + (currentPage <= 1 ? ' disabled' : '') + '>‹</button>';
+      for (var i = 1; i <= pages; i++) {
+        btnHtml += '<button class="page-btn' + (i === currentPage ? ' active' : '') + '" onclick="goPage(' + i + ')">' + i + '</button>';
+      }
+      btnHtml += '<button class="page-btn" onclick="goPage(' + (currentPage + 1) + ')"' + (currentPage >= pages ? ' disabled' : '') + '>›</button>';
+      document.getElementById('log-page-btns').innerHTML = btnHtml;
+    }
+
+    function onFilterChange() {
+      currentPage = 1;
+      renderLogs();
+    }
+
+    function goPage(p) {
+      var filtered = applyFilters();
+      var pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+      if (p < 1 || p > pages) return;
+      currentPage = p;
+      renderLogs();
+    }
+
+    /* ---------- 模拟新日志 ---------- */
+    function rand(n) { return Math.floor(Math.random() * n); }
+
+    function simulateLog() {
+      var module = SIM_MODULES[rand(SIM_MODULES.length)];
+      var actions = SIM_ACTIONS[module];
+      var log = {
+        id: genId(),
+        time: new Date().toISOString(),
+        operator: SIM_OPERATORS[rand(SIM_OPERATORS.length)],
+        module: module,
+        action: actions[rand(actions.length)],
+        ip: SIM_IPS[rand(SIM_IPS.length)],
+        level: SIM_LEVELS[rand(SIM_LEVELS.length)]
+      };
+      var list = getLogs();
+      list.unshift(log);
+      saveLogs(list);
+      currentPage = 1;
+      renderLogs();
+      showToast('已生成一条模拟日志', 'success');
+    }
+
+    /* ---------- 导出日志（CSV） ---------- */
+    function exportLogs() {
+      var list = applyFilters();
+      if (!list.length) { showToast('当前筛选条件下无日志可导出', 'warning'); return; }
+      var rows = [['时间', '操作人', '模块', '操作内容', 'IP 地址', '级别']];
+      list.forEach(function (l) {
+        rows.push([formatDate(l.time), l.operator, l.module, l.action, l.ip, l.level]);
+      });
+      var csv = '\ufeff' + rows.map(function (r) {
+        return r.map(function (c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(',');
+      }).join('\r\n');
+      var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = '操作日志_' + new Date().toISOString().slice(0, 10) + '.csv';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      showToast('已导出 ' + list.length + ' 条日志（CSV）', 'success');
+    }
+
+    /* ---------- 初始化 ---------- */
+    document.addEventListener('DOMContentLoaded', function () {
+      requireAdminLogin();
+      var admin = getAdmin();
+      if (admin) {
+        document.getElementById('admin-name').textContent = admin.name || '管理员';
+        document.getElementById('admin-avatar').textContent = (admin.name || 'A').charAt(0).toUpperCase();
+      }
+      renderLogs();
+    });
+  </script>
+</body>
+</html>

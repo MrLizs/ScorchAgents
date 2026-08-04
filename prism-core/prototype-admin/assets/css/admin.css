@@ -1,0 +1,167 @@
+/* ========================================================================
+   PrismCore Admin Layout
+   后台管理系统布局 — 侧边栏 + 顶栏 + 内容区
+   ======================================================================== */
+
+/* -------------------------------------------------------------------- */
+/*  SIDEBAR                                                             */
+/* -------------------------------------------------------------------- */
+.admin-sidebar {
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  width: var(--sidebar-width);
+  background: var(--gray-900);
+  color: var(--gray-200);
+  z-index: 150;
+  display: flex;
+  flex-direction: column;
+  transition: transform var(--transition-normal);
+}
+
+.admin-sidebar .sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  height: var(--header-height);
+}
+
+.admin-sidebar .sidebar-brand .logo-icon {
+  width: 28px; height: 28px;
+  background: linear-gradient(135deg, var(--primary-500), var(--primary-300));
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-size: var(--text-sm); font-weight: var(--font-weight-bold);
+}
+
+.admin-sidebar .sidebar-brand .brand-name {
+  font-size: var(--text-md);
+  font-weight: var(--font-weight-bold);
+  color: white;
+  letter-spacing: var(--tracking-tight);
+}
+.admin-sidebar .sidebar-brand .brand-name .highlight { color: var(--primary-300); }
+
+.admin-sidebar .sidebar-section-label {
+  padding: var(--space-4) var(--space-5) var(--space-2);
+  font-size: var(--text-xs);
+  color: rgba(255,255,255,0.35);
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+  font-weight: var(--font-weight-semibold);
+}
+
+.admin-sidebar .sidebar-nav { flex: 1; overflow-y: auto; padding: var(--space-1) var(--space-3) var(--space-4); }
+
+.admin-sidebar .nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  color: rgba(255,255,255,0.65);
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  margin-bottom: 2px;
+}
+.admin-sidebar .nav-item:hover { background: rgba(255,255,255,0.06); color: white; }
+.admin-sidebar .nav-item.active { background: var(--primary); color: white; }
+.admin-sidebar .nav-item .nav-icon { font-size: var(--text-md); width: 20px; text-align: center; flex-shrink: 0; }
+
+.admin-sidebar .sidebar-footer {
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+.admin-sidebar .sidebar-footer .admin-info {
+  display: flex; align-items: center; gap: var(--space-2);
+  color: rgba(255,255,255,0.7); font-size: var(--text-sm);
+}
+.admin-sidebar .sidebar-footer .logout-btn {
+  display: flex; align-items: center; gap: var(--space-2);
+  width: 100%; margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  color: rgba(255,255,255,0.5);
+  background: rgba(255,255,255,0.04);
+  border: none; cursor: pointer;
+  font-size: var(--text-sm); transition: all var(--transition-fast);
+}
+.admin-sidebar .sidebar-footer .logout-btn:hover { background: rgba(239,68,68,0.15); color: #FCA5A5; }
+
+/* -------------------------------------------------------------------- */
+/*  HEADER (Top Bar)                                                    */
+/* -------------------------------------------------------------------- */
+.admin-header {
+  position: fixed;
+  top: 0; left: var(--sidebar-width); right: 0;
+  height: var(--header-height);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-5);
+  z-index: 100;
+}
+.admin-header .menu-toggle { display: none; background: none; border: none; font-size: var(--text-xl); color: var(--text-sub); cursor: pointer; }
+.admin-header .header-title { font-size: var(--text-lg); font-weight: var(--font-weight-semibold); color: var(--text); }
+.admin-header .header-right { margin-left: auto; display: flex; align-items: center; gap: var(--space-3); }
+.admin-header .header-right .btn-ghost { color: var(--text-sub); }
+
+/* -------------------------------------------------------------------- */
+/*  MAIN CONTENT                                                        */
+/* -------------------------------------------------------------------- */
+.admin-main {
+  margin-left: var(--sidebar-width);
+  padding-top: var(--header-height);
+  min-height: 100vh;
+}
+.admin-content {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-5);
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-6);
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.page-header .page-title { font-size: var(--text-2xl); font-weight: var(--font-weight-bold); letter-spacing: var(--tracking-tight); color: var(--text); }
+.page-header .page-subtitle { font-size: var(--text-sm); color: var(--text-muted); margin-top: var(--space-1); }
+.page-header .page-actions { display: flex; gap: var(--space-2); }
+
+/* -------------------------------------------------------------------- */
+/*  MOBILE RESPONSIVE                                                   */
+/* -------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  .admin-sidebar { transform: translateX(-100%); box-shadow: var(--shadow-xl); }
+  .admin-sidebar.open { transform: translateX(0); }
+  .admin-header { left: 0; }
+  .admin-header .menu-toggle { display: block; }
+  .admin-main { margin-left: 0; }
+
+  /* 侧边栏遮罩 */
+  .sidebar-overlay {
+    position: fixed; inset: 0; z-index: 140;
+    background: rgba(0,0,0,0.5);
+    display: none;
+  }
+  .sidebar-overlay.show { display: block; }
+
+  .toolbar { flex-direction: column; align-items: stretch; }
+  .toolbar .toolbar-right { justify-content: flex-start; }
+  .search-input input { width: 100%; }
+  .form-row { grid-template-columns: 1fr; }
+  .data-table { min-width: 720px; }
+  .table-wrap { overflow-x: auto; }
+}

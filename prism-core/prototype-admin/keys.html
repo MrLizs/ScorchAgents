@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Key 监管 - PrismCore 管理后台</title>
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/components.css">
+<link rel="stylesheet" href="assets/css/admin.css">
+<style>
+  /* 页面局部样式 */
+  .toolbar .form-select { width: 130px; padding: 8px 32px 8px 12px; border: 1.5px solid var(--border); border-radius: var(--radius); background-color: var(--surface); color: var(--text); font-size: var(--text-sm); cursor: pointer; outline: none; }
+  .toolbar .form-select:focus { border-color: var(--primary-500); box-shadow: 0 0 0 3px var(--primary-100); }
+</style>
+</head>
+<body>
+
+<!-- ============ 侧边栏 ============ -->
+<aside class="admin-sidebar" id="admin-sidebar">
+  <div class="sidebar-brand">
+    <span class="logo-icon">P</span>
+    <span class="brand-name"><span class="highlight">Prism</span>Core</span>
+  </div>
+  <div class="sidebar-nav">
+    <div class="sidebar-section-label">管理</div>
+    <button class="nav-item" data-page="overview.html" onclick="goTo('overview.html')"><span class="nav-icon">📊</span>平台概览</button>
+    <button class="nav-item" data-page="users.html" onclick="goTo('users.html')"><span class="nav-icon">👥</span>用户管理</button>
+    <button class="nav-item" data-page="models.html" onclick="goTo('models.html')"><span class="nav-icon">🧠</span>模型管理</button>
+    <button class="nav-item" data-page="keys.html" onclick="goTo('keys.html')"><span class="nav-icon">🔑</span>API Key 监管</button>
+    <div class="sidebar-section-label">运营</div>
+    <button class="nav-item" data-page="orders.html" onclick="goTo('orders.html')"><span class="nav-icon">💰</span>订单/充值</button>
+    <button class="nav-item" data-page="reports.html" onclick="goTo('reports.html')"><span class="nav-icon">📈</span>用量报表</button>
+    <button class="nav-item" data-page="tickets.html" onclick="goTo('tickets.html')"><span class="nav-icon">🎫</span>工单管理</button>
+    <button class="nav-item" data-page="announcements.html" onclick="goTo('announcements.html')"><span class="nav-icon">📢</span>公告管理</button>
+    <div class="sidebar-section-label">系统</div>
+    <button class="nav-item" data-page="roles.html" onclick="goTo('roles.html')"><span class="nav-icon">🛡️</span>角色权限</button>
+    <button class="nav-item" data-page="logs.html" onclick="goTo('logs.html')"><span class="nav-icon">📋</span>操作日志</button>
+    <button class="nav-item" data-page="settings.html" onclick="goTo('settings.html')"><span class="nav-icon">⚙️</span>系统设置</button>
+  </div>
+  <div class="sidebar-footer">
+    <div class="admin-info">
+      <span class="avatar" style="width:28px;height:28px;font-size:var(--text-xs);" id="admin-avatar">A</span>
+      <span id="admin-name">管理员</span>
+    </div>
+    <button class="logout-btn" onclick="adminLogout()">🚪 退出登录</button>
+  </div>
+</aside>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<!-- ============ 顶栏 ============ -->
+<header class="admin-header">
+  <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+  <h1 class="header-title">API Key 监管</h1>
+  <div class="header-right">
+    <button class="btn btn-ghost btn-sm" onclick="goTo('../prototype-web/index.html')">🌐 用户端</button>
+  </div>
+</header>
+
+<!-- ============ 内容区 ============ -->
+<main class="admin-main">
+  <div class="admin-content">
+
+    <div class="page-header">
+      <div>
+        <h2 class="page-title">API Key 监管</h2>
+        <p class="page-subtitle">监管平台所有用户 API Key 的使用与安全状态</p>
+      </div>
+    </div>
+
+    <!-- 数据统计 -->
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-accent" style="background:var(--success);"></div>
+        <span class="stat-icon">🔑</span>
+        <div class="stat-value">12,480</div>
+        <div class="stat-label">有效 Key</div>
+        <span class="stat-change up">↑ 8.4% 较上月</span>
+      </div>
+      <div class="stat-card">
+        <div class="stat-accent" style="background:var(--primary);"></div>
+        <span class="stat-icon">✨</span>
+        <div class="stat-value">86</div>
+        <div class="stat-label">今日创建</div>
+        <span class="stat-change up">↑ 12 较昨日</span>
+      </div>
+      <div class="stat-card">
+        <div class="stat-accent" style="background:var(--warning);"></div>
+        <span class="stat-icon">🚫</span>
+        <div class="stat-value">231</div>
+        <div class="stat-label">已吊销</div>
+        <span class="stat-change up">↑ 3.1% 较上月</span>
+      </div>
+      <div class="stat-card">
+        <div class="stat-accent" style="background:var(--info);"></div>
+        <span class="stat-icon">⚠️</span>
+        <div class="stat-value">3</div>
+        <div class="stat-label">异常告警</div>
+        <span class="stat-change down">↓ 1 较上周</span>
+      </div>
+    </div>
+
+    <!-- 筛选工具栏 -->
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <div class="search-input">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="key-search" placeholder="搜索 Key 前缀 / 所属用户..." onkeydown="if(event.key==='Enter')applyKeyFilter()">
+        </div>
+        <select class="form-select" id="key-status-filter" onchange="applyKeyFilter()">
+          <option value="全部">状态：全部</option>
+          <option value="启用">启用</option>
+          <option value="禁用">禁用</option>
+        </select>
+        <button class="btn btn-primary" onclick="applyKeyFilter()">搜索</button>
+      </div>
+    </div>
+
+    <!-- Key 列表 -->
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>所属用户</th>
+            <th>Key 前缀</th>
+            <th>权限</th>
+            <th>状态</th>
+            <th>创建时间</th>
+            <th>最近使用</th>
+            <th style="text-align:right;">操作</th>
+          </tr>
+        </thead>
+        <tbody id="keys-tbody"></tbody>
+      </table>
+      <div class="pagination" id="keys-pagination">
+        <span class="page-info" id="keys-page-info">第 1 页 共 12,480 条</span>
+        <div class="page-btns">
+          <button class="page-btn" id="keys-prev-btn" onclick="goKeyPage(1)" disabled>‹</button>
+          <button class="page-btn active" onclick="goKeyPage(1)">1</button>
+          <button class="page-btn" onclick="goKeyPage(2)">2</button>
+          <button class="page-btn" onclick="goKeyPage(3)">3</button>
+          <button class="page-btn" id="keys-next-btn" onclick="goKeyPage(3)">›</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script src="assets/js/common.js"></script>
+<script>
+/* ================================================================== */
+/*  示例数据                                                          */
+/* ================================================================== */
+var KEYS = [
+  { id: 'k_01', user: '林晓宇', prefix: 'sk-pc-a3f8****', perm: '读写', status: '启用', created: '2026-05-12', last: '2026-08-04 09:28' },
+  { id: 'k_02', user: '陈志远', prefix: 'sk-pc-7c2e****', perm: '只读', status: '启用', created: '2026-04-08', last: '2026-08-04 08:11' },
+  { id: 'k_03', user: '王思涵', prefix: 'sk-pc-d91b****', perm: '读写', status: '禁用', created: '2026-02-26', last: '2026-07-20 16:45' },
+  { id: 'k_04', user: '张明轩', prefix: 'sk-pc-4e6a****', perm: '读写', status: '启用', created: '2026-03-15', last: '2026-08-03 21:07' },
+  { id: 'k_05', user: '李若曦', prefix: 'sk-pc-8f3d****', perm: '只读', status: '启用', created: '2026-06-01', last: '2026-08-04 07:52' },
+  { id: 'k_06', user: '刘昊然', prefix: 'sk-pc-2b7c****', perm: '读写', status: '启用', created: '2026-06-22', last: '2026-08-02 18:30' },
+  { id: 'k_07', user: '赵雨桐', prefix: 'sk-pc-5a9e****', perm: '只读', status: '禁用', created: '2026-01-19', last: '2026-07-11 10:20' },
+  { id: 'k_08', user: '孙嘉怡', prefix: 'sk-pc-c1d4****', perm: '读写', status: '启用', created: '2026-07-02', last: '2026-08-04 08:40' }
+];
+
+/* ================================================================== */
+/*  工具函数                                                          */
+/* ================================================================== */
+function findKey(id) {
+  for (var i = 0; i < KEYS.length; i++) { if (KEYS[i].id === id) return KEYS[i]; }
+  return null;
+}
+
+function isKeyFiltering() {
+  return document.getElementById('key-search').value.trim() !== ''
+    || document.getElementById('key-status-filter').value !== '全部';
+}
+
+function getFilteredKeys() {
+  var kw = document.getElementById('key-search').value.trim().toLowerCase();
+  var st = document.getElementById('key-status-filter').value;
+  return KEYS.filter(function (k) {
+    var okKw = !kw || k.prefix.toLowerCase().indexOf(kw) > -1 || k.user.toLowerCase().indexOf(kw) > -1;
+    var okSt = st === '全部' || k.status === st;
+    return okKw && okSt;
+  });
+}
+
+/* ================================================================== */
+/*  渲染                                                              */
+/* ================================================================== */
+function renderKeys() {
+  var rows = getFilteredKeys();
+  var tbody = document.getElementById('keys-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state" style="padding:var(--space-10) var(--space-4);">'
+      + '<div class="empty-icon">🔍</div><div class="empty-title">未找到匹配的 API Key</div>'
+      + '<div class="empty-text">请调整搜索关键词或筛选条件后重试</div></div></td></tr>';
+    document.getElementById('keys-page-info').textContent = '第 1 页 共 0 条';
+    return;
+  }
+  var total = isKeyFiltering() ? rows.length : 12480;
+  tbody.innerHTML = rows.map(function (k) {
+    var permBadge = k.perm === '读写' ? 'badge-blue' : 'badge-gray';
+    var stBadge = k.status === '启用' ? 'badge-green' : (k.status === '禁用' ? 'badge-gray' : 'badge-red');
+    var actions = '';
+    if (k.status === '已吊销') {
+      actions = '<span style="color:var(--text-muted);font-size:var(--text-sm);">已吊销</span>';
+    } else {
+      var toggleBtn = k.status === '启用'
+        ? '<button class="btn btn-outline btn-sm" onclick="toggleKeyStatus(\'' + k.id + '\')">禁用</button>'
+        : '<button class="btn btn-outline btn-sm" style="color:var(--success);" onclick="toggleKeyStatus(\'' + k.id + '\')">启用</button>';
+      actions = toggleBtn
+        + '<button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="revokeKey(\'' + k.id + '\')">吊销</button>';
+    }
+    return '<tr>'
+      + '<td><div class="cell-user"><span class="user-avatar">' + k.user.charAt(0) + '</span><span>' + k.user + '</span></div></td>'
+      + '<td><span class="cell-mono">' + k.prefix + '</span></td>'
+      + '<td><span class="badge ' + permBadge + '">' + k.perm + '</span></td>'
+      + '<td><span class="badge ' + stBadge + '">' + k.status + '</span></td>'
+      + '<td>' + k.created + '</td>'
+      + '<td>' + k.last + '</td>'
+      + '<td><div class="cell-actions">' + actions + '</div></td>'
+      + '</tr>';
+  }).join('');
+  document.getElementById('keys-page-info').textContent = '第 1 页 共 ' + formatNumber(total) + ' 条';
+}
+
+function applyKeyFilter() {
+  goKeyPage(1, true);
+  renderKeys();
+}
+
+/* ================================================================== */
+/*  禁用 / 启用 / 吊销                                                */
+/* ================================================================== */
+async function toggleKeyStatus(id) {
+  var k = findKey(id);
+  if (!k || k.status === '已吊销') return;
+  var toDisable = k.status === '启用';
+  var ok = await showConfirm(
+    toDisable ? '禁用 Key' : '启用 Key',
+    toDisable
+      ? '确定要禁用 ' + k.prefix + ' 吗？禁用后使用该 Key 的请求将立即失败。'
+      : '确定要重新启用 ' + k.prefix + ' 吗？启用后即可正常调用。'
+  );
+  if (!ok) return;
+  k.status = toDisable ? '禁用' : '启用';
+  renderKeys();
+  showToast('Key ' + k.prefix + ' 已' + (toDisable ? '禁用' : '启用'), 'success');
+}
+
+async function revokeKey(id) {
+  var k = findKey(id);
+  if (!k || k.status === '已吊销') return;
+  var ok = await showConfirm(
+    '吊销 Key',
+    '确定要吊销 ' + k.prefix + ' 吗？吊销后该 Key 将立即失效且不可恢复。'
+  );
+  if (!ok) return;
+  k.status = '已吊销';
+  renderKeys();
+  showToast('Key ' + k.prefix + ' 已吊销', 'warning');
+}
+
+/* ================================================================== */
+/*  分页                                                              */
+/* ================================================================== */
+function goKeyPage(n, silent) {
+  if (n < 1 || n > 3) return;
+  document.querySelectorAll('#keys-pagination .page-btn').forEach(function (b) {
+    if (b.id) return;
+    b.classList.toggle('active', parseInt(b.textContent, 10) === n);
+  });
+  document.getElementById('keys-prev-btn').disabled = n === 1;
+  document.getElementById('keys-next-btn').disabled = n === 3;
+  if (!silent) showToast('已切换到第 ' + n + ' 页（演示数据）', 'info');
+}
+
+/* ================================================================== */
+/*  初始化                                                            */
+/* ================================================================== */
+document.addEventListener('DOMContentLoaded', function () {
+  requireAdminLogin();
+  var admin = getAdmin();
+  if (admin) {
+    document.getElementById('admin-name').textContent = admin.name || '管理员';
+    document.getElementById('admin-avatar').textContent = (admin.name || 'A').charAt(0).toUpperCase();
+  }
+  renderKeys();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PrismCore 管理后台 - 公告管理</title>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/components.css">
+  <link rel="stylesheet" href="assets/css/admin.css">
+  <style>
+    /* 公告管理页面 */
+    .form-label { margin-bottom: var(--space-2); }
+    .modal { position: relative; }
+
+    .ann-table .ann-title { font-weight: var(--font-weight-medium); color: var(--text); }
+    .ann-table .ann-preview { font-size: var(--text-xs); color: var(--text-muted); margin-top: 2px; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ann-table .ann-views { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-sub); }
+  </style>
+</head>
+<body>
+
+  <aside class="admin-sidebar" id="admin-sidebar">
+    <div class="sidebar-brand">
+      <span class="logo-icon">P</span>
+      <span class="brand-name"><span class="highlight">Prism</span>Core</span>
+    </div>
+    <div class="sidebar-nav">
+      <div class="sidebar-section-label">管理</div>
+      <button class="nav-item" data-page="overview.html" onclick="goTo('overview.html')"><span class="nav-icon">📊</span>平台概览</button>
+      <button class="nav-item" data-page="users.html" onclick="goTo('users.html')"><span class="nav-icon">👥</span>用户管理</button>
+      <button class="nav-item" data-page="models.html" onclick="goTo('models.html')"><span class="nav-icon">🧠</span>模型管理</button>
+      <button class="nav-item" data-page="keys.html" onclick="goTo('keys.html')"><span class="nav-icon">🔑</span>API Key 监管</button>
+      <div class="sidebar-section-label">运营</div>
+      <button class="nav-item" data-page="orders.html" onclick="goTo('orders.html')"><span class="nav-icon">💰</span>订单/充值</button>
+      <button class="nav-item" data-page="reports.html" onclick="goTo('reports.html')"><span class="nav-icon">📈</span>用量报表</button>
+      <button class="nav-item" data-page="tickets.html" onclick="goTo('tickets.html')"><span class="nav-icon">🎫</span>工单管理</button>
+      <button class="nav-item" data-page="announcements.html" onclick="goTo('announcements.html')"><span class="nav-icon">📢</span>公告管理</button>
+      <div class="sidebar-section-label">系统</div>
+      <button class="nav-item" data-page="roles.html" onclick="goTo('roles.html')"><span class="nav-icon">🛡️</span>角色权限</button>
+      <button class="nav-item" data-page="logs.html" onclick="goTo('logs.html')"><span class="nav-icon">📋</span>操作日志</button>
+      <button class="nav-item" data-page="settings.html" onclick="goTo('settings.html')"><span class="nav-icon">⚙️</span>系统设置</button>
+    </div>
+    <div class="sidebar-footer">
+      <div class="admin-info">
+        <span class="avatar" style="width:28px;height:28px;font-size:var(--text-xs);" id="admin-avatar">A</span>
+        <span id="admin-name">管理员</span>
+      </div>
+      <button class="logout-btn" onclick="adminLogout()">🚪 退出登录</button>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <header class="admin-header">
+    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+    <h1 class="header-title">公告管理</h1>
+    <div class="header-right">
+      <button class="btn btn-ghost btn-sm" onclick="goTo('../prototype-web/index.html')">🌐 用户端</button>
+    </div>
+  </header>
+
+  <main class="admin-main">
+    <div class="admin-content">
+
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">公告管理</h1>
+          <p class="page-subtitle">管理平台公告、系统维护通知与运营活动信息</p>
+        </div>
+        <div class="page-actions">
+          <button class="btn btn-primary" onclick="openAnnouncementModal()">＋ 发布公告</button>
+        </div>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-accent" style="background: var(--primary);"></div>
+          <span class="stat-icon">📰</span>
+          <div class="stat-value" id="stat-total">0</div>
+          <div class="stat-label">全部公告</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-accent" style="background: var(--success);"></div>
+          <span class="stat-icon">✅</span>
+          <div class="stat-value" id="stat-published">0</div>
+          <div class="stat-label">已发布</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-accent" style="background: var(--gray-400);"></div>
+          <span class="stat-icon">📝</span>
+          <div class="stat-value" id="stat-draft">0</div>
+          <div class="stat-label">草稿</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-accent" style="background: var(--danger);"></div>
+          <span class="stat-icon">🚫</span>
+          <div class="stat-value" id="stat-offline">0</div>
+          <div class="stat-label">已下线</div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table ann-table">
+          <thead>
+            <tr>
+              <th>标题</th>
+              <th>类型</th>
+              <th>状态</th>
+              <th>发布时间</th>
+              <th>查看量</th>
+              <th style="text-align:right;">操作</th>
+            </tr>
+          </thead>
+          <tbody id="ann-tbody"></tbody>
+        </table>
+        <div class="pagination">
+          <span class="page-info" id="ann-page-info"></span>
+          <div class="page-btns" id="ann-page-btns"></div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- 发布 / 编辑公告弹窗 -->
+  <div class="modal-overlay" id="announcement-modal" onclick="if(event.target===this)closeAnnouncementModal()">
+    <div class="modal">
+      <button class="modal-close" onclick="closeAnnouncementModal()">✕</button>
+      <div class="modal-title" id="ann-modal-title">发布公告</div>
+      <div class="modal-desc">填写公告信息，发布后将展示给所有平台用户</div>
+      <div class="form-group">
+        <label class="form-label">公告标题</label>
+        <input class="form-input" id="ann-title" placeholder="请输入公告标题">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">公告类型</label>
+          <select class="form-input form-select" id="ann-type">
+            <option>更新</option>
+            <option>维护</option>
+            <option>活动</option>
+            <option>公告</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">发布状态</label>
+          <select class="form-input form-select" id="ann-status">
+            <option>已发布</option>
+            <option>草稿</option>
+            <option>已下线</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">公告内容</label>
+        <textarea class="form-input" id="ann-content" rows="4" placeholder="请输入公告正文内容"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeAnnouncementModal()">取消</button>
+        <button class="btn btn-primary" id="ann-save-btn" onclick="saveAnnouncement()">发布公告</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/js/common.js"></script>
+  <script>
+    /* ==================== 公告管理逻辑 ==================== */
+    var ANN_KEY = 'prismcore-admin:announcements';
+    var PAGE_SIZE = 6;
+    var currentPage = 1;
+    var editingAnnId = null;
+
+    var DEFAULT_ANNOUNCEMENTS = [
+      { id: 'a1', title: 'PrismCore v2.3.0 版本正式发布', type: '更新', status: '已发布', time: '2026-07-28T10:30:00', views: 12845, content: '本次更新新增 GPT-5 Turbo 与 Claude Opus 4.1 旗舰模型，优化流式输出性能，支持余额提醒阈值自定义，修复多项已知问题。' },
+      { id: 'a2', title: '7月30日凌晨数据库升级维护通知', type: '维护', status: '已发布', time: '2026-07-26T14:00:00', views: 8932, content: '为提升服务稳定性，平台将于 7 月 30 日 00:00-04:00 进行数据库升级维护，期间部分查询接口可能出现短暂延迟，敬请谅解。' },
+      { id: 'a3', title: 'GPT-5 Turbo 与 Claude Opus 4.1 全新上线', type: '更新', status: '已发布', time: '2026-07-22T09:00:00', views: 21560, content: '两款旗舰模型正式上线！GPT-5 Turbo 具备更快的推理速度，Claude Opus 4.1 在复杂推理与代码生成方面表现卓越，欢迎体验。' },
+      { id: 'a4', title: '新用户注册即送 ¥50 体验金', type: '活动', status: '已发布', time: '2026-07-20T11:00:00', views: 30672, content: '即日起新注册用户即可领取 ¥50 平台体验金，可用于抵扣全部模型调用费用，有效期 30 天，先到先得！' },
+      { id: 'a5', title: 'API 服务条款更新通知（2026 年 8 月生效）', type: '公告', status: '已发布', time: '2026-07-15T16:00:00', views: 5610, content: '平台将于 2026 年 8 月 1 日起更新 API 服务条款，主要涉及数据保留期限、违规使用处理规则等内容，请各位开发者及时查阅。' },
+      { id: 'a6', title: '模型调用定价调整说明', type: '公告', status: '已发布', time: '2026-07-10T10:00:00', views: 7843, content: '自 7 月 15 日起，部分模型调用价格将进行微调，其中文本生成类模型平均下调 8%，图片生成类模型维持不变。' },
+      { id: 'a7', title: '7月12日网络链路割接维护公告', type: '维护', status: '已发布', time: '2026-07-08T13:30:00', views: 4125, content: '平台将于 7 月 12 日 02:00-03:00 进行网络链路割接，期间服务可能出现 1-2 分钟抖动，请合理安排调用任务。' },
+      { id: 'a8', title: '新增 DeepSeek-V3 模型接入', type: '更新', status: '已发布', time: '2026-07-05T09:30:00', views: 15420, content: 'DeepSeek-V3 已正式接入平台，支持 128K 上下文窗口，性价比极高，欢迎在 Playground 中试用。' },
+      { id: 'a9', title: '企业客户专属优惠活动预告', type: '活动', status: '草稿', time: '2026-07-30T15:00:00', views: 0, content: '面向企业客户的专属充值优惠即将上线，最高可享 20% 赠金，具体活动规则请留意后续公告。' },
+      { id: 'a10', title: '关于违规账号处理规则的补充说明', type: '公告', status: '草稿', time: '2026-07-29T18:20:00', views: 0, content: '为维护平台秩序，现将违规账号（包括但不限于滥用、刷单、转售 API Key 等行为）的处理规则补充说明如下，请广大开发者严格遵守。' },
+      { id: 'a11', title: '8月2日凌晨弹性扩容维护计划', type: '维护', status: '草稿', time: '2026-07-31T09:00:00', views: 0, content: '为支撑业务增长，平台将于 8 月 2 日 01:00-02:30 进行弹性扩容，预计对现有服务无感知影响。' },
+      { id: 'a12', title: '6月28日临时维护公告', type: '维护', status: '已下线', time: '2026-06-28T02:00:00', views: 18720, content: '因机房网络波动，平台于 6 月 28 日 02:00-02:40 进行临时维护，现已恢复正常运行。' }
+    ];
+
+    function getAnnouncements() {
+      try {
+        var saved = localStorage.getItem(ANN_KEY);
+        if (saved) return JSON.parse(saved);
+      } catch (e) {}
+      return DEFAULT_ANNOUNCEMENTS.slice();
+    }
+
+    function saveAnnouncements(list) {
+      localStorage.setItem(ANN_KEY, JSON.stringify(list));
+    }
+
+    function escapeHtml(str) {
+      return String(str == null ? '' : str).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+
+    function setText(id, v) {
+      var el = document.getElementById(id);
+      if (el) el.textContent = v;
+    }
+
+    function typeBadge(t) {
+      return { '更新': 'badge-blue', '维护': 'badge-yellow', '活动': 'badge-green', '公告': 'badge-gray' }[t] || 'badge-gray';
+    }
+
+    function statusBadge(s) {
+      return { '已发布': 'badge-green', '草稿': 'badge-gray', '已下线': 'badge-red' }[s] || 'badge-gray';
+    }
+
+    /* ---------- 渲染 ---------- */
+    function renderStats() {
+      var list = getAnnouncements();
+      var pub = 0, draft = 0, off = 0;
+      list.forEach(function (a) {
+        if (a.status === '已发布') pub++;
+        else if (a.status === '草稿') draft++;
+        else off++;
+      });
+      setText('stat-total', list.length);
+      setText('stat-published', pub);
+      setText('stat-draft', draft);
+      setText('stat-offline', off);
+    }
+
+    function renderPagination() {
+      var total = getAnnouncements().length;
+      var pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+      if (currentPage > pages) currentPage = pages;
+      setText('ann-page-info', '共 ' + total + ' 条 · 第 ' + currentPage + ' / ' + pages + ' 页');
+      var html = '';
+      html += '<button class="page-btn" onclick="goPage(' + (currentPage - 1) + ')"' + (currentPage <= 1 ? ' disabled' : '') + '>‹</button>';
+      for (var i = 1; i <= pages; i++) {
+        html += '<button class="page-btn' + (i === currentPage ? ' active' : '') + '" onclick="goPage(' + i + ')">' + i + '</button>';
+      }
+      html += '<button class="page-btn" onclick="goPage(' + (currentPage + 1) + ')"' + (currentPage >= pages ? ' disabled' : '') + '>›</button>';
+      document.getElementById('ann-page-btns').innerHTML = html;
+    }
+
+    function renderList() {
+      var list = getAnnouncements();
+      var start = (currentPage - 1) * PAGE_SIZE;
+      var items = list.slice(start, start + PAGE_SIZE);
+      var html = '';
+      items.forEach(function (a) {
+        var actions = '<button class="btn btn-outline btn-sm" onclick="openEditAnnouncement(\'' + a.id + '\')">编辑</button>';
+        if (a.status === '已发布') {
+          actions += '<button class="btn btn-ghost btn-sm" style="color:var(--warning);" onclick="offlineAnnouncement(\'' + a.id + '\')">下线</button>';
+        } else {
+          actions += '<button class="btn btn-ghost btn-sm" style="color:var(--success);" onclick="publishAnnouncement(\'' + a.id + '\')">发布</button>';
+        }
+        actions += '<button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="deleteAnnouncement(\'' + a.id + '\')">删除</button>';
+        html += '<tr>'
+          + '<td><div class="ann-title">' + escapeHtml(a.title) + '</div><div class="ann-preview">' + escapeHtml(a.content) + '</div></td>'
+          + '<td><span class="badge ' + typeBadge(a.type) + '">' + a.type + '</span></td>'
+          + '<td><span class="badge ' + statusBadge(a.status) + '">' + a.status + '</span></td>'
+          + '<td>' + formatDate(a.time) + '</td>'
+          + '<td><span class="ann-views">' + formatNumber(a.views) + '</span></td>'
+          + '<td><div class="cell-actions">' + actions + '</div></td>'
+          + '</tr>';
+      });
+      if (!items.length) {
+        html = '<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">📢</div><div class="empty-title">暂无公告</div><div class="empty-text">点击右上角"发布公告"创建第一条公告</div></div></td></tr>';
+      }
+      document.getElementById('ann-tbody').innerHTML = html;
+      renderPagination();
+    }
+
+    function renderAll() {
+      renderStats();
+      renderList();
+    }
+
+    function goPage(p) {
+      var pages = Math.max(1, Math.ceil(getAnnouncements().length / PAGE_SIZE));
+      if (p < 1 || p > pages) return;
+      currentPage = p;
+      renderList();
+    }
+
+    /* ---------- 弹窗 ---------- */
+    function openAnnouncementModal() {
+      editingAnnId = null;
+      document.getElementById('ann-modal-title').textContent = '发布公告';
+      document.getElementById('ann-save-btn').textContent = '发布公告';
+      document.getElementById('ann-title').value = '';
+      document.getElementById('ann-type').value = '更新';
+      document.getElementById('ann-status').value = '已发布';
+      document.getElementById('ann-content').value = '';
+      document.getElementById('announcement-modal').classList.add('show');
+      setTimeout(function () { document.getElementById('ann-title').focus(); }, 50);
+    }
+
+    function openEditAnnouncement(id) {
+      var list = getAnnouncements();
+      var item = list.find(function (a) { return a.id === id; });
+      if (!item) return;
+      editingAnnId = id;
+      document.getElementById('ann-modal-title').textContent = '编辑公告';
+      document.getElementById('ann-save-btn').textContent = '保存修改';
+      document.getElementById('ann-title').value = item.title;
+      document.getElementById('ann-type').value = item.type;
+      document.getElementById('ann-status').value = item.status;
+      document.getElementById('ann-content').value = item.content;
+      document.getElementById('announcement-modal').classList.add('show');
+    }
+
+    function closeAnnouncementModal() {
+      document.getElementById('announcement-modal').classList.remove('show');
+    }
+
+    function saveAnnouncement() {
+      var title = document.getElementById('ann-title').value.trim();
+      if (!title) { showToast('请输入公告标题', 'warning'); return; }
+      var type = document.getElementById('ann-type').value;
+      var status = document.getElementById('ann-status').value;
+      var content = document.getElementById('ann-content').value.trim();
+      var list = getAnnouncements();
+
+      if (editingAnnId) {
+        list.forEach(function (a) {
+          if (a.id === editingAnnId) {
+            a.title = title;
+            a.type = type;
+            a.status = status;
+            a.content = content;
+          }
+        });
+        showToast('公告已更新', 'success');
+      } else {
+        list.unshift({
+          id: genId(),
+          title: title,
+          type: type,
+          status: status,
+          content: content,
+          time: new Date().toISOString(),
+          views: 0
+        });
+        currentPage = 1;
+        showToast('公告已发布', 'success');
+      }
+      saveAnnouncements(list);
+      closeAnnouncementModal();
+      renderAll();
+    }
+
+    /* ---------- 状态操作 ---------- */
+    function publishAnnouncement(id) {
+      var list = getAnnouncements();
+      var item = list.find(function (a) { return a.id === id; });
+      if (!item) return;
+      item.status = '已发布';
+      saveAnnouncements(list);
+      renderAll();
+      showToast('公告已发布', 'success');
+    }
+
+    function offlineAnnouncement(id) {
+      var list = getAnnouncements();
+      var item = list.find(function (a) { return a.id === id; });
+      if (!item) return;
+      item.status = '已下线';
+      saveAnnouncements(list);
+      renderAll();
+      showToast('公告已下线', 'success');
+    }
+
+    function deleteAnnouncement(id) {
+      var list = getAnnouncements();
+      var item = list.find(function (a) { return a.id === id; });
+      if (!item) return;
+      showConfirm('删除公告', '确定要删除公告「' + item.title + '」吗？删除后不可恢复。').then(function (ok) {
+        if (!ok) return;
+        saveAnnouncements(getAnnouncements().filter(function (a) { return a.id !== id; }));
+        renderAll();
+        showToast('公告已删除', 'success');
+      });
+    }
+
+    /* ---------- 初始化 ---------- */
+    document.addEventListener('DOMContentLoaded', function () {
+      requireAdminLogin();
+      var admin = getAdmin();
+      if (admin) {
+        document.getElementById('admin-name').textContent = admin.name || '管理员';
+        document.getElementById('admin-avatar').textContent = (admin.name || 'A').charAt(0).toUpperCase();
+      }
+      renderAll();
+    });
+  </script>
+</body>
+</html>

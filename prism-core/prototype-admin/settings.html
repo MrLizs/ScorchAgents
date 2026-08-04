@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PrismCore 管理后台 - 系统设置</title>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/components.css">
+  <link rel="stylesheet" href="assets/css/admin.css">
+  <style>
+    /* 系统设置页面 */
+    .form-label { margin-bottom: var(--space-2); }
+    .settings-card .card-header { margin-bottom: var(--space-4); }
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-4);
+      padding: var(--space-3) 0;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .setting-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .setting-label { font-size: var(--text-base); font-weight: var(--font-weight-medium); color: var(--text); }
+    .setting-desc { font-size: var(--text-sm); color: var(--text-muted); margin-top: 2px; }
+    .settings-actions { display: flex; justify-content: flex-end; margin-top: var(--space-4); }
+    .form-hint { margin-top: var(--space-2); }
+  </style>
+</head>
+<body>
+
+  <aside class="admin-sidebar" id="admin-sidebar">
+    <div class="sidebar-brand">
+      <span class="logo-icon">P</span>
+      <span class="brand-name"><span class="highlight">Prism</span>Core</span>
+    </div>
+    <div class="sidebar-nav">
+      <div class="sidebar-section-label">管理</div>
+      <button class="nav-item" data-page="overview.html" onclick="goTo('overview.html')"><span class="nav-icon">📊</span>平台概览</button>
+      <button class="nav-item" data-page="users.html" onclick="goTo('users.html')"><span class="nav-icon">👥</span>用户管理</button>
+      <button class="nav-item" data-page="models.html" onclick="goTo('models.html')"><span class="nav-icon">🧠</span>模型管理</button>
+      <button class="nav-item" data-page="keys.html" onclick="goTo('keys.html')"><span class="nav-icon">🔑</span>API Key 监管</button>
+      <div class="sidebar-section-label">运营</div>
+      <button class="nav-item" data-page="orders.html" onclick="goTo('orders.html')"><span class="nav-icon">💰</span>订单/充值</button>
+      <button class="nav-item" data-page="reports.html" onclick="goTo('reports.html')"><span class="nav-icon">📈</span>用量报表</button>
+      <button class="nav-item" data-page="tickets.html" onclick="goTo('tickets.html')"><span class="nav-icon">🎫</span>工单管理</button>
+      <button class="nav-item" data-page="announcements.html" onclick="goTo('announcements.html')"><span class="nav-icon">📢</span>公告管理</button>
+      <div class="sidebar-section-label">系统</div>
+      <button class="nav-item" data-page="roles.html" onclick="goTo('roles.html')"><span class="nav-icon">🛡️</span>角色权限</button>
+      <button class="nav-item" data-page="logs.html" onclick="goTo('logs.html')"><span class="nav-icon">📋</span>操作日志</button>
+      <button class="nav-item" data-page="settings.html" onclick="goTo('settings.html')"><span class="nav-icon">⚙️</span>系统设置</button>
+    </div>
+    <div class="sidebar-footer">
+      <div class="admin-info">
+        <span class="avatar" style="width:28px;height:28px;font-size:var(--text-xs);" id="admin-avatar">A</span>
+        <span id="admin-name">管理员</span>
+      </div>
+      <button class="logout-btn" onclick="adminLogout()">🚪 退出登录</button>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <header class="admin-header">
+    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+    <h1 class="header-title">系统设置</h1>
+    <div class="header-right">
+      <button class="btn btn-ghost btn-sm" onclick="goTo('../prototype-web/index.html')">🌐 用户端</button>
+    </div>
+  </header>
+
+  <main class="admin-main">
+    <div class="admin-content">
+
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">系统设置</h1>
+          <p class="page-subtitle">配置平台基础信息、安全策略、计费规则与邮件通知</p>
+        </div>
+      </div>
+
+      <!-- 基础设置 -->
+      <div class="card settings-card">
+        <div class="card-header">
+          <h2 class="card-title">基础设置</h2>
+          <span class="badge badge-blue">平台信息</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">平台名称</label>
+          <input class="form-input" id="set-name" placeholder="请输入平台名称">
+        </div>
+        <div class="form-group">
+          <label class="form-label">平台简介</label>
+          <textarea class="form-input" id="set-desc" rows="3" placeholder="一句话介绍平台定位与核心能力"></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">客服邮箱</label>
+            <input class="form-input" id="set-email" type="email" placeholder="support@example.com">
+          </div>
+          <div class="form-group">
+            <label class="form-label">ICP 备案号</label>
+            <input class="form-input" id="set-icp" placeholder="如：京ICP备XXXXXXXX号">
+          </div>
+        </div>
+        <div class="settings-actions">
+          <button class="btn btn-primary" onclick="saveBasicSettings()">保存设置</button>
+        </div>
+      </div>
+
+      <!-- 安全设置 -->
+      <div class="card settings-card">
+        <div class="card-header">
+          <h2 class="card-title">安全设置</h2>
+          <span class="badge badge-yellow">账号安全</span>
+        </div>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">开放注册</div>
+            <div class="setting-desc">开启后新用户可自助注册平台账号</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="set-register">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">邮箱验证</div>
+            <div class="setting-desc">注册时要求用户完成邮箱验证后方可使用</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="set-email-verify">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="form-row" style="margin-top:var(--space-4);">
+          <div class="form-group">
+            <label class="form-label">登录失败锁定次数</label>
+            <input class="form-input" id="set-lock-times" type="number" min="1" max="20" placeholder="如：5">
+            <div class="form-hint">连续登录失败达到该次数后，账号将被临时锁定</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">会话超时时间</label>
+            <select class="form-input form-select" id="set-session-timeout">
+              <option value="30">30 分钟</option>
+              <option value="60">1 小时</option>
+              <option value="1440">24 小时</option>
+            </select>
+            <div class="form-hint">超过该时长未操作将自动退出登录</div>
+          </div>
+        </div>
+        <div class="settings-actions">
+          <button class="btn btn-primary" onclick="saveSecuritySettings()">保存安全设置</button>
+        </div>
+      </div>
+
+      <!-- 计费设置 -->
+      <div class="card settings-card">
+        <div class="card-header">
+          <h2 class="card-title">计费设置</h2>
+          <span class="badge badge-green">计费规则</span>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">默认套餐</label>
+            <select class="form-input form-select" id="set-default-plan">
+              <option value="免费版">免费版</option>
+              <option value="开发者版">开发者版</option>
+              <option value="专业版">专业版</option>
+              <option value="企业版">企业版</option>
+            </select>
+            <div class="form-hint">新注册用户的默认套餐等级</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">充值比例（1 元 = N 积分）</label>
+            <input class="form-input" id="set-recharge-ratio" type="number" min="1" step="1" placeholder="如：10">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">最低充值金额（元）</label>
+            <input class="form-input" id="set-min-recharge" type="number" min="1" step="1" placeholder="如：10">
+          </div>
+          <div class="form-group">
+            <label class="form-label">发票税率（%）</label>
+            <input class="form-input" id="set-invoice-rate" type="number" min="0" step="0.5" placeholder="如：6">
+            <div class="form-hint">开具发票时需额外缴纳的税费比例</div>
+          </div>
+        </div>
+        <div class="settings-actions">
+          <button class="btn btn-primary" onclick="saveBillingSettings()">保存计费设置</button>
+        </div>
+      </div>
+
+      <!-- 通知设置 -->
+      <div class="card settings-card">
+        <div class="card-header">
+          <h2 class="card-title">通知设置</h2>
+          <span class="badge badge-gray">邮件通知</span>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">SMTP 服务器</label>
+            <input class="form-input" id="set-smtp-server" placeholder="smtp.example.com">
+          </div>
+          <div class="form-group">
+            <label class="form-label">SMTP 端口</label>
+            <input class="form-input" id="set-smtp-port" type="number" min="1" max="65535" placeholder="如：465">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">发件人邮箱</label>
+          <input class="form-input" id="set-smtp-from" type="email" placeholder="no-reply@example.com">
+          <div class="form-hint">用于发送系统通知、验证码与账单邮件</div>
+        </div>
+        <div class="settings-actions">
+          <button class="btn btn-outline" onclick="sendTestEmail()">📧 发送测试邮件</button>
+          <button class="btn btn-primary" style="margin-left:var(--space-2);" onclick="saveNotifySettings()">保存通知设置</button>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script src="assets/js/common.js"></script>
+  <script>
+    /* ==================== 系统设置逻辑 ==================== */
+    var SETTINGS_KEY = 'prismcore-admin:settings';
+
+    var DEFAULT_SETTINGS = {
+      platformName: 'PrismCore',
+      platformDesc: '企业级 AI 模型推理服务平台，提供高性能、低延迟的多模型接入能力',
+      supportEmail: 'support@prismcore.cn',
+      icp: '京ICP备2026000012号',
+      registerEnabled: true,
+      emailVerify: true,
+      lockTimes: 5,
+      sessionTimeout: '60',
+      defaultPlan: '开发者版',
+      rechargeRatio: 10,
+      minRecharge: 10,
+      invoiceRate: 6,
+      smtpServer: 'smtp.prismcore.cn',
+      smtpPort: 465,
+      smtpFrom: 'no-reply@prismcore.cn'
+    };
+
+    function getSettings() {
+      try {
+        var saved = localStorage.getItem(SETTINGS_KEY);
+        if (saved) return Object.assign({}, DEFAULT_SETTINGS, JSON.parse(saved));
+      } catch (e) {}
+      return Object.assign({}, DEFAULT_SETTINGS);
+    }
+
+    function saveSettings(s) {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+    }
+
+    function loadSettings() {
+      var s = getSettings();
+      document.getElementById('set-name').value = s.platformName;
+      document.getElementById('set-desc').value = s.platformDesc;
+      document.getElementById('set-email').value = s.supportEmail;
+      document.getElementById('set-icp').value = s.icp;
+      document.getElementById('set-register').checked = !!s.registerEnabled;
+      document.getElementById('set-email-verify').checked = !!s.emailVerify;
+      document.getElementById('set-lock-times').value = s.lockTimes;
+      document.getElementById('set-session-timeout').value = String(s.sessionTimeout);
+      document.getElementById('set-default-plan').value = s.defaultPlan;
+      document.getElementById('set-recharge-ratio').value = s.rechargeRatio;
+      document.getElementById('set-min-recharge').value = s.minRecharge;
+      document.getElementById('set-invoice-rate').value = s.invoiceRate;
+      document.getElementById('set-smtp-server').value = s.smtpServer;
+      document.getElementById('set-smtp-port').value = s.smtpPort;
+      document.getElementById('set-smtp-from').value = s.smtpFrom;
+    }
+
+    /* ---------- 保存 ---------- */
+    function saveBasicSettings() {
+      var s = getSettings();
+      s.platformName = document.getElementById('set-name').value.trim() || 'PrismCore';
+      s.platformDesc = document.getElementById('set-desc').value.trim();
+      s.supportEmail = document.getElementById('set-email').value.trim();
+      s.icp = document.getElementById('set-icp').value.trim();
+      saveSettings(s);
+      showToast('基础设置已保存', 'success');
+    }
+
+    function saveSecuritySettings() {
+      var s = getSettings();
+      s.registerEnabled = document.getElementById('set-register').checked;
+      s.emailVerify = document.getElementById('set-email-verify').checked;
+      s.lockTimes = parseInt(document.getElementById('set-lock-times').value, 10) || 5;
+      s.sessionTimeout = document.getElementById('set-session-timeout').value;
+      saveSettings(s);
+      showToast('安全设置已保存', 'success');
+    }
+
+    function saveBillingSettings() {
+      var s = getSettings();
+      s.defaultPlan = document.getElementById('set-default-plan').value;
+      s.rechargeRatio = parseFloat(document.getElementById('set-recharge-ratio').value) || 1;
+      s.minRecharge = parseFloat(document.getElementById('set-min-recharge').value) || 0;
+      s.invoiceRate = parseFloat(document.getElementById('set-invoice-rate').value) || 0;
+      saveSettings(s);
+      showToast('计费设置已保存', 'success');
+    }
+
+    function saveNotifySettings() {
+      var s = getSettings();
+      s.smtpServer = document.getElementById('set-smtp-server').value.trim();
+      s.smtpPort = parseInt(document.getElementById('set-smtp-port').value, 10) || 465;
+      s.smtpFrom = document.getElementById('set-smtp-from').value.trim();
+      saveSettings(s);
+      showToast('通知设置已保存', 'success');
+    }
+
+    function sendTestEmail() {
+      var from = document.getElementById('set-smtp-from').value.trim();
+      if (!from) { showToast('请先填写发件人邮箱', 'warning'); return; }
+      showToast('测试邮件已发送，请登录邮箱查收', 'success');
+    }
+
+    /* ---------- 初始化 ---------- */
+    document.addEventListener('DOMContentLoaded', function () {
+      requireAdminLogin();
+      var admin = getAdmin();
+      if (admin) {
+        document.getElementById('admin-name').textContent = admin.name || '管理员';
+        document.getElementById('admin-avatar').textContent = (admin.name || 'A').charAt(0).toUpperCase();
+      }
+      loadSettings();
+    });
+  </script>
+</body>
+</html>

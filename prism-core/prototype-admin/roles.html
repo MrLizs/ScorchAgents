@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PrismCore 管理后台 - 角色权限管理</title>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/components.css">
+  <link rel="stylesheet" href="assets/css/admin.css">
+  <style>
+    /* 角色权限管理页面 */
+    .form-label { margin-bottom: var(--space-2); }
+    .modal { position: relative; }
+
+    .section-title { font-size: var(--text-md); font-weight: var(--font-weight-semibold); color: var(--text); margin-bottom: var(--space-3); }
+
+    .role-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: var(--space-4);
+      margin-bottom: var(--space-6);
+    }
+    .role-card { margin-bottom: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+    .role-head { display: flex; align-items: center; justify-content: space-between; }
+    .role-name-wrap { display: flex; align-items: center; gap: var(--space-2); }
+    .role-name { font-size: var(--text-md); font-weight: var(--font-weight-semibold); color: var(--text); }
+    .role-desc { font-size: var(--text-sm); color: var(--text-sub); line-height: var(--leading-relaxed); min-height: 40px; }
+    .role-meta {
+      display: flex; gap: var(--space-5);
+      font-size: var(--text-sm); color: var(--text-sub);
+      padding: var(--space-2) 0;
+      border-top: 1px solid var(--border-light);
+      border-bottom: 1px solid var(--border-light);
+    }
+    .role-meta b { color: var(--text); font-weight: var(--font-weight-semibold); }
+    .role-actions { display: flex; gap: var(--space-2); }
+    .role-actions .btn-danger-text { color: var(--danger); }
+    .role-actions .btn-danger-text:hover { background: var(--danger-50); color: var(--danger); }
+
+    /* 权限矩阵 */
+    .matrix-wrap { overflow-x: auto; }
+    #perm-matrix th, #perm-matrix td { text-align: center; white-space: nowrap; }
+    #perm-matrix th:first-child, #perm-matrix td:first-child { text-align: left; }
+    #perm-matrix .perm-yes { color: var(--success); font-weight: var(--font-weight-bold); font-size: var(--text-md); }
+    #perm-matrix .perm-no { color: var(--gray-300); font-size: var(--text-md); }
+
+    /* 权限勾选列表 */
+    .perm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+    .perm-item {
+      display: flex; align-items: center; gap: var(--space-2);
+      padding: 6px 10px; font-size: var(--text-base); cursor: pointer;
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      transition: all var(--transition-fast);
+    }
+    .perm-item:hover { border-color: var(--primary-300); background: var(--primary-50); }
+    .perm-item input { accent-color: var(--primary); flex-shrink: 0; }
+  </style>
+</head>
+<body>
+
+  <aside class="admin-sidebar" id="admin-sidebar">
+    <div class="sidebar-brand">
+      <span class="logo-icon">P</span>
+      <span class="brand-name"><span class="highlight">Prism</span>Core</span>
+    </div>
+    <div class="sidebar-nav">
+      <div class="sidebar-section-label">管理</div>
+      <button class="nav-item" data-page="overview.html" onclick="goTo('overview.html')"><span class="nav-icon">📊</span>平台概览</button>
+      <button class="nav-item" data-page="users.html" onclick="goTo('users.html')"><span class="nav-icon">👥</span>用户管理</button>
+      <button class="nav-item" data-page="models.html" onclick="goTo('models.html')"><span class="nav-icon">🧠</span>模型管理</button>
+      <button class="nav-item" data-page="keys.html" onclick="goTo('keys.html')"><span class="nav-icon">🔑</span>API Key 监管</button>
+      <div class="sidebar-section-label">运营</div>
+      <button class="nav-item" data-page="orders.html" onclick="goTo('orders.html')"><span class="nav-icon">💰</span>订单/充值</button>
+      <button class="nav-item" data-page="reports.html" onclick="goTo('reports.html')"><span class="nav-icon">📈</span>用量报表</button>
+      <button class="nav-item" data-page="tickets.html" onclick="goTo('tickets.html')"><span class="nav-icon">🎫</span>工单管理</button>
+      <button class="nav-item" data-page="announcements.html" onclick="goTo('announcements.html')"><span class="nav-icon">📢</span>公告管理</button>
+      <div class="sidebar-section-label">系统</div>
+      <button class="nav-item" data-page="roles.html" onclick="goTo('roles.html')"><span class="nav-icon">🛡️</span>角色权限</button>
+      <button class="nav-item" data-page="logs.html" onclick="goTo('logs.html')"><span class="nav-icon">📋</span>操作日志</button>
+      <button class="nav-item" data-page="settings.html" onclick="goTo('settings.html')"><span class="nav-icon">⚙️</span>系统设置</button>
+    </div>
+    <div class="sidebar-footer">
+      <div class="admin-info">
+        <span class="avatar" style="width:28px;height:28px;font-size:var(--text-xs);" id="admin-avatar">A</span>
+        <span id="admin-name">管理员</span>
+      </div>
+      <button class="logout-btn" onclick="adminLogout()">🚪 退出登录</button>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <header class="admin-header">
+    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+    <h1 class="header-title">角色权限管理</h1>
+    <div class="header-right">
+      <button class="btn btn-ghost btn-sm" onclick="goTo('../prototype-web/index.html')">🌐 用户端</button>
+    </div>
+  </header>
+
+  <main class="admin-main">
+    <div class="admin-content">
+
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">角色权限管理</h1>
+          <p class="page-subtitle">配置后台角色的权限范围，角色与权限变更将实时生效</p>
+        </div>
+        <div class="page-actions">
+          <button class="btn btn-primary" onclick="openRoleModal()">＋ 新增角色</button>
+        </div>
+      </div>
+
+      <h2 class="section-title">角色列表</h2>
+      <div class="role-grid" id="role-grid"></div>
+
+      <h2 class="section-title">权限矩阵</h2>
+      <div class="table-wrap matrix-wrap">
+        <table class="data-table" id="perm-matrix">
+          <thead id="perm-matrix-head"></thead>
+          <tbody id="perm-matrix-body"></tbody>
+        </table>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- 新增 / 编辑角色弹窗 -->
+  <div class="modal-overlay" id="role-modal" onclick="if(event.target===this)closeRoleModal()">
+    <div class="modal">
+      <button class="modal-close" onclick="closeRoleModal()">✕</button>
+      <div class="modal-title" id="role-modal-title">新增角色</div>
+      <div class="modal-desc">定义角色名称与权限范围，保存后立即生效</div>
+      <div class="form-group">
+        <label class="form-label">角色名称</label>
+        <input class="form-input" id="role-name" placeholder="如：审计员">
+      </div>
+      <div class="form-group">
+        <label class="form-label">角色描述</label>
+        <textarea class="form-input" id="role-desc" rows="2" placeholder="简要描述该角色的职责范围"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">权限配置</label>
+        <div class="perm-grid" id="role-perms"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeRoleModal()">取消</button>
+        <button class="btn btn-primary" onclick="saveRole()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/js/common.js"></script>
+  <script>
+    /* ==================== 角色权限逻辑 ==================== */
+    var ROLES_KEY = 'prismcore-admin:roles';
+    var editingRoleId = null;
+
+    var PERMISSIONS = [
+      { key: 'overview', label: '概览查看' },
+      { key: 'users', label: '用户管理' },
+      { key: 'models', label: '模型管理' },
+      { key: 'orders', label: '订单管理' },
+      { key: 'reports', label: '报表导出' },
+      { key: 'tickets', label: '工单处理' },
+      { key: 'announcements', label: '公告管理' },
+      { key: 'settings', label: '系统设置' },
+      { key: 'roles', label: '角色管理' },
+      { key: 'logs', label: '日志查看' }
+    ];
+
+    var ALL_KEYS = PERMISSIONS.map(function (p) { return p.key; });
+
+    var DEFAULT_ROLES = [
+      { id: 'r-admin', name: '超级管理员', description: '拥有平台全部权限，可管理所有模块与系统配置，不参与日常业务操作', permissions: ALL_KEYS.slice(), members: 3, builtin: true },
+      { id: 'r-ops', name: '运营管理员', description: '负责用户、订单、工单与公告的日常运营管理工作', permissions: ['overview', 'users', 'orders', 'tickets', 'announcements'], members: 12, builtin: true },
+      { id: 'r-finance', name: '财务管理员', description: '负责订单核对、充值对账与财务报表导出工作', permissions: ['overview', 'orders', 'reports'], members: 5, builtin: true },
+      { id: 'r-support', name: '客服专员', description: '处理用户工单，可查看用户基础信息与调用记录', permissions: ['overview', 'users', 'tickets'], members: 20, builtin: true }
+    ];
+
+    function getRoles() {
+      try {
+        var saved = localStorage.getItem(ROLES_KEY);
+        if (saved) return JSON.parse(saved);
+      } catch (e) {}
+      return DEFAULT_ROLES.map(function (r) {
+        return { id: r.id, name: r.name, description: r.description, permissions: r.permissions.slice(), members: r.members, builtin: r.builtin };
+      });
+    }
+
+    function saveRoles(list) {
+      localStorage.setItem(ROLES_KEY, JSON.stringify(list));
+    }
+
+    function escapeHtml(str) {
+      return String(str == null ? '' : str).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+
+    /* ---------- 角色卡片 ---------- */
+    function renderRoles() {
+      var roles = getRoles();
+      var html = '';
+      roles.forEach(function (r) {
+        html += '<div class="card role-card">'
+          + '<div class="role-head">'
+          + '<div class="role-name-wrap"><span class="role-name">' + escapeHtml(r.name) + '</span>'
+          + (r.builtin ? '<span class="badge badge-blue">内置</span>' : '<span class="badge badge-gray">自定义</span>')
+          + '</div>'
+          + '<span class="badge badge-green">启用</span>'
+          + '</div>'
+          + '<p class="role-desc">' + escapeHtml(r.description) + '</p>'
+          + '<div class="role-meta">'
+          + '<span>权限 <b>' + r.permissions.length + '</b> 项</span>'
+          + '<span>成员 <b>' + r.members + '</b> 人</span>'
+          + '</div>'
+          + '<div class="role-actions">'
+          + '<button class="btn btn-outline btn-sm" onclick="openRoleModal(\'' + r.id + '\')">编辑</button>'
+          + '<button class="btn btn-ghost btn-sm btn-danger-text" onclick="deleteRole(\'' + r.id + '\')">删除</button>'
+          + '</div>'
+          + '</div>';
+      });
+      document.getElementById('role-grid').innerHTML = html;
+    }
+
+    /* ---------- 权限矩阵 ---------- */
+    function renderMatrix() {
+      var roles = getRoles();
+      var head = '<tr><th>权限项</th>';
+      roles.forEach(function (r) { head += '<th>' + escapeHtml(r.name) + '</th>'; });
+      head += '</tr>';
+      var body = '';
+      PERMISSIONS.forEach(function (p) {
+        body += '<tr><td>' + p.label + '</td>';
+        roles.forEach(function (r) {
+          var has = (r.permissions || []).indexOf(p.key) >= 0;
+          body += '<td class="' + (has ? 'perm-yes' : 'perm-no') + '">' + (has ? '✓' : '✗') + '</td>';
+        });
+        body += '</tr>';
+      });
+      document.getElementById('perm-matrix-head').innerHTML = head;
+      document.getElementById('perm-matrix-body').innerHTML = body;
+    }
+
+    function renderAll() {
+      renderRoles();
+      renderMatrix();
+    }
+
+    /* ---------- 弹窗 ---------- */
+    function renderPermCheckboxes(selected) {
+      var html = '';
+      PERMISSIONS.forEach(function (p) {
+        var checked = selected.indexOf(p.key) >= 0 ? ' checked' : '';
+        html += '<label class="perm-item"><input type="checkbox" value="' + p.key + '"' + checked + '> ' + p.label + '</label>';
+      });
+      document.getElementById('role-perms').innerHTML = html;
+    }
+
+    function openRoleModal(id) {
+      editingRoleId = null;
+      document.getElementById('role-modal-title').textContent = '新增角色';
+      document.getElementById('role-name').value = '';
+      document.getElementById('role-desc').value = '';
+      renderPermCheckboxes([]);
+      document.getElementById('role-modal').classList.add('show');
+      if (id) {
+        var roles = getRoles();
+        var role = roles.find(function (r) { return r.id === id; });
+        if (!role) return;
+        editingRoleId = id;
+        document.getElementById('role-modal-title').textContent = '编辑角色';
+        document.getElementById('role-name').value = role.name;
+        document.getElementById('role-desc').value = role.description;
+        renderPermCheckboxes(role.permissions || []);
+      }
+      setTimeout(function () { document.getElementById('role-name').focus(); }, 50);
+    }
+
+    function closeRoleModal() {
+      document.getElementById('role-modal').classList.remove('show');
+    }
+
+    function saveRole() {
+      var name = document.getElementById('role-name').value.trim();
+      if (!name) { showToast('请输入角色名称', 'warning'); return; }
+      var desc = document.getElementById('role-desc').value.trim();
+      var checked = [];
+      document.querySelectorAll('#role-perms input:checked').forEach(function (cb) { checked.push(cb.value); });
+      if (!checked.length) { showToast('请至少勾选一项权限', 'warning'); return; }
+      var roles = getRoles();
+
+      if (editingRoleId) {
+        roles.forEach(function (r) {
+          if (r.id === editingRoleId) {
+            r.name = name;
+            r.description = desc;
+            r.permissions = checked;
+          }
+        });
+        showToast('角色已更新', 'success');
+      } else {
+        roles.push({ id: genId(), name: name, description: desc, permissions: checked, members: 0, builtin: false });
+        showToast('角色已创建', 'success');
+      }
+      saveRoles(roles);
+      closeRoleModal();
+      renderAll();
+    }
+
+    function deleteRole(id) {
+      var roles = getRoles();
+      var target = roles.find(function (r) { return r.id === id; });
+      if (!target) return;
+      if (target.builtin) { showToast('系统内置角色不可删除', 'warning'); return; }
+      showConfirm('删除角色', '确定要删除角色「' + target.name + '」吗？该操作不可恢复。').then(function (ok) {
+        if (!ok) return;
+        saveRoles(getRoles().filter(function (r) { return r.id !== id; }));
+        renderAll();
+        showToast('角色已删除', 'success');
+      });
+    }
+
+    /* ---------- 初始化 ---------- */
+    document.addEventListener('DOMContentLoaded', function () {
+      requireAdminLogin();
+      var admin = getAdmin();
+      if (admin) {
+        document.getElementById('admin-name').textContent = admin.name || '管理员';
+        document.getElementById('admin-avatar').textContent = (admin.name || 'A').charAt(0).toUpperCase();
+      }
+      renderAll();
+    });
+  </script>
+</body>
+</html>
