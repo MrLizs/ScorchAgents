@@ -304,182 +304,6 @@
     }
 
     /* -------------------------------------------------------------------- */
-    /*  LOGIN / REGISTER SECTION                                            */
-    /* -------------------------------------------------------------------- */
-    .login-section {
-      max-width: 420px;
-      margin: 0 auto;
-      padding: 0 var(--space-4) var(--space-16);
-      width: 100%;
-    }
-
-    .login-card {
-      padding: var(--space-8) var(--space-6);
-      border-radius: var(--radius-xl);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .login-card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 3px;
-      background: linear-gradient(90deg, var(--primary-400), var(--primary-600));
-    }
-
-    .login-card .card-title {
-      text-align: center;
-      font-size: var(--text-xl);
-      font-weight: var(--font-weight-bold);
-      color: var(--text);
-      margin-bottom: var(--space-6);
-      letter-spacing: var(--tracking-tight);
-    }
-
-    .form-tabs {
-      display: flex;
-      background: var(--gray-100);
-      border-radius: var(--radius);
-      padding: var(--space-1);
-      margin-bottom: var(--space-6);
-    }
-
-    .form-tab {
-      flex: 1;
-      padding: var(--space-2) 0;
-      text-align: center;
-      font-size: var(--text-base);
-      font-weight: var(--font-weight-medium);
-      color: var(--text-sub);
-      background: none;
-      border: none;
-      cursor: pointer;
-      transition: all var(--transition-fast);
-      border-radius: calc(var(--radius) - 2px);
-    }
-
-    .form-tab.active {
-      color: var(--text);
-      background: var(--surface);
-      box-shadow: var(--shadow-sm);
-    }
-
-    .form-tab:hover:not(.active) {
-      color: var(--text);
-    }
-
-    .form-actions {
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-3);
-      margin-top: var(--space-6);
-    }
-
-    .form-divider {
-      display: flex;
-      align-items: center;
-      gap: var(--space-3);
-      color: var(--text-muted);
-      font-size: var(--text-sm);
-      margin: var(--space-5) 0;
-    }
-
-    .form-divider::before,
-    .form-divider::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: var(--border);
-    }
-
-    .form-hint {
-      text-align: center;
-      font-size: var(--text-sm);
-      color: var(--text-muted);
-      margin-top: var(--space-5);
-    }
-
-    .form-hint a {
-      color: var(--primary);
-      cursor: pointer;
-      font-weight: var(--font-weight-medium);
-      transition: color var(--transition-fast);
-    }
-
-    .form-hint a:hover {
-      color: var(--primary-dark);
-    }
-
-    .form-hidden {
-      display: none;
-    }
-
-    .form-footer-text {
-      text-align: center;
-      font-size: var(--text-xs);
-      color: var(--text-muted);
-      margin-top: var(--space-5);
-      line-height: var(--leading-relaxed);
-    }
-
-    .form-footer-text a {
-      color: var(--text-sub);
-      cursor: pointer;
-      text-decoration: underline;
-      text-decoration-color: var(--border);
-      text-underline-offset: 2px;
-      transition: all var(--transition-fast);
-    }
-
-    .form-footer-text a:hover {
-      color: var(--primary);
-      text-decoration-color: var(--primary-300);
-    }
-
-    .password-input-wrap {
-      position: relative;
-    }
-
-    .password-input-wrap .toggle-pwd {
-      position: absolute;
-      right: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      background: none;
-      border: none;
-      color: var(--text-muted);
-      cursor: pointer;
-      font-size: var(--text-sm);
-      padding: 4px;
-      line-height: 1;
-      transition: color var(--transition-fast);
-    }
-
-    .password-input-wrap .toggle-pwd:hover {
-      color: var(--text-sub);
-    }
-
-    .forgot-link {
-      display: flex;
-      justify-content: flex-end;
-      margin-bottom: var(--space-4);
-    }
-
-    .forgot-link span {
-      font-size: var(--text-sm);
-      color: var(--text-muted);
-      cursor: pointer;
-      transition: color var(--transition-fast);
-    }
-
-    .forgot-link span:hover {
-      color: var(--primary);
-    }
-
-    /* -------------------------------------------------------------------- */
     /*  FOOTER                                                              */
     /* -------------------------------------------------------------------- */
     .landing-footer {
@@ -582,10 +406,6 @@
         font-size: var(--text-2xl);
       }
 
-      .login-card {
-        padding: var(--space-6) var(--space-4);
-      }
-
       .landing-footer .footer-inner {
         flex-direction: column;
         text-align: center;
@@ -651,6 +471,7 @@
         <span class="brand-name"><span class="highlight">Prism</span>Core</span>
       </div>
       <div style="margin-left:auto;display:flex;align-items:center;gap:var(--space-2);">
+        <button class="btn btn-primary btn-sm" onclick="openAuthModal()">登录 / 注册</button>
         <button class="btn btn-ghost btn-sm" onclick="toggleTheme()" title="切换主题" style="color:var(--text-sub);">🌓</button>
       </div>
     </header>
@@ -663,7 +484,7 @@
       <h1>让 <span class="gradient-text">AI 模型</span> 触手可及</h1>
       <p>一站式 AI 模型推理平台 · 高性能 API · 低成本调用 · 分钟级集成，为你的应用赋能</p>
       <div class="hero-actions">
-        <button class="btn btn-primary btn-lg" onclick="document.getElementById('login-section').scrollIntoView({behavior:'smooth'})">
+        <button class="btn btn-primary btn-lg" onclick="openAuthModal()">
           立即开始
         </button>
         <button class="btn btn-outline-light btn-lg" onclick="showToast('文档即将上线','info')">
@@ -713,79 +534,6 @@
     </section>
 
     <!-- ================================================================ -->
-    <!--  LOGIN / REGISTER                                                -->
-    <!-- ================================================================ -->
-    <section class="login-section" id="login-section">
-      <div class="login-card card">
-        <div class="card-title">欢迎使用 PrismCore</div>
-
-        <div class="form-tabs">
-          <button class="form-tab active" id="tab-login-btn" onclick="switchForm('login')">登录</button>
-          <button class="form-tab" id="tab-register-btn" onclick="switchForm('register')">注册</button>
-        </div>
-
-        <!-- 登录表单 -->
-        <form id="login-form" onsubmit="handleLogin(event)">
-          <div class="form-group">
-            <label class="form-label" for="login-email">邮箱地址</label>
-            <input class="form-input" id="login-email" type="email" placeholder="请输入邮箱地址" required autocomplete="email">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="login-password">密码</label>
-            <div class="password-input-wrap">
-              <input class="form-input" id="login-password" type="password" placeholder="请输入密码" required autocomplete="current-password">
-              <button type="button" class="toggle-pwd" onclick="togglePasswordVisibility('login-password',this)" tabindex="-1">👁</button>
-            </div>
-          </div>
-          <div class="forgot-link">
-            <span onclick="showToast('密码重置功能即将上线','info')">忘记密码？</span>
-          </div>
-          <div class="form-actions">
-            <button type="submit" class="btn btn-primary btn-block btn-lg">登 录</button>
-          </div>
-          <div class="form-hint">
-            还没有账号？<a onclick="switchForm('register')">立即注册</a>
-          </div>
-        </form>
-
-        <!-- 注册表单 -->
-        <form id="register-form" class="form-hidden" onsubmit="handleRegister(event)">
-          <div class="form-group">
-            <label class="form-label" for="reg-name">用户名</label>
-            <input class="form-input" id="reg-name" type="text" placeholder="请输入用户名" required autocomplete="name">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="reg-email">邮箱地址</label>
-            <input class="form-input" id="reg-email" type="email" placeholder="请输入邮箱地址" required autocomplete="email">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="reg-password">密码</label>
-            <div class="password-input-wrap">
-              <input class="form-input" id="reg-password" type="password" placeholder="至少 8 位密码" required minlength="8" autocomplete="new-password">
-              <button type="button" class="toggle-pwd" onclick="togglePasswordVisibility('reg-password',this)" tabindex="-1">👁</button>
-            </div>
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="reg-confirm">确认密码</label>
-            <div class="password-input-wrap">
-              <input class="form-input" id="reg-confirm" type="password" placeholder="再次输入密码" required minlength="8" autocomplete="new-password">
-              <button type="button" class="toggle-pwd" onclick="togglePasswordVisibility('reg-confirm',this)" tabindex="-1">👁</button>
-            </div>
-          </div>
-          <div class="form-actions">
-            <button type="submit" class="btn btn-primary btn-block btn-lg">注 册</button>
-          </div>
-          <div class="form-hint">
-            已有账号？<a onclick="switchForm('login')">立即登录</a>
-          </div>
-          <div class="form-footer-text">
-            注册即表示同意 <a onclick="showToast('服务条款即将上线','info')">服务条款</a> 和 <a onclick="showToast('隐私政策即将上线','info')">隐私政策</a>
-          </div>
-        </form>
-      </div>
-    </section>
-
-    <!-- ================================================================ -->
     <!--  FOOTER                                                          -->
     <!-- ================================================================ -->
     <footer class="landing-footer">
@@ -810,111 +558,6 @@
   </div>
 
   <script src="assets/js/common.js"></script>
-  <script>
-    // ======================================================================
-    //  表单切换
-    // ======================================================================
-    function switchForm(type) {
-      const loginForm = document.getElementById('login-form');
-      const registerForm = document.getElementById('register-form');
-      const tabLogin = document.getElementById('tab-login-btn');
-      const tabRegister = document.getElementById('tab-register-btn');
-
-      if (type === 'login') {
-        loginForm.classList.remove('form-hidden');
-        registerForm.classList.add('form-hidden');
-        tabLogin.classList.add('active');
-        tabRegister.classList.remove('active');
-      } else {
-        loginForm.classList.add('form-hidden');
-        registerForm.classList.remove('form-hidden');
-        tabLogin.classList.remove('active');
-        tabRegister.classList.add('active');
-      }
-    }
-
-    // ======================================================================
-    //  密码可见性切换
-    // ======================================================================
-    function togglePasswordVisibility(inputId, btn) {
-      const input = document.getElementById(inputId);
-      if (input.type === 'password') {
-        input.type = 'text';
-        btn.textContent = '🙈';
-      } else {
-        input.type = 'password';
-        btn.textContent = '👁';
-      }
-    }
-
-    // ======================================================================
-    //  登录处理
-    // ======================================================================
-    function handleLogin(e) {
-      e.preventDefault();
-      const email = document.getElementById('login-email').value.trim();
-      const password = document.getElementById('login-password').value;
-      if (!email || !password) {
-        showToast('请填写邮箱和密码', 'error');
-        return;
-      }
-      const name = email.split('@')[0];
-      const user = {
-        id: genId(),
-        email: email,
-        name: name,
-        avatar: name.charAt(0).toUpperCase(),
-        joinedAt: new Date().toISOString()
-      };
-      localStorage.setItem(LS_KEYS.user, JSON.stringify(user));
-      localStorage.setItem(LS_KEYS.token, 'demo-token-' + Date.now());
-      showToast('登录成功，欢迎回来！', 'success');
-      setTimeout(function () {
-        goTo('home.html');
-      }, 600);
-    }
-
-    // ======================================================================
-    //  注册处理
-    // ======================================================================
-    function handleRegister(e) {
-      e.preventDefault();
-      const name = document.getElementById('reg-name').value.trim();
-      const email = document.getElementById('reg-email').value.trim();
-      const password = document.getElementById('reg-password').value;
-      const confirm = document.getElementById('reg-confirm').value;
-
-      if (!name) {
-        showToast('请输入用户名', 'error');
-        return;
-      }
-      if (!email) {
-        showToast('请输入邮箱地址', 'error');
-        return;
-      }
-      if (password.length < 8) {
-        showToast('密码长度至少 8 位', 'error');
-        return;
-      }
-      if (password !== confirm) {
-        showToast('两次密码输入不一致', 'error');
-        return;
-      }
-
-      const user = {
-        id: genId(),
-        email: email,
-        name: name,
-        avatar: name.charAt(0).toUpperCase(),
-        joinedAt: new Date().toISOString()
-      };
-      localStorage.setItem(LS_KEYS.user, JSON.stringify(user));
-      localStorage.setItem(LS_KEYS.token, 'demo-token-' + Date.now());
-      showToast('注册成功，欢迎加入 PrismCore！', 'success');
-      setTimeout(function () {
-        goTo('home.html');
-      }, 600);
-    }
-  </script>
+  <script src="assets/js/login-modal.js"></script>
 </body>
 </html>

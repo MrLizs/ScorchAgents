@@ -1262,7 +1262,156 @@ textarea.form-input {
 }
 
 /* -------------------------------------------------------------------- */
-/*  22. QUICK ACTION CARDS (Dashboard)                                  */
+/*  22. AUTH MODAL (Login/Register Popup)                               */
+/* -------------------------------------------------------------------- */
+.form-hidden {
+  display: none !important;
+}
+
+.auth-modal {
+  max-width: 440px;
+  width: 92%;
+  padding: var(--space-8) var(--space-6) var(--space-6);
+  position: relative;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.auth-modal .auth-close {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: var(--gray-100);
+  color: var(--text-sub);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.auth-modal .auth-close:hover {
+  background: var(--gray-200);
+  color: var(--text);
+}
+
+.auth-modal .auth-title {
+  text-align: center;
+  font-size: var(--text-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--text);
+  margin-bottom: var(--space-2);
+  letter-spacing: var(--tracking-tight);
+}
+
+.auth-modal .auth-subtitle {
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin-bottom: var(--space-6);
+}
+
+.auth-modal .form-tabs {
+  display: flex;
+  background: var(--gray-100);
+  border-radius: var(--radius);
+  padding: var(--space-1);
+  margin-bottom: var(--space-6);
+}
+
+.auth-modal .form-tab {
+  flex: 1;
+  padding: var(--space-2) 0;
+  text-align: center;
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-sub);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border-radius: calc(var(--radius) - 2px);
+}
+
+.auth-modal .form-tab.active {
+  color: var(--text);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.auth-modal .form-tab:hover:not(.active) {
+  color: var(--text);
+}
+
+.auth-modal .auth-footer-text {
+  text-align: center;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-top: var(--space-5);
+  line-height: var(--leading-relaxed);
+}
+
+.auth-modal .auth-footer-text a {
+  color: var(--text-sub);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--border);
+  text-underline-offset: 2px;
+  transition: all var(--transition-fast);
+}
+
+.auth-modal .auth-footer-text a:hover {
+  color: var(--primary);
+  text-decoration-color: var(--primary-300);
+}
+
+.auth-modal .forgot-link {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-4);
+}
+
+.auth-modal .forgot-link span {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+
+.auth-modal .forgot-link span:hover {
+  color: var(--primary);
+}
+
+.auth-modal .password-input-wrap {
+  position: relative;
+}
+
+.auth-modal .password-input-wrap .toggle-pwd {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  padding: 4px;
+  line-height: 1;
+  transition: color var(--transition-fast);
+}
+
+.auth-modal .password-input-wrap .toggle-pwd:hover {
+  color: var(--text-sub);
+}
+
+/* -------------------------------------------------------------------- */
+/*  23. QUICK ACTION CARDS (Dashboard)                                  */
 /* -------------------------------------------------------------------- */
 .quick-grid {
   display: grid;
