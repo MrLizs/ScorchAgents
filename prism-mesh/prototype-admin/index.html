@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PrismMesh 管理后台 - 登录</title>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/components.css">
+  <style>
+    /* ===== 登录页样式（独立页面，无侧边栏/顶栏） ===== */
+
+    body.login-body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-6);
+      background:
+        radial-gradient(1000px 520px at 88% -12%, rgba(96, 165, 250, 0.35), transparent 60%),
+        radial-gradient(820px 420px at -12% 112%, rgba(59, 130, 246, 0.25), transparent 55%),
+        linear-gradient(150deg, #172554 0%, #1E3A8A 45%, #1E40AF 100%);
+      overflow: hidden;
+    }
+
+    .login-card {
+      width: 100%;
+      max-width: 420px;
+      background: var(--surface);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-2xl);
+      padding: var(--space-8) var(--space-6);
+      animation: loginIn var(--transition-normal) ease;
+    }
+    @keyframes loginIn {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* 品牌区 */
+    .login-brand {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      margin-bottom: var(--space-6);
+    }
+    .login-brand .login-logo {
+      width: 42px; height: 42px;
+      border-radius: var(--radius);
+      background: linear-gradient(135deg, var(--primary-600), var(--primary-400));
+      color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: var(--text-xl); font-weight: var(--font-weight-bold);
+      box-shadow: var(--shadow-md);
+    }
+    .login-brand .brand-name {
+      font-size: var(--text-lg); font-weight: var(--font-weight-bold);
+      color: var(--text); letter-spacing: var(--tracking-tight);
+      line-height: var(--leading-tight);
+    }
+    .login-brand .brand-name .highlight { color: var(--primary); }
+    .login-brand .brand-sub {
+      font-size: var(--text-xs); color: var(--text-muted);
+      letter-spacing: var(--tracking-wider); text-transform: uppercase;
+    }
+
+    /* 标题区 */
+    .login-heading h1 { font-size: var(--text-2xl); font-weight: var(--font-weight-bold); color: var(--text); }
+    .login-heading p { font-size: var(--text-sm); color: var(--text-sub); margin-top: var(--space-1); margin-bottom: var(--space-6); }
+
+    /* 表单选项 */
+    .login-options {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: var(--space-5);
+    }
+    .login-options .checkbox {
+      display: flex; align-items: center; gap: var(--space-2);
+      font-size: var(--text-sm); color: var(--text-sub); cursor: pointer;
+      user-select: none;
+    }
+    .login-options .checkbox input { width: 15px; height: 15px; accent-color: var(--primary); cursor: pointer; }
+    .login-options a { font-size: var(--text-sm); }
+
+    /* 演示账号提示 */
+    .login-demo {
+      margin-top: var(--space-5);
+      padding: var(--space-3);
+      background: var(--gray-50);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      font-size: var(--text-xs);
+      color: var(--text-sub);
+      text-align: center;
+    }
+    .login-demo code {
+      font-family: var(--font-mono);
+      background: var(--primary-50); color: var(--primary-700);
+      padding: 1px 6px; border-radius: 4px;
+    }
+
+    .login-footer {
+      margin-top: var(--space-5);
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: var(--text-xs); color: var(--text-muted);
+    }
+  </style>
+</head>
+<body class="login-body">
+  <div class="login-card">
+    <!-- 品牌 -->
+    <div class="login-brand">
+      <span class="login-logo">P</span>
+      <div>
+        <div class="brand-name"><span class="highlight">Prism</span>Mesh</div>
+        <div class="brand-sub">Admin Console</div>
+      </div>
+    </div>
+
+    <!-- 标题 -->
+    <div class="login-heading">
+      <h1>欢迎回来</h1>
+      <p>请使用管理员账号登录平台控制台</p>
+    </div>
+
+    <!-- 登录表单 -->
+    <form id="login-form">
+      <div class="form-group">
+        <label class="form-label" for="login-email">管理员账号</label>
+        <input class="form-input" type="email" id="login-email" placeholder="admin@prismmesh.ai" autocomplete="username" autofocus>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="login-password">密码</label>
+        <input class="form-input" type="password" id="login-password" placeholder="请输入密码" autocomplete="current-password">
+      </div>
+      <div class="login-options">
+        <label class="checkbox">
+          <input type="checkbox" id="remember-me" checked>
+          <span>记住我</span>
+        </label>
+        <a href="javascript:void(0)" onclick="showToast('请联系超级管理员重置密码', 'info')">忘记密码？</a>
+      </div>
+      <button class="btn btn-primary btn-lg btn-block" type="submit" style="letter-spacing:var(--tracking-wide);">登 录</button>
+    </form>
+
+    <!-- 演示账号 -->
+    <div class="login-demo">
+      <span>演示账号：</span><code>admin@prismmesh.ai</code><span> / </span><code>admin123</code>
+    </div>
+
+    <!-- 页脚 -->
+    <div class="login-footer">
+      <a href="../prototype-web/index.html">← 返回用户端</a>
+      <span>© 2026 PrismMesh</span>
+    </div>
+  </div>
+
+  <script src="assets/js/common.js"></script>
+  <script>
+    // 记住我：回填上次保存的账号
+    var savedEmail = localStorage.getItem('prismmesh-admin:remember');
+    if (savedEmail) {
+      document.getElementById('login-email').value = savedEmail;
+    }
+
+    document.getElementById('login-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var email = document.getElementById('login-email').value.trim();
+      var pwd = document.getElementById('login-password').value;
+
+      if (!email || !pwd) {
+        showToast('请输入管理员账号和密码', 'warning');
+        return;
+      }
+      if (email === 'admin@prismmesh.ai' && pwd === 'admin123') {
+        // 记住我：保存账号
+        if (document.getElementById('remember-me').checked) {
+          localStorage.setItem('prismmesh-admin:remember', email);
+        } else {
+          localStorage.removeItem('prismmesh-admin:remember');
+        }
+        adminLogin({ name: '管理员', email: email, role: '超级管理员' });
+        showToast('登录成功，欢迎回来！', 'success');
+        setTimeout(function () { goTo('overview.html'); }, 400);
+      } else {
+        showToast('账号或密码错误，请重试', 'error');
+      }
+    });
+  </script>
+</body>
+</html>

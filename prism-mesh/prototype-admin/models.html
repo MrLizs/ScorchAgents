@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>模型管理 - PrismMesh 管理后台</title>
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/components.css">
+<link rel="stylesheet" href="assets/css/admin.css">
+<style>
+  /* 页面局部样式 */
+  .toolbar .form-select { width: 130px; padding: 8px 32px 8px 12px; border: 1.5px solid var(--border); border-radius: var(--radius); background-color: var(--surface); color: var(--text); font-size: var(--text-sm); cursor: pointer; outline: none; }
+  .toolbar .form-select:focus { border-color: var(--primary-500); box-shadow: 0 0 0 3px var(--primary-100); }
+</style>
+</head>
+<body>
+
+<!-- ============ 侧边栏 ============ -->
+<aside class="admin-sidebar" id="admin-sidebar">
+  <div class="sidebar-brand">
+    <span class="logo-icon">P</span>
+    <span class="brand-name"><span class="highlight">Prism</span>Mesh</span>
+  </div>
+  <div class="sidebar-nav">
+    <div class="sidebar-section-label">管理</div>
+    <button class="nav-item" data-page="overview.html" onclick="goTo('overview.html')"><span class="nav-icon">📊</span>平台概览</button>
+    <button class="nav-item" data-page="users.html" onclick="goTo('users.html')"><span class="nav-icon">👥</span>用户管理</button>
+    <button class="nav-item" data-page="models.html" onclick="goTo('models.html')"><span class="nav-icon">🧠</span>模型管理</button>
+    <button class="nav-item" data-page="keys.html" onclick="goTo('keys.html')"><span class="nav-icon">🔑</span>API Key 监管</button>
+    <div class="sidebar-section-label">运营</div>
+    <button class="nav-item" data-page="orders.html" onclick="goTo('orders.html')"><span class="nav-icon">💰</span>订单/充值</button>
+    <button class="nav-item" data-page="reports.html" onclick="goTo('reports.html')"><span class="nav-icon">📈</span>用量报表</button>
+    <button class="nav-item" data-page="tickets.html" onclick="goTo('tickets.html')"><span class="nav-icon">🎫</span>工单管理</button>
+    <button class="nav-item" data-page="announcements.html" onclick="goTo('announcements.html')"><span class="nav-icon">📢</span>公告管理</button>
+    <div class="sidebar-section-label">系统</div>
+    <button class="nav-item" data-page="roles.html" onclick="goTo('roles.html')"><span class="nav-icon">🛡️</span>角色权限</button>
+    <button class="nav-item" data-page="logs.html" onclick="goTo('logs.html')"><span class="nav-icon">📋</span>操作日志</button>
+    <button class="nav-item" data-page="settings.html" onclick="goTo('settings.html')"><span class="nav-icon">⚙️</span>系统设置</button>
+  </div>
+  <div class="sidebar-footer">
+    <div class="admin-info">
+      <span class="avatar" style="width:28px;height:28px;font-size:var(--text-xs);" id="admin-avatar">A</span>
+      <span id="admin-name">管理员</span>
+    </div>
+    <button class="logout-btn" onclick="adminLogout()">🚪 退出登录</button>
+  </div>
+</aside>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<!-- ============ 顶栏 ============ -->
+<header class="admin-header">
+  <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+  <h1 class="header-title">模型管理</h1>
+  <div class="header-right">
+    <button class="btn btn-ghost btn-sm" onclick="goTo('../prototype-web/index.html')">🌐 用户端</button>
+  </div>
+</header>
+
+<!-- ============ 内容区 ============ -->
+<main class="admin-main">
+  <div class="admin-content">
+
+    <div class="page-header">
+      <div>
+        <h2 class="page-title">模型管理</h2>
+        <p class="page-subtitle">维护平台模型目录、定价与上架状态</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn btn-primary" onclick="openModelModal()">＋ 新增模型</button>
+      </div>
+    </div>
+
+    <!-- 筛选工具栏 -->
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <div class="search-input">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="model-search" placeholder="搜索模型名称 / 供应商..." onkeydown="if(event.key==='Enter')applyModelFilter()">
+        </div>
+        <select class="form-select" id="model-category-filter" onchange="applyModelFilter()">
+          <option value="全部">分类：全部</option>
+          <option value="对话">对话</option>
+          <option value="图像">图像</option>
+          <option value="代码">代码</option>
+          <option value="音频">音频</option>
+          <option value="嵌入">嵌入</option>
+        </select>
+        <select class="form-select" id="model-status-filter" onchange="applyModelFilter()">
+          <option value="全部">状态：全部</option>
+          <option value="上架">上架</option>
+          <option value="下架">下架</option>
+          <option value="审核中">审核中</option>
+        </select>
+        <button class="btn btn-primary" onclick="applyModelFilter()">搜索</button>
+      </div>
+    </div>
+
+    <!-- 模型列表 -->
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>模型</th>
+            <th>供应商</th>
+            <th>分类</th>
+            <th>价格（输入/输出，¥/1M token）</th>
+            <th>状态</th>
+            <th>调用量</th>
+            <th style="text-align:right;">操作</th>
+          </tr>
+        </thead>
+        <tbody id="models-tbody"></tbody>
+      </table>
+      <div class="pagination" id="models-pagination">
+        <span class="page-info" id="models-page-info">第 1 页 共 42 条</span>
+        <div class="page-btns">
+          <button class="page-btn" id="models-prev-btn" onclick="goModelPage(1)" disabled>‹</button>
+          <button class="page-btn active" onclick="goModelPage(1)">1</button>
+          <button class="page-btn" onclick="goModelPage(2)">2</button>
+          <button class="page-btn" onclick="goModelPage(3)">3</button>
+          <button class="page-btn" id="models-next-btn" onclick="goModelPage(3)">›</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- ============ 新增 / 编辑模型弹窗 ============ -->
+<div class="modal-overlay" id="model-modal-overlay">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-title" id="model-modal-title">新增模型</div>
+    <div class="modal-desc">录入模型基础信息，提交后进入上架流程</div>
+    <div class="form-group">
+      <label class="form-label">模型名称 <span style="color:var(--danger);">*</span></label>
+      <input type="text" class="form-input" id="model-name" placeholder="例如：Prism-7B-Instruct">
+    </div>
+    <div class="form-group">
+      <label class="form-label">供应商</label>
+      <input type="text" class="form-input" id="model-vendor" placeholder="例如：自研 / DeepSeek / OpenAI">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">分类</label>
+        <select class="form-input form-select" id="model-category">
+          <option value="对话">对话</option>
+          <option value="图像">图像</option>
+          <option value="代码">代码</option>
+          <option value="音频">音频</option>
+          <option value="嵌入">嵌入</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">状态</label>
+        <select class="form-input form-select" id="model-status">
+          <option value="上架">上架</option>
+          <option value="下架">下架</option>
+          <option value="审核中">审核中</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">输入价格（¥/1M tokens）</label>
+        <input type="number" class="form-input" id="model-in-price" min="0" step="0.01" placeholder="0.50">
+      </div>
+      <div class="form-group">
+        <label class="form-label">输出价格（¥/1M tokens）</label>
+        <input type="number" class="form-input" id="model-out-price" min="0" step="0.01" placeholder="8.00">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">模型描述</label>
+      <textarea class="form-input" id="model-desc" placeholder="简要描述模型能力与适用场景"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModelModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveModel()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/common.js"></script>
+<script>
+/* ================================================================== */
+/*  示例数据                                                          */
+/* ================================================================== */
+var MODELS_KEY = 'prismmesh-admin:models';
+
+var DEFAULT_MODELS = [
+  { id: 'm_001', name: 'Prism-7B-Instruct', vendor: '自研', category: '对话', inPrice: 0.5, outPrice: 0.5, status: '上架', calls: 12456789, desc: '轻量级指令微调模型，兼顾速度与效果，适合实时对话与任务处理。' },
+  { id: 'm_002', name: 'Prism-70B-Chat', vendor: '自研', category: '对话', inPrice: 3.0, outPrice: 8.0, status: '上架', calls: 8234112, desc: '旗舰级对话模型，复杂推理与长文本理解能力优秀，企业级首选。' },
+  { id: 'm_003', name: 'DeepSeek-V3', vendor: 'DeepSeek', category: '对话', inPrice: 2.0, outPrice: 8.0, status: '上架', calls: 23991221, desc: '高性能开源对话模型，推理能力与性价比兼备。' },
+  { id: 'm_004', name: 'Qwen2.5-72B-Instruct', vendor: '阿里云', category: '对话', inPrice: 4.0, outPrice: 12.0, status: '审核中', calls: 0, desc: '通义千问 72B 指令模型，多语言能力出色，正在审核上架。' },
+  { id: 'm_005', name: 'Stable-Diffusion-XL', vendor: 'Stability AI', category: '图像', inPrice: 5.0, outPrice: 20.0, status: '上架', calls: 3456789, desc: '高质量文生图模型，支持多风格创作与图像编辑。' },
+  { id: 'm_006', name: 'FLUX.1-dev', vendor: 'Black Forest Labs', category: '图像', inPrice: 6.0, outPrice: 25.0, status: '下架', calls: 1234567, desc: '新一代扩散模型，图像细节丰富，当前已下架维护。' },
+  { id: 'm_007', name: 'CodeLlama-34B-Instruct', vendor: 'Meta', category: '代码', inPrice: 2.5, outPrice: 8.0, status: '上架', calls: 4567890, desc: '代码生成与补全专用模型，支持多种主流编程语言。' },
+  { id: 'm_008', name: 'whisper-large-v3', vendor: 'OpenAI', category: '音频', inPrice: 2.0, outPrice: 2.0, status: '上架', calls: 987654, desc: '多语种语音识别模型，支持转写与翻译任务。' }
+];
+
+var models = loadModels();
+
+var CAT_BADGE = { '对话': 'badge-blue', '图像': 'badge-green', '代码': 'badge-yellow', '音频': 'badge-gray', '嵌入': 'badge-gray' };
+var CAT_ICON  = { '对话': '💬', '图像': '🎨', '代码': '💻', '音频': '🎵', '嵌入': '🔗' };
+var ST_BADGE  = { '上架': 'badge-green', '下架': 'badge-gray', '审核中': 'badge-yellow' };
+
+var _editingModelId = null;
+
+/* ================================================================== */
+/*  本地存储                                                          */
+/* ================================================================== */
+function loadModels() {
+  try {
+    var saved = localStorage.getItem(MODELS_KEY);
+    if (saved) {
+      var arr = JSON.parse(saved);
+      if (Array.isArray(arr) && arr.length) return arr;
+    }
+  } catch (e) { /* ignore */ }
+  return DEFAULT_MODELS.map(function (m) { return Object.assign({}, m); });
+}
+
+function saveModels() {
+  try { localStorage.setItem(MODELS_KEY, JSON.stringify(models)); } catch (e) { /* ignore */ }
+}
+
+/* ================================================================== */
+/*  工具函数                                                          */
+/* ================================================================== */
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+function findModel(id) {
+  for (var i = 0; i < models.length; i++) { if (models[i].id === id) return models[i]; }
+  return null;
+}
+
+function fmtPrice(v) { return '¥' + Number(v || 0).toFixed(2); }
+
+function fmtCalls(n) {
+  n = Number(n || 0);
+  if (n >= 100000000) return (n / 100000000).toFixed(2) + ' 亿';
+  if (n >= 10000) return (n / 10000).toFixed(1) + ' 万';
+  return String(n);
+}
+
+function isModelFiltering() {
+  return document.getElementById('model-search').value.trim() !== ''
+    || document.getElementById('model-category-filter').value !== '全部'
+    || document.getElementById('model-status-filter').value !== '全部';
+}
+
+function getFilteredModels() {
+  var kw = document.getElementById('model-search').value.trim().toLowerCase();
+  var cat = document.getElementById('model-category-filter').value;
+  var st = document.getElementById('model-status-filter').value;
+  return models.filter(function (m) {
+    var okKw = !kw || m.name.toLowerCase().indexOf(kw) > -1 || m.vendor.toLowerCase().indexOf(kw) > -1;
+    var okCat = cat === '全部' || m.category === cat;
+    var okSt = st === '全部' || m.status === st;
+    return okKw && okCat && okSt;
+  });
+}
+
+/* ================================================================== */
+/*  渲染                                                              */
+/* ================================================================== */
+function renderModels() {
+  var rows = getFilteredModels();
+  var tbody = document.getElementById('models-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state" style="padding:var(--space-10) var(--space-4);">'
+      + '<div class="empty-icon">🔍</div><div class="empty-title">未找到匹配的模型</div>'
+      + '<div class="empty-text">请调整搜索关键词或筛选条件后重试</div></div></td></tr>';
+    document.getElementById('models-page-info').textContent = '第 1 页 共 0 条';
+    return;
+  }
+  var total = isModelFiltering() ? rows.length : 42;
+  tbody.innerHTML = rows.map(function (m) {
+    var catBadge = CAT_BADGE[m.category] || 'badge-gray';
+    var stBadge = ST_BADGE[m.status] || 'badge-gray';
+    var icon = CAT_ICON[m.category] || '🧠';
+    var toggleBtn = m.status === '上架'
+      ? '<button class="btn btn-outline btn-sm" onclick="togglePublish(\'' + m.id + '\')">下架</button>'
+      : '<button class="btn btn-outline btn-sm" onclick="togglePublish(\'' + m.id + '\')">上架</button>';
+    return '<tr>'
+      + '<td><div class="cell-user"><span class="user-avatar">' + icon + '</span>'
+      + '<span><strong>' + esc(m.name) + '</strong></span></div></td>'
+      + '<td>' + esc(m.vendor) + '</td>'
+      + '<td><span class="badge ' + catBadge + '">' + esc(m.category) + '</span></td>'
+      + '<td><span class="cell-mono">' + fmtPrice(m.inPrice) + ' / ' + fmtPrice(m.outPrice) + '</span></td>'
+      + '<td><span class="badge ' + stBadge + '">' + esc(m.status) + '</span></td>'
+      + '<td>' + fmtCalls(m.calls) + '</td>'
+      + '<td><div class="cell-actions">'
+      + '<button class="btn btn-primary-ghost btn-sm" onclick="openModelModal(\'' + m.id + '\')">编辑</button>'
+      + toggleBtn
+      + '<button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="deleteModel(\'' + m.id + '\')">删除</button>'
+      + '</div></td>'
+      + '</tr>';
+  }).join('');
+  document.getElementById('models-page-info').textContent = '第 1 页 共 ' + formatNumber(total) + ' 条';
+}
+
+function applyModelFilter() {
+  goModelPage(1, true);
+  renderModels();
+}
+
+/* ================================================================== */
+/*  新增 / 编辑弹窗                                                   */
+/* ================================================================== */
+function openModelModal(id) {
+  _editingModelId = id || null;
+  var title = document.getElementById('model-modal-title');
+  if (id) {
+    var m = findModel(id);
+    if (!m) return;
+    title.textContent = '编辑模型';
+    document.getElementById('model-name').value = m.name;
+    document.getElementById('model-vendor').value = m.vendor;
+    document.getElementById('model-category').value = m.category;
+    document.getElementById('model-status').value = m.status;
+    document.getElementById('model-in-price').value = m.inPrice;
+    document.getElementById('model-out-price').value = m.outPrice;
+    document.getElementById('model-desc').value = m.desc || '';
+  } else {
+    title.textContent = '新增模型';
+    ['model-name', 'model-vendor', 'model-in-price', 'model-out-price', 'model-desc'].forEach(function (i) {
+      document.getElementById(i).value = '';
+    });
+    document.getElementById('model-category').value = '对话';
+    document.getElementById('model-status').value = '审核中';
+  }
+  document.getElementById('model-modal-overlay').classList.add('show');
+}
+
+function closeModelModal() {
+  document.getElementById('model-modal-overlay').classList.remove('show');
+  _editingModelId = null;
+}
+
+function saveModel() {
+  var name = document.getElementById('model-name').value.trim();
+  var vendor = document.getElementById('model-vendor').value.trim();
+  var category = document.getElementById('model-category').value;
+  var status = document.getElementById('model-status').value;
+  var inPrice = parseFloat(document.getElementById('model-in-price').value);
+  var outPrice = parseFloat(document.getElementById('model-out-price').value);
+  var desc = document.getElementById('model-desc').value.trim();
+
+  if (!name) { showToast('请填写模型名称', 'error'); return; }
+  if (isNaN(inPrice) || isNaN(outPrice) || inPrice < 0 || outPrice < 0) { showToast('请输入有效的输入/输出价格', 'error'); return; }
+
+  if (_editingModelId) {
+    var m = findModel(_editingModelId);
+    if (m) {
+      m.name = name;
+      m.vendor = vendor || '自研';
+      m.category = category;
+      m.status = status;
+      m.inPrice = inPrice;
+      m.outPrice = outPrice;
+      m.desc = desc;
+    }
+    showToast('模型「' + name + '」已更新', 'success');
+  } else {
+    models.unshift({
+      id: genId(),
+      name: name,
+      vendor: vendor || '自研',
+      category: category,
+      status: status,
+      inPrice: inPrice,
+      outPrice: outPrice,
+      desc: desc,
+      calls: 0
+    });
+    showToast('模型「' + name + '」已新增', 'success');
+  }
+  saveModels();
+  closeModelModal();
+  renderModels();
+}
+
+/* ================================================================== */
+/*  上架 / 下架 / 删除                                                */
+/* ================================================================== */
+async function togglePublish(id) {
+  var m = findModel(id);
+  if (!m) return;
+  var toOff = m.status === '上架';
+  var ok = await showConfirm(
+    toOff ? '下架模型' : '上架模型',
+    toOff ? '确定将「' + m.name + '」下架吗？下架后用户将无法调用该模型。'
+          : '确定将「' + m.name + '」上架吗？上架后用户即可调用该模型。'
+  );
+  if (!ok) return;
+  m.status = toOff ? '下架' : '上架';
+  saveModels();
+  renderModels();
+  showToast('「' + m.name + '」已' + (toOff ? '下架' : '上架'), 'success');
+}
+
+async function deleteModel(id) {
+  var idx = -1;
+  for (var i = 0; i < models.length; i++) { if (models[i].id === id) { idx = i; break; } }
+  if (idx < 0) return;
+  var m = models[idx];
+  var ok = await showConfirm('删除模型', '确定要删除模型「' + m.name + '」吗？删除后该模型将无法恢复。');
+  if (!ok) return;
+  models.splice(idx, 1);
+  saveModels();
+  renderModels();
+  showToast('模型「' + m.name + '」已删除', 'success');
+}
+
+/* ================================================================== */
+/*  分页                                                              */
+/* ================================================================== */
+function goModelPage(n, silent) {
+  if (n < 1 || n > 3) return;
+  document.querySelectorAll('#models-pagination .page-btn').forEach(function (b) {
+    if (b.id) return;
+    b.classList.toggle('active', parseInt(b.textContent, 10) === n);
+  });
+  document.getElementById('models-prev-btn').disabled = n === 1;
+  document.getElementById('models-next-btn').disabled = n === 3;
+  if (!silent) showToast('已切换到第 ' + n + ' 页（演示数据）', 'info');
+}
+
+/* ================================================================== */
+/*  初始化                                                            */
+/* ================================================================== */
+document.addEventListener('DOMContentLoaded', function () {
+  requireAdminLogin();
+  var admin = getAdmin();
+  if (admin) {
+    document.getElementById('admin-name').textContent = admin.name || '管理员';
+    document.getElementById('admin-avatar').textContent = (admin.name || 'A').charAt(0).toUpperCase();
+  }
+  renderModels();
+});
+</script>
+</body>
+</html>

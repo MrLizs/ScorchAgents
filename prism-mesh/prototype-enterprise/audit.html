@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>调用审计 - PrismMesh 企业后台</title>
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/components.css">
+<link rel="stylesheet" href="assets/css/admin.css">
+<style>
+  /* 审计页局部样式 */
+  .filter-select { padding: 8px 32px 8px 12px; border: 1.5px solid var(--border); border-radius: var(--radius); background-color: var(--surface); color: var(--text); font-size: var(--text-sm); cursor: pointer; outline: none; }
+  .filter-select:focus { border-color: var(--primary-500); box-shadow: 0 0 0 3px var(--primary-100); }
+  .method-tag { display: inline-block; padding: 1px 8px; border-radius: 4px; font-size: var(--text-xs); font-weight: var(--font-weight-semibold); background: var(--gray-100); color: var(--gray-600); font-family: var(--font-mono); }
+  .latency-mono { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-sub); }
+</style>
+</head>
+<body>
+
+<!-- ============ 侧边栏 ============ -->
+<aside class="admin-sidebar" id="ent-sidebar">
+  <div class="sidebar-brand">
+    <span class="logo-icon">E</span>
+    <span class="brand-name"><span class="highlight">Prism</span>Mesh</span>
+  </div>
+  <div class="sidebar-nav">
+    <div class="sidebar-section-label">总览</div>
+    <button class="nav-item" data-page="overview.html" onclick="goTo('overview.html')"><span class="nav-icon">📊</span>企业概览</button>
+    <div class="sidebar-section-label">管理</div>
+    <button class="nav-item" data-page="keys.html" onclick="goTo('keys.html')"><span class="nav-icon">🔑</span>API Key 管理</button>
+    <button class="nav-item" data-page="dialogues.html" onclick="goTo('dialogues.html')"><span class="nav-icon">💬</span>对话审计</button>
+    <div class="sidebar-section-label">分析</div>
+    <button class="nav-item" data-page="usage.html" onclick="goTo('usage.html')"><span class="nav-icon">📈</span>用量统计</button>
+    <button class="nav-item" data-page="audit.html" onclick="goTo('audit.html')"><span class="nav-icon">🕐</span>调用审计</button>
+    <div class="sidebar-section-label">企业</div>
+    <button class="nav-item" data-page="members.html" onclick="goTo('members.html')"><span class="nav-icon">👥</span>成员管理</button>
+    <button class="nav-item" data-page="settings.html" onclick="goTo('settings.html')"><span class="nav-icon">⚙️</span>企业设置</button>
+  </div>
+  <div class="sidebar-footer">
+    <div class="admin-info">
+      <span class="avatar" id="ent-avatar">E</span>
+      <div>
+        <div id="ent-org-name" style="font-weight:var(--font-weight-semibold);color:#fff;font-size:var(--text-sm);">企业名称</div>
+        <div id="ent-user-name" style="font-size:var(--text-xs);color:rgba(255,255,255,0.5);">管理员</div>
+      </div>
+    </div>
+    <button class="logout-btn" onclick="entLogout()">🚪 退出登录</button>
+  </div>
+</aside>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<!-- ============ 顶栏 ============ -->
+<header class="admin-header">
+  <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+  <h1 class="header-title">调用审计</h1>
+  <div class="header-right">
+    <button class="btn btn-ghost btn-sm" onclick="goTo('../prototype-web/index.html')">🌐 用户端</button>
+  </div>
+</header>
+
+<!-- ============ 内容区 ============ -->
+<main class="admin-main">
+  <div class="admin-content">
+
+    <div class="page-header">
+      <div>
+        <h2 class="page-title" id="audit-title">调用审计日志</h2>
+        <p class="page-subtitle">按时间查看每个 API Key 的调用记录：调用了什么、用了多少 Token、结果如何</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn btn-outline" onclick="showToast('审计日志已导出为 CSV（演示）', 'success')">⬇ 导出日志</button>
+      </div>
+    </div>
+
+    <!-- 统计 -->
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-accent" style="background:var(--primary);"></div>
+        <span class="stat-icon">📡</span>
+        <div class="stat-value" id="stat-total">-</div>
+        <div class="stat-label">今日调用</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-accent" style="background:var(--success);"></div>
+        <span class="stat-icon">✅</span>
+        <div class="stat-value" id="stat-ok">-</div>
+        <div class="stat-label">成功</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-accent" style="background:var(--danger);"></div>
+        <span class="stat-icon">❌</span>
+        <div class="stat-value" id="stat-fail">-</div>
+        <div class="stat-label">失败</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-accent" style="background:var(--accent);"></div>
+        <span class="stat-icon">🔑</span>
+        <div class="stat-value" id="stat-active-keys">-</div>
+        <div class="stat-label">活跃 Key</div>
+      </div>
+    </div>
+
+    <!-- 筛选工具栏 -->
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <div class="search-input">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="audit-search" placeholder="搜索 Key 名称 / IP..." onkeydown="if(event.key==='Enter')applyFilter()">
+        </div>
+        <select class="filter-select" id="filter-key" onchange="applyFilter()">
+          <option value="全部">Key：全部</option>
+        </select>
+        <select class="filter-select" id="filter-model" onchange="applyFilter()">
+          <option value="全部">模型：全部</option>
+        </select>
+        <select class="filter-select" id="filter-status" onchange="applyFilter()">
+          <option value="全部">状态：全部</option>
+          <option value="成功">成功</option>
+          <option value="失败">失败</option>
+        </select>
+        <button class="btn btn-primary" onclick="applyFilter()">筛选</button>
+      </div>
+      <div class="toolbar-right">
+        <span style="font-size:var(--text-sm);color:var(--text-muted);" id="audit-count"></span>
+      </div>
+    </div>
+
+    <!-- 审计列表 -->
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>调用时间</th>
+            <th>API Key</th>
+            <th>模型</th>
+            <th>动作</th>
+            <th>方法</th>
+            <th style="text-align:right;">Token</th>
+            <th style="text-align:right;">费用</th>
+            <th>状态</th>
+            <th>IP</th>
+            <th>耗时</th>
+          </tr>
+        </thead>
+        <tbody id="audit-tbody"></tbody>
+      </table>
+      <div class="pagination" id="audit-pagination">
+        <span class="page-info" id="audit-page-info"></span>
+        <div class="page-btns">
+          <button class="page-btn" id="audit-prev-btn" onclick="goPage(currentPage - 1)">‹</button>
+          <span style="font-size:var(--text-sm);color:var(--text-sub);padding:0 8px;" id="audit-page-nums"></span>
+          <button class="page-btn" id="audit-next-btn" onclick="goPage(currentPage + 1)">›</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script src="assets/js/common.js"></script>
+<script>
+/* ================================================================== */
+/*  状态                                                              */
+/* ================================================================== */
+var PAGE_SIZE = 10;
+var currentPage = 1;
+var filteredAudit = [];
+
+function keyName(kid) {
+  var keys = getEntData('keys') || [];
+  var k = keys.find(function (x) { return x.id === kid; });
+  return k ? k.name : kid;
+}
+
+/* ================================================================== */
+/*  渲染                                                              */
+/* ================================================================== */
+function renderStats() {
+  var audit = getEntData('audit') || [];
+  var keys = getEntData('keys') || [];
+  var ok = audit.filter(function (a) { return a.status === '成功'; }).length;
+  var active = {};
+  audit.forEach(function (a) { active[a.keyId] = 1; });
+  document.getElementById('stat-total').textContent = formatNumber(audit.length);
+  document.getElementById('stat-ok').textContent = formatNumber(ok);
+  document.getElementById('stat-fail').textContent = formatNumber(audit.length - ok);
+  document.getElementById('stat-active-keys').textContent = formatNumber(Object.keys(active).length);
+}
+
+function applyFilter() {
+  var kw = document.getElementById('audit-search').value.trim().toLowerCase();
+  var fk = document.getElementById('filter-key').value;
+  var fm = document.getElementById('filter-model').value;
+  var fs = document.getElementById('filter-status').value;
+  filteredAudit = (getEntData('audit') || [])
+    .filter(function (a) {
+      var okKw = !kw || keyName(a.keyId).toLowerCase().indexOf(kw) > -1 || (a.ip || '').toLowerCase().indexOf(kw) > -1;
+      var okK = fk === '全部' || a.keyId === fk;
+      var okM = fm === '全部' || a.model === fm;
+      var okS = fs === '全部' || a.status === fs;
+      return okKw && okK && okM && okS;
+    })
+    .sort(function (a, b) { return b.time < a.time ? -1 : 1; });
+  currentPage = 1;
+  renderTable();
+}
+
+function renderTable() {
+  var tbody = document.getElementById('audit-tbody');
+  document.getElementById('audit-count').textContent = '共 ' + filteredAudit.length + ' 条记录';
+  if (!filteredAudit.length) {
+    tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state" style="padding:var(--space-12) var(--space-4);">'
+      + '<div class="empty-icon">🕐</div><div class="empty-title">没有匹配的调用记录</div>'
+      + '<div class="empty-text">请调整筛选条件后重试</div></div></td></tr>';
+    renderPagination(0);
+    return;
+  }
+  var totalPages = Math.max(1, Math.ceil(filteredAudit.length / PAGE_SIZE));
+  if (currentPage > totalPages) currentPage = totalPages;
+  var start = (currentPage - 1) * PAGE_SIZE;
+  var pageRows = filteredAudit.slice(start, start + PAGE_SIZE);
+
+  tbody.innerHTML = pageRows.map(function (a) {
+    var ok = a.status === '成功';
+    var stBadge = ok ? 'badge-green' : 'badge-red';
+    var keyLink = '<span class="key-detail-link" onclick="goTo(\'key-detail.html?id=' + a.keyId + '\')">' + keyName(a.keyId) + '</span>';
+    return '<tr>'
+      + '<td><span class="cell-mono">' + a.time + '</span></td>'
+      + '<td>' + keyLink + '</td>'
+      + '<td><span class="cell-mono">' + getModelName(a.model) + '</span></td>'
+      + '<td><span class="badge badge-gray">' + a.action + '</span></td>'
+      + '<td><span class="method-tag">' + a.method + '</span></td>'
+      + '<td style="text-align:right;">' + formatNumber(a.tokens) + '</td>'
+      + '<td style="text-align:right;">' + formatCurrency(a.cost) + '</td>'
+      + '<td><span class="badge ' + stBadge + '">' + a.status + '</span></td>'
+      + '<td><span class="latency-mono">' + a.ip + '</span></td>'
+      + '<td><span class="latency-mono">' + a.latency + '</span></td>'
+      + '</tr>';
+  }).join('');
+  renderPagination(totalPages);
+}
+
+function renderPagination(totalPages) {
+  document.getElementById('audit-page-info').textContent = '第 ' + currentPage + ' 页 共 ' + filteredAudit.length + ' 条';
+  document.getElementById('audit-page-nums').textContent = totalPages <= 1 ? '1 / 1' : currentPage + ' / ' + totalPages;
+  document.getElementById('audit-prev-btn').disabled = currentPage <= 1;
+  document.getElementById('audit-next-btn').disabled = currentPage >= totalPages;
+}
+
+function goPage(n) {
+  var totalPages = Math.max(1, Math.ceil(filteredAudit.length / PAGE_SIZE));
+  if (n < 1 || n > totalPages) return;
+  currentPage = n;
+  renderTable();
+}
+
+/* ================================================================== */
+/*  初始化                                                            */
+/* ================================================================== */
+document.addEventListener('DOMContentLoaded', function () {
+  requireEntLogin();
+  var user = getEntUser();
+  var org = getEntOrg();
+  if (org) document.getElementById('ent-org-name').textContent = org.name;
+  if (user) {
+    document.getElementById('ent-user-name').textContent = user.name + '（' + user.role + '）';
+    document.getElementById('ent-avatar').textContent = (org ? org.name.charAt(0) : 'E').toUpperCase();
+  }
+
+  // 填充 Key / 模型筛选下拉
+  var keySel = document.getElementById('filter-key');
+  (getEntData('keys') || []).forEach(function (k) {
+    keySel.innerHTML += '<option value="' + k.id + '">' + k.name + '</option>';
+  });
+  var modelSel = document.getElementById('filter-model');
+  ENT_MODELS.forEach(function (m) {
+    modelSel.innerHTML += '<option value="' + m.id + '">' + m.name + '</option>';
+  });
+
+  // 从 Key 详情跳转时按 key 预筛选
+  var presetKey = new URLSearchParams(location.search).get('key');
+  if (presetKey) {
+    keySel.value = presetKey;
+    document.getElementById('audit-title').textContent = keyName(presetKey) + ' · 调用审计';
+    history.replaceState(null, '', location.pathname);
+  }
+
+  renderStats();
+  applyFilter();
+});
+</script>
+</body>
+</html>

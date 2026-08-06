@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>对话审计 - PrismMesh 企业后台</title>
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/components.css">
+<link rel="stylesheet" href="assets/css/admin.css">
+<style>
+  /* 对话审计页局部样式 */
+  .risk-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: var(--radius-full); font-size: var(--text-xs); font-weight: var(--font-weight-semibold); }
+  .risk-safe { background: var(--success-50); color: var(--success); }
+  .risk-suspicious { background: var(--warning-50); color: var(--warning); }
+  .risk-violation { background: var(--danger-50); color: var(--danger); }
+
+  .flag-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+  .flag-dot.safe { background: var(--success); }
+  .flag-dot.suspicious { background: var(--warning); }
+  .flag-dot.violation { background: var(--danger); }
+
+  .dialogue-row { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); margin-bottom: var(--space-3); overflow: hidden; transition: all var(--transition-fast); }
+  .dialogue-row:hover { box-shadow: var(--shadow); }
+  .dialogue-row.flagged { border-color: var(--danger-100); background: var(--danger-50); }
+  .dialogue-header { display: flex; align-items: center; justify-content: space-between; padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border-light); background: var(--gray-50); gap: var(--space-3); flex-wrap: wrap; }
+  .dialogue-header .dh-left { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+  .dialogue-header .dh-right { display: flex; align-items: center; gap: var(--space-2); }
+  .dialogue-body { padding: var(--space-4); }
+  .dialogue-body .db-question { background: var(--gray-50); border-radius: var(--radius); padding: var(--space-3); font-size: var(--text-sm); color: var(--text); line-height: var(--leading-relaxed); white-space: pre-wrap; margin-bottom: var(--space-3); }
+  .dialogue-body .db-preview { background: var(--gray-900); color: var(--gray-200); border-radius: var(--radius); padding: var(--space-3); font-family: var(--font-mono); font-size: var(--text-xs); line-height: var(--leading-relaxed); white-space: pre-wrap; max-height: 120px; overflow-y: auto; }
+  .dialogue-meta { display: flex; gap: var(--space-4); flex-wrap: wrap; font-size: var(--text-xs); color: var(--text-muted); margin-top: var(--space-3); }
+
+  .tag-pair { display: inline-flex; align-items: center; gap: 4px; }
+  .tag-proj { padding: 2px 8px; border-radius: 6px; background: var(--primary-50); color: var(--primary-700); font-size: var(--text-xs); font-weight: var(--font-weight-semibold); }
+  .tag-feat { padding: 2px 8px; border-radius: 6px; background: var(--gray-100); color: var(--gray-600); font-size: var(--text-xs); }
+
+  .project-summary { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-4); }
+  .project-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border: 1.5px solid var(--border); border-radius: var(--radius-full); font-size: var(--text-sm); cursor: pointer; transition: all var(--transition-fast); background: var(--surface); }
+  .project-chip:hover { border-color: var(--primary-300); }
+  .project-chip.active { border-color: var(--primary); background: var(--primary-50); color: var(--primary); }
+  .project-chip .chip-count { background: var(--gray-100); padding: 1px 7px; border-radius: var(--radius-full); font-size: var(--text-xs); color: var(--text-sub); }
+  .project-chip.active .chip-count { background: var(--primary-100); color: var(--primary-700); }
+
+  .stats-anomaly { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-3); margin-bottom: var(--space-4); }
+  @media (min-width: 768px) { .stats-anomaly { grid-template-columns: repeat(5, 1fr); } }
+  .sa-card { padding: var(--space-4); border-radius: var(--radius-lg); border: 1px solid var(--border); background: var(--surface); text-align: center; cursor: pointer; transition: all var(--transition-fast); }
+  .sa-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+  .sa-card .sa-num { font-size: var(--text-3xl); font-weight: var(--font-weight-extrabold); }
+  .sa-card .sa-label { font-size: var(--text-xs); color: var(--text-muted); margin-top: 4px; }
+  .sa-card.safe .sa-num { color: var(--success); }
+  .sa-card.suspicious .sa-num { color: var(--warning); }
+  .sa-card.violation .sa-num { color: var(--danger); }
+  .sa-card.flagged { border-color: var(--danger-200); }
+  .sa-card.flagged .sa-num { color: var(--danger); }
+  .sa-card.active { border-color: var(--primary); box-shadow: var(--shadow-lg); }
+
+  .empty-risk { text-align: center; padding: var(--space-8) var(--space-4); }
+</style>
+</head>
+<body>
+
+<!-- ============ 侧边栏 ============ -->
+<aside class="admin-sidebar" id="ent-sidebar">
+  <div class="sidebar-brand">
+    <span class="logo-icon">E</span>
+    <span class="brand-name"><span class="highlight">Prism</span>Mesh</span>
+  </div>
+  <div class="sidebar-nav">
+    <div class="sidebar-section-label">总览</div>
+    <button class="nav-item" data-page="overview.html" onclick="goTo('overview.html')"><span class="nav-icon">📊</span>企业概览</button>
+    <div class="sidebar-section-label">管理</div>
+    <button class="nav-item" data-page="keys.html" onclick="goTo('keys.html')"><span class="nav-icon">🔑</span>API Key 管理</button>
+    <button class="nav-item" data-page="dialogues.html" onclick="goTo('dialogues.html')"><span class="nav-icon">💬</span>对话审计</button>
+    <div class="sidebar-section-label">分析</div>
+    <button class="nav-item" data-page="usage.html" onclick="goTo('usage.html')"><span class="nav-icon">📈</span>用量统计</button>
+    <button class="nav-item" data-page="audit.html" onclick="goTo('audit.html')"><span class="nav-icon">🕐</span>调用审计</button>
+    <div class="sidebar-section-label">企业</div>
+    <button class="nav-item" data-page="members.html" onclick="goTo('members.html')"><span class="nav-icon">👥</span>成员管理</button>
+    <button class="nav-item" data-page="settings.html" onclick="goTo('settings.html')"><span class="nav-icon">⚙️</span>企业设置</button>
+  </div>
+  <div class="sidebar-footer">
+    <div class="admin-info">
+      <span class="avatar" id="ent-avatar">E</span>
+      <div>
+        <div id="ent-org-name" style="font-weight:var(--font-weight-semibold);color:#fff;font-size:var(--text-sm);">企业名称</div>
+        <div id="ent-user-name" style="font-size:var(--text-xs);color:rgba(255,255,255,0.5);">管理员</div>
+      </div>
+    </div>
+    <button class="logout-btn" onclick="entLogout()">🚪 退出登录</button>
+  </div>
+</aside>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<!-- ============ 顶栏 ============ -->
+<header class="admin-header">
+  <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+  <h1 class="header-title">对话审计</h1>
+  <div class="header-right">
+    <button class="btn btn-ghost btn-sm" onclick="goTo('../prototype-web/index.html')">🌐 用户端</button>
+  </div>
+</header>
+
+<!-- ============ 内容区 ============ -->
+<main class="admin-main">
+  <div class="admin-content">
+
+    <div class="page-header">
+      <div>
+        <h2 class="page-title">对话内容审计</h2>
+        <p class="page-subtitle">AI 自动分类每条对话的<strong>所属项目</strong>与<strong>功能标签</strong>，标记异常使用。企业管理员可纠正标签、标记违规或吊销 Key。</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn btn-outline" onclick="showToast('审计报告已导出（演示）', 'success')">⬇ 导出报告</button>
+      </div>
+    </div>
+
+    <!-- 异常统计卡片 -->
+    <div class="stats-anomaly" id="stats-cards"></div>
+
+    <!-- 项目聚合 -->
+    <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+      <div style="font-size:var(--text-sm);font-weight:var(--font-weight-semibold);color:var(--text);margin-bottom:var(--space-3);">按识别的项目筛选</div>
+      <div class="project-summary" id="project-chips"></div>
+    </div>
+
+    <!-- 筛选工具栏 -->
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <div class="search-input">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="d-search" placeholder="搜索对话内容..." onkeydown="if(event.key==='Enter')applyDialogueFilter()">
+        </div>
+        <select class="form-select" id="d-key" onchange="applyDialogueFilter()" style="width:160px;padding:8px 32px 8px 12px;border:1.5px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:var(--text-sm);cursor:pointer;outline:none;">
+          <option value="全部">Key：全部</option>
+        </select>
+        <select class="form-select" id="d-risk" onchange="applyDialogueFilter()" style="width:120px;padding:8px 32px 8px 12px;border:1.5px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:var(--text-sm);cursor:pointer;outline:none;">
+          <option value="全部">风险：全部</option>
+          <option value="safe">安全</option>
+          <option value="suspicious">可疑</option>
+          <option value="violation">违规</option>
+          <option value="flagged">已告警</option>
+        </select>
+        <button class="btn btn-primary" onclick="applyDialogueFilter()">筛选</button>
+      </div>
+      <div class="toolbar-right">
+        <span style="font-size:var(--text-sm);color:var(--text-muted);" id="d-count"></span>
+      </div>
+    </div>
+
+    <!-- 对话列表 -->
+    <div id="dialogue-list"></div>
+
+  </div>
+</main>
+
+<!-- ============ 纠正标签弹窗 ============ -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal" style="max-width:480px;">
+    <h3 class="modal-title">纠正 AI 分类</h3>
+    <p class="modal-desc">修改此对话的项目与功能标签。纠正后的标签将替代 AI 分类结果。</p>
+    <div class="form-group">
+      <label class="form-label">项目标签</label>
+      <input class="form-input" id="edit-project" placeholder="如：电商App">
+    </div>
+    <div class="form-group">
+      <label class="form-label">功能标签</label>
+      <input class="form-input" id="edit-feature" placeholder="如：首页Banner设计">
+    </div>
+    <div class="form-group">
+      <label class="form-label">管理员备注（可选）</label>
+      <textarea class="form-input" id="edit-note" placeholder="添加备注说明..." rows="2"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeEditModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveEditModal()">保存标签</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 告警弹窗 ============ -->
+<div class="modal-overlay" id="warn-modal">
+  <div class="modal" style="max-width:480px;">
+    <h3 class="modal-title">标记违规告警</h3>
+    <p class="modal-desc">确认违规后，系统将记录告警并通知该 Key 的创建人。</p>
+    <div class="form-group">
+      <label class="form-label">告警原因</label>
+      <textarea class="form-input" id="warn-reason" placeholder="如：该Key声明用途为\"设计\"，但被用于个人加密货币项目" rows="3"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeWarnModal()">取消</button>
+      <button class="btn btn-danger" onclick="saveWarnModal()">标记违规</button>
+      <button class="btn btn-danger" onclick="revokeAndWarn()" style="background:var(--danger);">标记违规 + 吊销 Key</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/common.js"></script>
+<script>
+/* ================================================================== */
+/*  状态                                                              */
+/* ================================================================== */
+var currentEditDlg = null;
+var currentWarnDlg = null;
+var currentRiskFilter = '全部';
+var currentProjectFilter = null;
+
+function keyName(kid) {
+  var keys = getEntData('keys') || [];
+  var k = keys.find(function (x) { return x.id === kid; });
+  return k ? k.name : kid;
+}
+
+function getFilteredDialogues() {
+  var kw = (document.getElementById('d-search').value || '').trim().toLowerCase();
+  var kf = document.getElementById('d-key').value;
+  var rf = document.getElementById('d-risk').value;
+  return (getEntData('dialogues') || []).filter(function (d) {
+    var okKw = !kw || (d.userQuestion || '').toLowerCase().indexOf(kw) > -1 || (d.completionPreview || '').toLowerCase().indexOf(kw) > -1 || (d.auditProject || '').toLowerCase().indexOf(kw) > -1;
+    var okK = kf === '全部' || d.keyId === kf;
+    var okR = rf === '全部' || (rf === 'flagged' ? d.flagged : d.auditRisk === rf);
+    var okP = !currentProjectFilter || (d.adminProject || d.auditProject) === currentProjectFilter;
+    return okKw && okK && okR && okP;
+  }).sort(function (a, b) { return b.time < a.time ? -1 : 1; });
+}
+
+/* ================================================================== */
+/*  统计 + 项目芯片                                                    */
+/* ================================================================== */
+function renderStats() {
+  var as = auditStats();
+  var cards = document.getElementById('stats-cards');
+  var riskActive = currentRiskFilter !== '全部' && currentRiskFilter !== 'flagged';
+  var flaggedActive = currentRiskFilter === 'flagged';
+  cards.innerHTML = ''
+    + '<div class="sa-card' + (!riskActive ? ' active' : '') + '" onclick="currentRiskFilter=\'全部\';document.getElementById(\'d-risk\').value=\'全部\';updateStatCards();applyDialogueFilter();">'
+    +   '<div class="sa-num" style="color:var(--text);">' + as.total + '</div>'
+    +   '<div class="sa-label">全部对话</div>'
+    + '</div>'
+    + '<div class="sa-card safe' + (currentRiskFilter === 'safe' ? ' active' : '') + '" onclick="currentRiskFilter=\'safe\';document.getElementById(\'d-risk\').value=\'safe\';updateStatCards();applyDialogueFilter();">'
+    +   '<div class="sa-num">' + as.safe + '</div>'
+    +   '<div class="sa-label">✅ 正常使用</div>'
+    + '</div>'
+    + '<div class="sa-card suspicious' + (currentRiskFilter === 'suspicious' ? ' active' : '') + '" onclick="currentRiskFilter=\'suspicious\';document.getElementById(\'d-risk\').value=\'suspicious\';updateStatCards();applyDialogueFilter();">'
+    +   '<div class="sa-num">' + as.suspicious + '</div>'
+    +   '<div class="sa-label">⚠️ 可疑</div>'
+    + '</div>'
+    + '<div class="sa-card violation' + (currentRiskFilter === 'violation' ? ' active' : '') + '" onclick="currentRiskFilter=\'violation\';document.getElementById(\'d-risk\').value=\'violation\';updateStatCards();applyDialogueFilter();">'
+    +   '<div class="sa-num">' + as.violation + '</div>'
+    +   '<div class="sa-label">🚫 违规</div>'
+    + '</div>'
+    + '<div class="sa-card flagged' + (flaggedActive ? ' active' : '') + '" onclick="currentRiskFilter=\'flagged\';document.getElementById(\'d-risk\').value=\'flagged\';updateStatCards();applyDialogueFilter();">'
+    +   '<div class="sa-num">' + as.flagged + '</div>'
+    +   '<div class="sa-label" style="color:var(--danger);">🔔 已告警</div>'
+    + '</div>';
+}
+
+function updateStatCards() {
+  var as = auditStats();
+  var cards = document.querySelectorAll('.sa-card');
+  if (cards.length >= 5) {
+    cards[0].querySelector('.sa-num').textContent = as.total;
+    cards[1].querySelector('.sa-num').textContent = as.safe;
+    cards[2].querySelector('.sa-num').textContent = as.suspicious;
+    cards[3].querySelector('.sa-num').textContent = as.violation;
+    cards[4].querySelector('.sa-num').textContent = as.flagged;
+    cards.forEach(function (c) { c.classList.remove('active'); });
+    if (currentRiskFilter === '全部') cards[0].classList.add('active');
+    else if (currentRiskFilter === 'safe') cards[1].classList.add('active');
+    else if (currentRiskFilter === 'suspicious') cards[2].classList.add('active');
+    else if (currentRiskFilter === 'violation') cards[3].classList.add('active');
+    else if (currentRiskFilter === 'flagged') cards[4].classList.add('active');
+  }
+}
+
+function renderProjects() {
+  var as = auditStats();
+  var box = document.getElementById('project-chips');
+  var allActive = !currentProjectFilter;
+  box.innerHTML = '<span class="project-chip' + (allActive ? ' active' : '') + '" onclick="currentProjectFilter=null;applyDialogueFilter();">全部<span class="chip-count">' + as.total + '</span></span>'
+    + as.projects.map(function (p) {
+      var active = currentProjectFilter === p.name;
+      return '<span class="project-chip' + (active ? ' active' : '') + '" onclick="currentProjectFilter=\'' + p.name + '\';applyDialogueFilter();">' + p.name + '<span class="chip-count">' + p.calls + '</span></span>';
+    }).join('');
+}
+
+/* ================================================================== */
+/*  渲染对话列表                                                      */
+/* ================================================================== */
+function applyDialogueFilter() {
+  var rows = getFilteredDialogues();
+  var box = document.getElementById('dialogue-list');
+  document.getElementById('d-count').textContent = '共 ' + rows.length + ' 条对话';
+  renderProjects();
+  if (!rows.length) {
+    box.innerHTML = '<div class="empty-state" style="padding:var(--space-12) var(--space-4);">'
+      + '<div class="empty-icon">💬</div><div class="empty-title">没有匹配的对话记录</div>'
+      + '<div class="empty-text">请调整筛选条件后重试</div></div>';
+    return;
+  }
+  box.innerHTML = rows.map(function (d) {
+    var riskLabel = { safe: '安全', suspicious: '可疑', violation: '违规' };
+    var riskCls = 'risk-' + d.auditRisk;
+    var project = d.adminProject || d.auditProject;
+    var feature = d.adminFeature || d.auditFeature;
+    var corrected = !!(d.adminProject || d.adminFeature);
+    var correctedMark = corrected ? '<span class="badge badge-blue" style="margin-left:4px;" title="管理员已纠正">已纠正</span>' : '';
+    var flaggedMark = d.flagged ? '<span class="badge badge-red" style="margin-left:4px;">已告警</span>' : '';
+    var violationHtml = d.violationNote ? '<div style="margin-top:var(--space-2);color:var(--danger);font-size:var(--text-xs);">告警原因：' + d.violationNote + '</div>' : '';
+    return '<div class="dialogue-row' + (d.flagged ? ' flagged' : '') + '">'
+      // header
+      + '<div class="dialogue-header">'
+      +   '<div class="dh-left">'
+      +     '<span class="cell-mono" style="font-size:var(--text-xs);">' + d.time + '</span>'
+      +     '<span class="key-detail-link" onclick="goTo(\'key-detail.html?id=' + d.keyId + '\')">' + keyName(d.keyId) + '</span>'
+      +     '<span class="badge badge-gray">' + getModelName(d.model) + '</span>'
+      +     '<span class="risk-badge ' + riskCls + '"><span class="flag-dot ' + d.auditRisk + '"></span>' + riskLabel[d.auditRisk] + '</span>'
+      +     correctedMark + flaggedMark
+      +   '</div>'
+      +   '<div class="dh-right">'
+      +     '<div class="tag-pair"><span class="tag-proj">' + project + '</span><span>→</span><span class="tag-feat">' + feature + '</span></div>'
+      +   '</div>'
+      + '</div>'
+      // body
+      + '<div class="dialogue-body">'
+      +   '<div class="db-question"><strong>用户提问：</strong>' + d.userQuestion + '</div>'
+      +   '<div class="db-preview"><strong>模型回复：</strong>' + (d.completionPreview || '（无输出）') + '</div>'
+      +   '<div class="dialogue-meta">'
+      +     '<span>Token：' + formatTokens(d.tokens) + '</span>'
+      +     '<span>费用：' + formatCurrency(d.cost) + '</span>'
+      +   '</div>'
+      +   violationHtml
+      + '</div>'
+      // actions
+      + '<div style="display:flex;gap:var(--space-2);padding:var(--space-3) var(--space-4);border-top:1px solid var(--border-light);background:var(--gray-50);flex-wrap:wrap;">'
+      +   '<button class="btn btn-ghost btn-sm" onclick="openEditModal(\'' + d.id + '\')">✏️ 纠正标签</button>'
+      +   (d.flagged
+        ? '<button class="btn btn-ghost btn-sm" style="color:var(--success);" onclick="unflagDialogue(\'' + d.id + '\')">✅ 取消告警</button>'
+        : '<button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="openWarnModal(\'' + d.id + '\')">🚩 标记违规</button>')
+      +   '<button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="revokeKeyFromDialogue(\'' + d.keyId + '\',\'' + d.id + '\')">🔑 吊销此 Key</button>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+/* ================================================================== */
+/*  纠正标签                                                          */
+/* ================================================================== */
+function openEditModal(dlgId) {
+  var d = findDialogue(dlgId);
+  if (!d) return;
+  currentEditDlg = d;
+  document.getElementById('edit-project').value = d.adminProject || d.auditProject || '';
+  document.getElementById('edit-feature').value = d.adminFeature || d.auditFeature || '';
+  document.getElementById('edit-note').value = d.violationNote || '';
+  document.getElementById('edit-modal').classList.add('show');
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal').classList.remove('show');
+  currentEditDlg = null;
+}
+
+function saveEditModal() {
+  if (!currentEditDlg) return;
+  var dialogues = getEntData('dialogues') || [];
+  var d = dialogues.find(function (x) { return x.id === currentEditDlg.id; });
+  if (!d) return;
+  d.adminProject = document.getElementById('edit-project').value.trim() || null;
+  d.adminFeature = document.getElementById('edit-feature').value.trim() || null;
+  d.adminVerified = true;
+  d.violationNote = document.getElementById('edit-note').value.trim() || null;
+  saveEntData('dialogues', dialogues);
+  closeEditModal();
+  applyDialogueFilter();
+  showToast('标签已纠正', 'success');
+}
+
+/* ================================================================== */
+/*  告警                                                              */
+/* ================================================================== */
+function openWarnModal(dlgId) {
+  var d = findDialogue(dlgId);
+  if (!d) return;
+  currentWarnDlg = d;
+  document.getElementById('warn-reason').value = '该Key声明用途与"'
+    + (d.adminProject || d.auditProject) + ' - ' + (d.adminFeature || d.auditFeature)
+    + '"偏差较大，疑似用于个人或非授权项目';
+  document.getElementById('warn-modal').classList.add('show');
+}
+
+function closeWarnModal() {
+  document.getElementById('warn-modal').classList.remove('show');
+  currentWarnDlg = null;
+}
+
+function saveWarnModal() {
+  if (!currentWarnDlg) return;
+  var dialogues = getEntData('dialogues') || [];
+  var d = dialogues.find(function (x) { return x.id === currentWarnDlg.id; });
+  if (!d) return;
+  d.flagged = true;
+  d.violationNote = document.getElementById('warn-reason').value.trim() || null;
+  saveEntData('dialogues', dialogues);
+  closeWarnModal();
+  applyDialogueFilter();
+  showToast('已标记违规告警，将通知 Key 创建人', 'warning');
+}
+
+async function unflagDialogue(dlgId) {
+  var d = findDialogue(dlgId);
+  if (!d) return;
+  var ok = await showConfirm('取消告警', '确定要取消「' + (d.adminProject || d.auditProject) + '」的告警标记吗？');
+  if (!ok) return;
+  var dialogues = getEntData('dialogues') || [];
+  var dx = dialogues.find(function (x) { return x.id === dlgId; });
+  if (dx) { dx.flagged = false; dx.violationNote = null; }
+  saveEntData('dialogues', dialogues);
+  applyDialogueFilter();
+  showToast('告警已取消', 'success');
+}
+
+async function revokeAndWarn() {
+  if (!currentWarnDlg) return;
+  var d = currentWarnDlg;
+  var dialogues = getEntData('dialogues') || [];
+  var dx = dialogues.find(function (x) { return x.id === d.id; });
+  if (dx) {
+    dx.flagged = true;
+    dx.violationNote = document.getElementById('warn-reason').value.trim() || null;
+  }
+  saveEntData('dialogues', dialogues);
+  // 吊销 Key
+  await revokeKeyAction(d.keyId);
+  closeWarnModal();
+  applyDialogueFilter();
+  showToast('已标记违规并吊销 Key', 'warning');
+}
+
+async function revokeKeyFromDialogue(keyId, dlgId) {
+  var ok = await showConfirm('吊销 API Key', '确定要吊销该对话所属的 Key「' + keyName(keyId) + '」吗？吊销后该 Key 将立即失效。');
+  if (!ok) return;
+  await revokeKeyAction(keyId);
+  applyDialogueFilter();
+}
+
+async function revokeKeyAction(keyId) {
+  var keys = getEntData('keys') || [];
+  var k = keys.find(function (x) { return x.id === keyId; });
+  if (k) k.status = '已吊销';
+  saveEntData('keys', keys);
+}
+
+function findDialogue(id) {
+  return (getEntData('dialogues') || []).find(function (d) { return d.id === id; }) || null;
+}
+
+/* ================================================================== */
+/*  初始化                                                            */
+/* ================================================================== */
+document.addEventListener('DOMContentLoaded', function () {
+  requireEntLogin();
+  var user = getEntUser();
+  var org = getEntOrg();
+  if (org) document.getElementById('ent-org-name').textContent = org.name;
+  if (user) {
+    document.getElementById('ent-user-name').textContent = user.name + '（' + user.role + '）';
+    document.getElementById('ent-avatar').textContent = (org ? org.name.charAt(0) : 'E').toUpperCase();
+  }
+  // 填充 Key 筛选下拉
+  var keySel = document.getElementById('d-key');
+  (getEntData('keys') || []).forEach(function (k) {
+    keySel.innerHTML += '<option value="' + k.id + '">' + k.name + '</option>';
+  });
+  // 从概览页 / Key 详情跳转时按 key 预筛选
+  var presetKey = new URLSearchParams(location.search).get('key');
+  if (presetKey) {
+    document.getElementById('d-key').value = presetKey;
+    history.replaceState(null, '', location.pathname);
+  }
+  renderStats();
+  renderProjects();
+  applyDialogueFilter();
+});
+</script>
+</body>
+</html>

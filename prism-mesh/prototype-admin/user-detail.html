@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>企业账号详情 - PrismMesh 管理后台</title>
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/components.css">
+<link rel="stylesheet" href="assets/css/admin.css">
+<style>
+  /* ============ 页面局部样式 ============ */
+  .back-btn { color: var(--text-sub); }
+  .back-btn:hover { color: var(--primary); }
+  .header-title { margin-left: var(--space-2); }
+
+  /* 企业信息头 */
+  .enterprise-head { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; margin-bottom: var(--space-5); }
+  .enterprise-avatar {
+    width: 56px; height: 56px; border-radius: var(--radius-lg); flex-shrink: 0;
+    background: linear-gradient(135deg, var(--primary-600), var(--primary-400));
+    color: #fff; display: flex; align-items: center; justify-content: center;
+    font-size: var(--text-2xl); font-weight: var(--font-weight-bold);
+  }
+  .enterprise-avatar.banned { background: linear-gradient(135deg, var(--gray-500), var(--gray-400)); }
+  .ent-name-row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+  .ent-name-row h3 { font-size: var(--text-xl); font-weight: var(--font-weight-bold); color: var(--text); }
+  .ent-sub { display: flex; align-items: center; gap: var(--space-2); color: var(--text-sub); font-size: var(--text-sm); margin-top: var(--space-1); flex-wrap: wrap; }
+  .ent-sub .dot { color: var(--text-muted); }
+  .ent-since { font-size: var(--text-xs); color: var(--text-muted); margin-top: var(--space-1); }
+
+  /* 企业信息明细网格 */
+  .detail-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-3); }
+  .detail-item { background: var(--gray-50); border: 1px solid var(--border-light); border-radius: var(--radius); padding: var(--space-3) var(--space-4); }
+  .detail-item .di-label { font-size: var(--text-xs); color: var(--text-muted); margin-bottom: 2px; }
+  .detail-item .di-value { font-size: var(--text-base); font-weight: var(--font-weight-semibold); color: var(--text); word-break: break-all; }
+  .detail-item .di-value.money { color: var(--primary); }
+  .mono { font-family: var(--font-mono); }
+
+  /* Key 卡片 */
+  .key-card {
+    display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap;
+    padding: var(--space-4); margin-bottom: var(--space-3);
+    border: 1px solid var(--border); border-radius: var(--radius-lg);
+    background: var(--surface); cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+  .key-card:hover { border-color: var(--primary-300); box-shadow: var(--shadow-md); }
+  .key-card.selected { border-color: var(--primary-500); box-shadow: 0 0 0 3px var(--primary-100); }
+  .key-main { flex: 1; min-width: 220px; }
+  .key-name { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; font-size: var(--text-md); font-weight: var(--font-weight-semibold); color: var(--text); }
+  .key-prefix { display: inline-block; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-sub); background: var(--gray-100); padding: 2px 8px; border-radius: var(--radius-sm); margin-top: var(--space-2); }
+  .key-meta { font-size: var(--text-xs); color: var(--text-muted); margin-top: var(--space-1); }
+  .key-stats { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+  .key-stat { text-align: center; padding: var(--space-2) var(--space-3); background: var(--gray-50); border: 1px solid var(--border-light); border-radius: var(--radius); min-width: 100px; }
+  .key-stat .ks-value { font-size: var(--text-md); font-weight: var(--font-weight-bold); color: var(--text); font-family: var(--font-mono); }
+  .key-stat .ks-label { font-size: var(--text-xs); color: var(--text-muted); margin-top: 2px; }
+  .key-actions { display: flex; gap: var(--space-1); flex-wrap: wrap; justify-content: flex-end; }
+
+  /* 统计 chips */
+  .chip-row { display: flex; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-5); }
+  .stat-chip { display: inline-flex; align-items: center; gap: var(--space-2); padding: 6px 14px; border-radius: var(--radius-full); background: var(--primary-50); color: var(--primary); font-size: var(--text-sm); font-weight: var(--font-weight-medium); }
+  .stat-chip.green { background: var(--success-50); color: var(--success); }
+  .stat-chip.gray { background: var(--gray-100); color: var(--gray-600); }
+
+  /* 完整 Key 展示框 */
+  .full-key-box {
+    font-family: var(--font-mono); font-size: var(--text-sm);
+    background: var(--gray-900); color: #7DD3FC;
+    padding: var(--space-3) var(--space-4); border-radius: var(--radius);
+    word-break: break-all; user-select: all; line-height: var(--leading-relaxed);
+  }
+  .copy-hint { font-size: var(--text-xs); color: var(--warning); margin-top: var(--space-2); }
+
+  .toolbar .form-select { width: 130px; padding: 8px 32px 8px 12px; border: 1.5px solid var(--border); border-radius: var(--radius); background-color: var(--surface); color: var(--text); font-size: var(--text-sm); cursor: pointer; outline: none; }
+  .toolbar .form-select:focus { border-color: var(--primary-500); box-shadow: 0 0 0 3px var(--primary-100); }
+
+  @media (max-width: 768px) {
+    .key-actions { justify-content: flex-start; }
+    .header-title { font-size: var(--text-md); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ 侧边栏 ============ -->
+<aside class="admin-sidebar" id="admin-sidebar">
+  <div class="sidebar-brand">
+    <span class="logo-icon">P</span>
+    <span class="brand-name"><span class="highlight">Prism</span>Mesh</span>
+  </div>
+  <div class="sidebar-nav">
+    <div class="sidebar-section-label">管理</div>
+    <button class="nav-item" data-page="overview.html" onclick="goTo('overview.html')"><span class="nav-icon">📊</span>平台概览</button>
+    <button class="nav-item active" data-page="users.html" onclick="goTo('users.html')"><span class="nav-icon">👥</span>用户管理</button>
+    <button class="nav-item" data-page="models.html" onclick="goTo('models.html')"><span class="nav-icon">🧠</span>模型管理</button>
+    <button class="nav-item" data-page="keys.html" onclick="goTo('keys.html')"><span class="nav-icon">🔑</span>API Key 监管</button>
+    <div class="sidebar-section-label">运营</div>
+    <button class="nav-item" data-page="orders.html" onclick="goTo('orders.html')"><span class="nav-icon">💰</span>订单/充值</button>
+    <button class="nav-item" data-page="reports.html" onclick="goTo('reports.html')"><span class="nav-icon">📈</span>用量报表</button>
+    <button class="nav-item" data-page="tickets.html" onclick="goTo('tickets.html')"><span class="nav-icon">🎫</span>工单管理</button>
+    <button class="nav-item" data-page="announcements.html" onclick="goTo('announcements.html')"><span class="nav-icon">📢</span>公告管理</button>
+    <div class="sidebar-section-label">系统</div>
+    <button class="nav-item" data-page="roles.html" onclick="goTo('roles.html')"><span class="nav-icon">🛡️</span>角色权限</button>
+    <button class="nav-item" data-page="logs.html" onclick="goTo('logs.html')"><span class="nav-icon">📋</span>操作日志</button>
+    <button class="nav-item" data-page="settings.html" onclick="goTo('settings.html')"><span class="nav-icon">⚙️</span>系统设置</button>
+  </div>
+  <div class="sidebar-footer">
+    <div class="admin-info">
+      <span class="avatar" style="width:28px;height:28px;font-size:var(--text-xs);" id="admin-avatar">A</span>
+      <span id="admin-name">管理员</span>
+    </div>
+    <button class="logout-btn" onclick="adminLogout()">🚪 退出登录</button>
+  </div>
+</aside>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<!-- ============ 顶栏 ============ -->
+<header class="admin-header">
+  <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+  <button class="btn btn-ghost btn-sm back-btn" onclick="goTo('users.html')">← 返回用户管理</button>
+  <h1 class="header-title" id="header-title">账号详情</h1>
+  <div class="header-right">
+    <button class="btn btn-ghost btn-sm" onclick="goTo('../prototype-web/index.html')">🌐 用户端</button>
+  </div>
+</header>
+
+<!-- ============ 内容区 ============ -->
+<main class="admin-main">
+  <div class="admin-content">
+
+    <div class="page-header">
+      <div>
+        <h2 class="page-title" id="page-title">企业账号详情</h2>
+        <p class="page-subtitle" id="page-subtitle">企业账号概览与 API Key 管理</p>
+      </div>
+      <div class="page-actions" id="page-actions">
+        <button class="btn btn-primary" onclick="openAllocModal()">＋ 分配 Key</button>
+      </div>
+    </div>
+
+    <!-- ============ 企业信息卡 ============ -->
+    <div class="card" id="enterprise-card">
+      <div class="enterprise-head">
+        <div class="enterprise-avatar" id="ent-avatar">企</div>
+        <div>
+          <div class="ent-name-row">
+            <h3 id="ent-company">企业名称</h3>
+            <span id="ent-status"></span>
+          </div>
+          <div class="ent-sub">
+            <span id="ent-contact">联系人</span>
+            <span class="dot">·</span>
+            <span class="mono" id="ent-email">email</span>
+          </div>
+          <div class="ent-since" id="ent-since">加入于 --</div>
+        </div>
+      </div>
+      <div class="detail-grid" id="ent-grid"></div>
+    </div>
+
+    <!-- ============ 新建企业账号表单（?user=new 模式） ============ -->
+    <div class="card" id="new-enterprise-card" style="display:none;max-width:680px;margin:0 auto;">
+      <div class="card-header">
+        <h3 class="card-title">新建企业账号</h3>
+      </div>
+      <p style="font-size:var(--text-sm);color:var(--text-sub);margin-bottom:var(--space-5);">
+        填写以下信息创建企业账号。创建成功后，可进入该企业的详情页为其分配 API Key 并查看用量。
+      </p>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">企业名称 <span style="color:var(--danger);">*</span></label>
+          <input type="text" class="form-input" id="ne-name" placeholder="例如：星云科技">
+        </div>
+        <div class="form-group">
+          <label class="form-label">联系人 <span style="color:var(--danger);">*</span></label>
+          <input type="text" class="form-input" id="ne-contact" placeholder="例如：陈志远">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">企业邮箱 <span style="color:var(--danger);">*</span></label>
+          <input type="email" class="form-input" id="ne-email" placeholder="contact@company.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">联系电话</label>
+          <input type="text" class="form-input" id="ne-phone" placeholder="例如：186****9041">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">初始密码 <span style="color:var(--danger);">*</span></label>
+          <input type="password" class="form-input" id="ne-pwd" placeholder="至少 6 位">
+        </div>
+        <div class="form-group">
+          <label class="form-label">账号状态</label>
+          <div style="display:flex;align-items:center;gap:var(--space-2);padding-top:8px;">
+            <label class="switch"><input type="checkbox" id="ne-enabled" checked><span class="slider"></span></label>
+            <span style="font-size:var(--text-sm);color:var(--text-sub);">启用（可登录并调用 API）</span>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">备注</label>
+        <textarea class="form-input" id="ne-remark" placeholder="选填，备注企业用途、对接人等信息"></textarea>
+      </div>
+      <button class="btn btn-primary btn-block btn-lg" onclick="createEnterprise()">创建企业账号</button>
+    </div>
+
+    <!-- ============ API Key 列表 ============ -->
+    <div class="card" id="keys-card">
+      <div class="card-header">
+        <h3 class="card-title" id="key-count">API Keys（0）</h3>
+        <button class="btn btn-primary btn-sm" onclick="openAllocModal()">＋ 分配 Key</button>
+      </div>
+      <div id="keys-list"></div>
+    </div>
+
+    <!-- ============ 模型调用明细 ============ -->
+    <div class="card" id="model-detail-card">
+      <div class="card-header">
+        <h3 class="card-title" id="md-title">模型调用明细</h3>
+        <span style="font-size:var(--text-xs);color:var(--text-muted);">点击上方 Key 卡片可切换查看</span>
+      </div>
+      <div class="chip-row" id="md-chips">
+        <span class="stat-chip">📞 该 Key 总调用 <strong id="md-chip-calls">0 次</strong></span>
+        <span class="stat-chip green">🧾 总 Token <strong id="md-chip-tokens">0</strong></span>
+        <span class="stat-chip gray">🧠 调用模型 <strong id="md-chip-models">0 个</strong></span>
+      </div>
+      <div class="table-wrap" style="margin-bottom:0;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>模型名称</th>
+              <th>分类</th>
+              <th>调用次数</th>
+              <th>Token 消耗</th>
+              <th>平均每调用 Token</th>
+              <th>占比</th>
+              <th style="text-align:right;">消费金额</th>
+            </tr>
+          </thead>
+          <tbody id="md-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- ============ 分配 Key 弹窗 ============ -->
+<div class="modal-overlay" id="alloc-key-overlay">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-title">分配 API Key</div>
+    <div class="modal-desc" id="alloc-modal-desc">为「企业」创建新的 API Key，创建后完整 Key 仅展示一次。</div>
+    <div class="form-group">
+      <label class="form-label">Key 名称 <span style="color:var(--danger);">*</span></label>
+      <input type="text" class="form-input" id="new-key-name" placeholder="例如：生产环境 / 数据分析">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">权限</label>
+        <select class="form-input form-select" id="new-key-perm">
+          <option value="读写">读写</option>
+          <option value="只读">只读</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">是否启用</label>
+        <div style="display:flex;align-items:center;gap:var(--space-2);padding-top:8px;">
+          <label class="switch">
+            <input type="checkbox" id="new-key-enabled" checked onchange="document.getElementById('new-key-enabled-text').textContent = this.checked ? '启用' : '禁用';">
+            <span class="slider"></span>
+          </label>
+          <span style="font-size:var(--text-sm);color:var(--text-sub);" id="new-key-enabled-text">启用</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeAllocModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveNewKey()">保存并生成</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 新 Key 创建成功弹窗 ============ -->
+<div class="modal-overlay" id="new-key-overlay">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-title">✅ Key 创建成功</div>
+    <div class="modal-desc">
+      新 Key「<strong id="new-key-result-name"></strong>」已分配给「<strong id="new-key-result-company"></strong>」。
+      完整 Key 仅此一次展示，请立即复制并妥善保存。
+    </div>
+    <div class="full-key-box" id="new-key-result-value">sk-pc-...</div>
+    <p class="copy-hint">⚠️ 关闭后将无法再次查看完整 Key，如遗失只能删除后重新生成。</p>
+    <div class="modal-actions" style="margin-top:var(--space-5);">
+      <button class="btn btn-outline" onclick="closeNewKeyModal()">稍后处理</button>
+      <button class="btn btn-primary" onclick="copyNewKey()">📋 复制 Key</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/common.js"></script>
+<script>
+/* ================================================================== */
+/*  示例数据：用户资料（企业账号 + 普通用户）                          */
+/*  isEnterprise: true=企业账号 / false=普通用户                       */
+/* ================================================================== */
+var USER_PROFILES = {
+  u_1001: { name: '林晓宇', email: 'linxiaoyu@prismmesh.ai', phone: '138****2865', role: '专业', status: '正常', reg: '2025-09-14', active: '2026-08-04 09:32', spend: 3286.50, isEnterprise: false },
+  u_1002: { company: '星云科技', name: '陈志远', email: 'chenzhiyuan@prismmesh.ai', phone: '186****9041', role: '企业', status: '正常', reg: '2025-10-03', active: '2026-08-04 08:15', spend: 18942.00, isEnterprise: true },
+  u_1003: { name: '王思涵', email: 'wangsihan@prismmesh.ai', phone: '159****4417', role: '免费', status: '正常', reg: '2025-11-21', active: '2026-08-03 22:40', spend: 58.00, isEnterprise: false },
+  u_1004: { name: '张明轩', email: 'zhangmingxuan@prismmesh.ai', phone: '135****7732', role: '免费', status: '已封禁', reg: '2025-12-05', active: '2026-06-18 14:02', spend: 120.00, isEnterprise: false },
+  u_1005: { name: '李若曦', email: 'liruoxi@prismmesh.ai', phone: '177****6189', role: '专业', status: '正常', reg: '2026-01-08', active: '2026-08-04 07:58', spend: 1854.20, isEnterprise: false },
+  u_1006: { name: '刘昊然', email: 'liuhaoran@prismmesh.ai', phone: '150****3526', role: '免费', status: '正常', reg: '2026-02-19', active: '2026-08-03 19:33', spend: 0, isEnterprise: false },
+  u_1007: { name: '赵雨桐', email: 'zhaoyutong@prismmesh.ai', phone: '188****8354', role: '专业', status: '已封禁', reg: '2025-12-28', active: '2026-05-30 11:26', spend: 2100.00, isEnterprise: false },
+  u_1008: { company: '青云互动', name: '孙嘉怡', email: 'sunjiayi@prismmesh.ai', phone: '166****2097', role: '企业', status: '正常', reg: '2026-03-11', active: '2026-08-04 08:47', spend: 9876.00, isEnterprise: true },
+  u_1009: { name: '周子墨', email: 'zhouzimo@prismmesh.ai', phone: '158****6621', role: '免费', status: '正常', reg: '2026-03-25', active: '2026-08-03 21:05', spend: 15.00, isEnterprise: false },
+  u_1010: { company: '灵犀智能', name: '吴雨桐', email: 'wuyutong@prismmesh.ai', phone: '137****4180', role: '企业', status: '正常', reg: '2026-04-02', active: '2026-08-04 06:50', spend: 6520.00, isEnterprise: true },
+  u_1011: { company: '磐石数据', name: '郑浩然', email: 'zhenghaoran@prismmesh.ai', phone: '180****7395', role: '企业', status: '已封禁', reg: '2026-04-18', active: '2026-07-20 10:12', spend: 12400.00, isEnterprise: true }
+};
+
+/* ================================================================== */
+/*  示例数据：企业 Key（tokens=Token 消耗, calls=调用次数）           */
+/* ================================================================== */
+var DEFAULT_KEYS = {
+  'u_1002': [
+    { id: 'u_1002_k1', name: '生产环境', fullKey: 'sk-pc-7c2e4f1a9d3b8c5e6f0a2b4d1c3e5f7a', perm: '读写', status: '启用', created: '2025-10-05', last: '2026-08-04 08:15', tokens: 1250000000, calls: 1280000 },
+    { id: 'u_1002_k2', name: '开发环境', fullKey: 'sk-pc-4f2a9c1d7e3b8a5f6c0d2e4a9b1c3d5e', perm: '读写', status: '启用', created: '2025-11-12', last: '2026-08-04 07:58', tokens: 520000000, calls: 486000 },
+    { id: 'u_1002_k3', name: '测试环境', fullKey: 'sk-pc-9b3c5d7e1f2a4b6c8d0e2f4a6c8e0f2a', perm: '读写', status: '启用', created: '2026-01-20', last: '2026-08-03 18:22', tokens: 180000000, calls: 260000 },
+    { id: 'u_1002_k4', name: '数据分析', fullKey: 'sk-pc-2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d', perm: '只读', status: '启用', created: '2026-03-08', last: '2026-08-04 06:40', tokens: 340000000, calls: 92000 },
+    { id: 'u_1002_k5', name: '移动端', fullKey: 'sk-pc-5e7f9a1b3c5d7e9f0a2b4c6d8e0f2a4b', perm: '读写', status: '启用', created: '2026-04-15', last: '2026-08-04 08:02', tokens: 96000000, calls: 168000 },
+    { id: 'u_1002_k6', name: '临时', fullKey: 'sk-pc-8a0b2c4d6e8f0a2b4c6d8e0f2a4b6c8d', perm: '只读', status: '禁用', created: '2026-05-01', last: '2026-07-15 11:30', tokens: 8500000, calls: 12000 }
+  ],
+  'u_1008': [
+    { id: 'u_1008_k1', name: '生产环境', fullKey: 'sk-pc-3c5d7e9f1a2b4c6d8e0f2a4b6c8d0e2f', perm: '读写', status: '启用', created: '2026-03-15', last: '2026-08-04 08:47', tokens: 640000000, calls: 720000 },
+    { id: 'u_1008_k2', name: '开发环境', fullKey: 'sk-pc-6e8f0a2b4c6d8e0f2a4b6c8d0e2f4a6b', perm: '读写', status: '启用', created: '2026-04-22', last: '2026-08-04 08:10', tokens: 210000000, calls: 430000 },
+    { id: 'u_1008_k3', name: '数据报表', fullKey: 'sk-pc-9f1a3b5c7d9e0f2a4b6c8d0e2f4a6b8c', perm: '只读', status: '启用', created: '2026-06-05', last: '2026-08-03 20:15', tokens: 85000000, calls: 139000 }
+  ],
+  'u_1010': [
+    { id: 'u_1010_k1', name: '主 Key', fullKey: 'sk-pc-1a3b5c7d9e0f2a4b6c8d0e2f4a6b8c0d', perm: '读写', status: '启用', created: '2026-04-08', last: '2026-08-04 06:50', tokens: 320000000, calls: 512000 },
+    { id: 'u_1010_k2', name: '内部工具', fullKey: 'sk-pc-4c6d8e0f2a4b6c8d0e2f4a6b8c0d2e4f', perm: '只读', status: '启用', created: '2026-05-18', last: '2026-08-02 17:40', tokens: 128000000, calls: 233000 }
+  ],
+  'u_1011': [
+    { id: 'u_1011_k1', name: '生产环境', fullKey: 'sk-pc-7a9b1c3d5e7f9a0b2c4d6e8f0a2b4c6d', perm: '读写', status: '禁用', created: '2026-04-20', last: '2026-07-18 09:30', tokens: 890000000, calls: 960000 },
+    { id: 'u_1011_k2', name: '分析平台', fullKey: 'sk-pc-2c4d6e8f0a2b4c6d8e0f2a4b6c8d0e2f', perm: '只读', status: '禁用', created: '2026-05-09', last: '2026-07-16 14:25', tokens: 260000000, calls: 310000 },
+    { id: 'u_1011_k3', name: '迁移备份', fullKey: 'sk-pc-5d7e9f1a3b5c7d9e0f2a4b6c8d0e2f4a', perm: '只读', status: '启用', created: '2026-06-14', last: '2026-07-20 10:12', tokens: 120000000, calls: 190000 },
+    { id: 'u_1011_k4', name: '临时测试', fullKey: 'sk-pc-8f0a2b4c6d8e0f2a4b6c8d0e2f4a6b8c', perm: '读写', status: '启用', created: '2026-06-28', last: '2026-07-12 16:08', tokens: 42000000, calls: 100000 }
+  ],
+  /* ---- 普通用户 Key（普通用户也可申请多个 Key） ---- */
+  'u_1001': [
+    { id: 'u_1001_k1', name: '个人项目', fullKey: 'sk-pc-1f3a5b7c9d0e2f4a6b8c0d2e4f6a8b0c', perm: '读写', status: '启用', created: '2025-09-20', last: '2026-08-04 09:32', tokens: 156000000, calls: 825300 },
+    { id: 'u_1001_k2', name: '学习实验', fullKey: 'sk-pc-4a6b8c0d2e4f6a8b0c2d4e6f8a0b2c4d', perm: '只读', status: '启用', created: '2026-02-14', last: '2026-08-03 15:20', tokens: 32000000, calls: 48000 }
+  ],
+  'u_1005': [
+    { id: 'u_1005_k1', name: '日常调用', fullKey: 'sk-pc-2c4e6f8a0b2c4d6e8f0a2b4c6d8e0f2a', perm: '读写', status: '启用', created: '2026-01-12', last: '2026-08-04 07:58', tokens: 98000000, calls: 468200 },
+    { id: 'u_1005_k2', name: '数据分析', fullKey: 'sk-pc-5b7d9f1a3c5e7f9a0b2c4d6e8f0a2b4', perm: '只读', status: '启用', created: '2026-03-30', last: '2026-08-04 06:22', tokens: 41000000, calls: 76000 }
+  ],
+  'u_1003': [
+    { id: 'u_1003_k1', name: '个人使用', fullKey: 'sk-pc-3a5c7e9f1b3d5f7a9c0e2f4a6b8c0d2e', perm: '读写', status: '启用', created: '2025-11-25', last: '2026-08-03 22:40', tokens: 5200000, calls: 12800 }
+  ],
+  'u_1009': [
+    { id: 'u_1009_k1', name: '体验 Key', fullKey: 'sk-pc-6c8e0f2a4b6d8f0a2c4e6f8a0b2d4f6a', perm: '读写', status: '启用', created: '2026-03-28', last: '2026-08-03 21:05', tokens: 620000, calls: 890 }
+  ],
+  'u_1007': [
+    { id: 'u_1007_k1', name: '历史 Key', fullKey: 'sk-pc-9b1d3f5a7c9e0f2b4d6f8a0c2e4f6b8', perm: '读写', status: '禁用', created: '2026-01-05', last: '2026-05-30 11:26', tokens: 152000000, calls: 552000 }
+  ]
+};
+
+/* ================================================================== */
+/*  模型池（用于生成模型调用明细）                                     */
+/* ================================================================== */
+var MODEL_POOL = [
+  { name: 'GPT-4o',             vendor: 'OpenAI',   category: '对话', icon: '⚡', inPrice: 12, outPrice: 48 },
+  { name: 'DeepSeek-V3',        vendor: 'DeepSeek', category: '对话', icon: '🌊', inPrice: 2,  outPrice: 8 },
+  { name: 'Qwen2.5-72B-Instruct', vendor: '阿里云', category: '对话', icon: '🐉', inPrice: 4,  outPrice: 12 },
+  { name: 'Claude 3.5 Sonnet',  vendor: 'Anthropic', category: '对话', icon: '🌿', inPrice: 15, outPrice: 60 },
+  { name: 'Llama 3.1 70B',      vendor: 'Meta',     category: '对话', icon: '🦙', inPrice: 3,  outPrice: 9 },
+  { name: 'text-embedding-3',   vendor: 'OpenAI',   category: '嵌入', icon: '🔗', inPrice: 0.3, outPrice: 0.3 },
+  { name: 'GLM-4',              vendor: '智谱',     category: '对话', icon: '💬', inPrice: 4,  outPrice: 12 },
+  { name: 'MiniMax-Text',       vendor: 'MiniMax',  category: '对话', icon: '✏️', inPrice: 2,  outPrice: 8 }
+];
+var CAT_BADGE = { '对话': 'badge-blue', '嵌入': 'badge-gray', '代码': 'badge-yellow', '图像': 'badge-green', '音频': 'badge-gray' };
+
+var KEYS_STORE_KEY = 'prismmesh-admin:enterprise_keys';
+
+/* ================================================================== */
+/*  全局状态                                                          */
+/* ================================================================== */
+var keysMap = loadKeysMap();
+var state = { userId: null, user: null, keys: [], currentKeyId: null, isNew: false };
+
+/* ================================================================== */
+/*  本地存储                                                          */
+/* ================================================================== */
+function loadKeysMap() {
+  var map = {};
+  try {
+    var raw = localStorage.getItem(KEYS_STORE_KEY);
+    if (raw) map = JSON.parse(raw) || {};
+  } catch (e) { /* ignore */ }
+  var merged = {};
+  Object.keys(DEFAULT_KEYS).forEach(function (uid) {
+    merged[uid] = (Array.isArray(map[uid]) && map[uid].length)
+      ? map[uid].map(function (k) { return Object.assign({}, k); })
+      : DEFAULT_KEYS[uid].map(function (k) { return Object.assign({}, k); });
+  });
+  Object.keys(map).forEach(function (uid) {
+    if (!merged[uid]) merged[uid] = Array.isArray(map[uid]) ? map[uid] : [];
+  });
+  return merged;
+}
+
+function saveKeysMap() {
+  try { localStorage.setItem(KEYS_STORE_KEY, JSON.stringify(keysMap)); } catch (e) { /* ignore */ }
+}
+
+/* ================================================================== */
+/*  工具函数                                                          */
+/* ================================================================== */
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+function fmtTokens(n) {
+  n = Number(n || 0);
+  if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+  return String(n);
+}
+
+function todayStr() {
+  var d = new Date();
+  var pad = function (n) { return String(n).padStart(2, '0'); };
+  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+}
+
+function genFullKey() {
+  var chars = 'abcdef0123456789';
+  var s = '';
+  for (var i = 0; i < 32; i++) s += chars.charAt(Math.floor(Math.random() * 16));
+  return 'sk-pc-' + s;
+}
+
+function prefixOf(fullKey) {
+  return fullKey.slice(0, 10) + '****';
+}
+
+function findKeyById(id) {
+  for (var i = 0; i < state.keys.length; i++) { if (state.keys[i].id === id) return state.keys[i]; }
+  return null;
+}
+
+/* 确定性伪随机：同一 Key 生成一致的模型明细 */
+function hashCode(str) {
+  var h = 0;
+  for (var i = 0; i < str.length; i++) { h = (h * 31 + str.charCodeAt(i)) | 0; }
+  return Math.abs(h);
+}
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    var t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function blendPrice(m) {
+  if (m.category === '嵌入') return m.inPrice;
+  return m.inPrice * 0.7 + m.outPrice * 0.3;
+}
+
+/* ================================================================== */
+/*  模型调用明细生成                                                   */
+/* ================================================================== */
+function genModelUsage(key) {
+  var totalCalls = Number(key.calls) || 0;
+  var totalTokens = Number(key.tokens) || 0;
+  if (!totalCalls || !totalTokens) return [];
+
+  var rnd = mulberry32(hashCode(key.id + key.name));
+  var idx = [];
+  for (var i = 0; i < MODEL_POOL.length; i++) idx.push(i);
+  /* Fisher-Yates shuffle */
+  for (var j = idx.length - 1; j > 0; j--) {
+    var r = Math.floor(rnd() * (j + 1));
+    var t = idx[j]; idx[j] = idx[r]; idx[r] = t;
+  }
+  var count = 6 + Math.floor(rnd() * 3); /* 6 - 8 个模型 */
+  var chosen = idx.slice(0, count);
+
+  var weights = [];
+  var wsum = 0;
+  for (var w = 0; w < chosen.length; w++) {
+    var v = 0.25 + rnd() * 4;
+    weights.push(v);
+    wsum += v;
+  }
+
+  var rows = [];
+  var accCalls = 0;
+  var accTokens = 0;
+  for (var k = 0; k < chosen.length; k++) {
+    var m = MODEL_POOL[chosen[k]];
+    var ratio = weights[k] / wsum;
+    var mCalls = (k === chosen.length - 1)
+      ? totalCalls - accCalls
+      : Math.round(totalCalls * ratio);
+    var mTokens = (k === chosen.length - 1)
+      ? totalTokens - accTokens
+      : Math.round(totalTokens * ratio);
+    accCalls += mCalls;
+    accTokens += mTokens;
+    rows.push({
+      name: m.name,
+      vendor: m.vendor,
+      category: m.category,
+      icon: m.icon,
+      calls: mCalls,
+      tokens: mTokens,
+      avg: Math.round(mTokens / (mCalls || 1)),
+      spend: mTokens * blendPrice(m) / 1e6
+    });
+  }
+  rows.sort(function (a, b) { return b.tokens - a.tokens; });
+  return rows;
+}
+
+/* ================================================================== */
+/*  渲染：用户信息卡（企业账号 / 普通用户通用）                        */
+/* ================================================================== */
+function renderEnterpriseInfo() {
+  var u = state.user;
+  var keys = state.keys;
+  var totalTokens = 0;
+  var totalCalls = 0;
+  keys.forEach(function (k) {
+    totalTokens += Number(k.tokens) || 0;
+    totalCalls += Number(k.calls) || 0;
+  });
+
+  var isEnt = !!u.isEnterprise;
+  var displayName = isEnt ? u.company : u.name;
+  var avatarChar = (isEnt ? u.company : u.name).charAt(0);
+
+  var avatar = document.getElementById('ent-avatar');
+  avatar.textContent = avatarChar;
+  avatar.classList.toggle('banned', u.status !== '正常');
+
+  document.getElementById('ent-company').textContent = displayName;
+  document.getElementById('ent-contact').textContent = isEnt ? (u.contact || u.name) : u.role;
+  document.getElementById('ent-email').textContent = u.email;
+  var stBadge = u.status === '正常' ? 'badge-green' : 'badge-red';
+  document.getElementById('ent-status').innerHTML = '<span class="badge ' + stBadge + '">' + u.status + '</span>';
+  document.getElementById('ent-since').textContent = '注册于 ' + u.reg + ' · 账号 ID：' + state.userId;
+
+  var items = [];
+  if (isEnt) {
+    items.push(
+      ['企业名称', esc(u.company)],
+      ['联系人', esc(u.name)],
+      ['企业邮箱', '<span class="mono">' + esc(u.email) + '</span>'],
+      ['联系电话', esc(u.phone)],
+      ['账号状态', '<span class="badge ' + stBadge + '">' + u.status + '</span>'],
+      ['注册时间', u.reg],
+      ['最近活跃', u.active],
+      ['累计消费', '<span class="money">' + formatCurrency(u.spend) + '</span>'],
+      ['总 Token 消耗', '<strong>' + fmtTokens(totalTokens) + '</strong>'],
+      ['总调用次数', '<strong>' + formatNumber(totalCalls) + ' 次</strong>'],
+      ['已分配 Key 数', '<strong>' + keys.length + ' 个</strong>']
+    );
+  } else {
+    items.push(
+      ['用户姓名', esc(u.name)],
+      ['用户角色', '<span class="badge ' + (u.role === '专业' ? 'badge-blue' : 'badge-gray') + '">' + u.role + '</span>'],
+      ['用户邮箱', '<span class="mono">' + esc(u.email) + '</span>'],
+      ['联系电话', esc(u.phone)],
+      ['账号状态', '<span class="badge ' + stBadge + '">' + u.status + '</span>'],
+      ['注册时间', u.reg],
+      ['最近活跃', u.active],
+      ['累计消费', '<span class="money">' + formatCurrency(u.spend) + '</span>'],
+      ['总 Token 消耗', '<strong>' + fmtTokens(totalTokens) + '</strong>'],
+      ['总调用次数', '<strong>' + formatNumber(totalCalls) + ' 次</strong>'],
+      ['已分配 Key 数', '<strong>' + keys.length + ' 个</strong>']
+    );
+  }
+  document.getElementById('ent-grid').innerHTML = items.map(function (it) {
+    return '<div class="detail-item"><div class="di-label">' + it[0] + '</div><div class="di-value">' + it[1] + '</div></div>';
+  }).join('');
+}
+
+/* ================================================================== */
+/*  渲染：Key 列表                                                    */
+/* ================================================================== */
+function renderKeyList() {
+  var wrap = document.getElementById('keys-list');
+  document.getElementById('key-count').textContent = 'API Keys（' + state.keys.length + '）';
+
+  if (!state.keys.length) {
+    wrap.innerHTML = '<div class="empty-state">'
+      + '<div class="empty-icon">🔑</div>'
+      + '<div class="empty-title">尚未分配任何 API Key</div>'
+      + '<div class="empty-text">点击右上角「＋ 分配 Key」为该账号创建第一个 Key</div>'
+      + '<button class="btn btn-primary" onclick="openAllocModal()">＋ 分配 Key</button>'
+      + '</div>';
+    return;
+  }
+
+  wrap.innerHTML = state.keys.map(function (k) {
+    var isSelected = k.id === state.currentKeyId ? ' selected' : '';
+    var stBadge = k.status === '启用' ? 'badge-green' : 'badge-gray';
+    var permBadge = k.perm === '读写' ? 'badge-blue' : 'badge-gray';
+    var toggleBtn = k.status === '启用'
+      ? '<button class="btn btn-outline btn-sm" onclick="event.stopPropagation();toggleKeyStatus(\'' + k.id + '\')">禁用</button>'
+      : '<button class="btn btn-outline btn-sm" style="color:var(--success);" onclick="event.stopPropagation();toggleKeyStatus(\'' + k.id + '\')">启用</button>';
+    return '<div class="key-card' + isSelected + '" onclick="viewKeyDetail(\'' + k.id + '\')">'
+      + '<div class="key-main">'
+      +   '<div class="key-name">🔑 ' + esc(k.name)
+      +     '<span class="badge ' + stBadge + '">' + k.status + '</span>'
+      +     '<span class="badge ' + permBadge + '">' + k.perm + '</span>'
+      +   '</div>'
+      +   '<span class="key-prefix">' + k.prefix + '</span>'
+      +   '<div class="key-meta">创建于 ' + k.created + ' · 最近使用 ' + k.last + '</div>'
+      + '</div>'
+      + '<div class="key-stats">'
+      +   '<div class="key-stat"><div class="ks-value">' + fmtTokens(k.tokens) + '</div><div class="ks-label">Token 消耗</div></div>'
+      +   '<div class="key-stat"><div class="ks-value">' + formatNumber(k.calls) + '</div><div class="ks-label">调用次数</div></div>'
+      + '</div>'
+      + '<div class="key-actions">'
+      +   '<button class="btn btn-primary-ghost btn-sm" onclick="event.stopPropagation();viewKeyDetail(\'' + k.id + '\')">查看模型明细</button>'
+      +   '<button class="btn btn-outline btn-sm" onclick="event.stopPropagation();copyKey(\'' + k.id + '\')">复制</button>'
+      +   toggleBtn
+      +   '<button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="event.stopPropagation();deleteKey(\'' + k.id + '\')">删除</button>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+/* ================================================================== */
+/*  渲染：模型调用明细（本页核心）                                     */
+/* ================================================================== */
+function renderModelDetail() {
+  var k = findKeyById(state.currentKeyId);
+  if (!k) { document.getElementById('model-detail-card').style.display = 'none'; return; }
+  document.getElementById('model-detail-card').style.display = '';
+  document.getElementById('md-title').innerHTML = '模型调用明细 — <span style="color:var(--primary);">' + esc(k.name) + '</span>';
+
+  var totalCalls = Number(k.calls) || 0;
+  var totalTokens = Number(k.tokens) || 0;
+  var rows = genModelUsage(k);
+
+  document.getElementById('md-chip-calls').textContent = formatNumber(totalCalls) + ' 次';
+  document.getElementById('md-chip-tokens').textContent = fmtTokens(totalTokens);
+  document.getElementById('md-chip-models').textContent = rows.length + ' 个';
+
+  var tbody = document.getElementById('md-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state" style="padding:var(--space-10) var(--space-4);">'
+      + '<div class="empty-icon">📭</div>'
+      + '<div class="empty-title">该 Key 暂无调用记录</div>'
+      + '<div class="empty-text">Key 分配后产生调用，将在此展示各模型的调用次数与 Token 消耗</div>'
+      + '</div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(function (r) {
+    var pct = totalTokens > 0 ? (r.tokens / totalTokens * 100) : 0;
+    var pctStr = pct >= 0.1 ? pct.toFixed(1) : pct.toFixed(2);
+    var barW = Math.max(2, Math.min(100, pct));
+    return '<tr>'
+      + '<td><div class="cell-user"><span class="user-avatar">' + r.icon + '</span>'
+      + '<span><strong>' + esc(r.name) + '</strong><br><span class="cell-mono">' + esc(r.vendor) + '</span></span></div></td>'
+      + '<td><span class="badge ' + (CAT_BADGE[r.category] || 'badge-gray') + '">' + r.category + '</span></td>'
+      + '<td>' + formatNumber(r.calls) + '</td>'
+      + '<td><strong>' + fmtTokens(r.tokens) + '</strong></td>'
+      + '<td>' + formatNumber(r.avg) + '</td>'
+      + '<td><div style="display:flex;align-items:center;gap:var(--space-2);min-width:150px;">'
+      +   '<div class="progress" style="flex:1;"><div class="progress-bar" style="width:' + barW + '%;"></div></div>'
+      +   '<span class="mono" style="font-size:var(--text-xs);color:var(--text-sub);width:48px;text-align:right;">' + pctStr + '%</span>'
+      + '</div></td>'
+      + '<td style="text-align:right;"><strong style="color:var(--primary);">' + formatCurrency(r.spend) + '</strong></td>'
+      + '</tr>';
+  }).join('');
+}
+
+/* ================================================================== */
+/*  Key 交互：查看明细 / 复制 / 禁用启用 / 删除                       */
+/* ================================================================== */
+function viewKeyDetail(id) {
+  var k = findKeyById(id);
+  if (!k) return;
+  state.currentKeyId = id;
+  renderKeyList();
+  renderModelDetail();
+  showToast('已切换查看 Key：' + k.name, 'info');
+  var el = document.getElementById('model-detail-card');
+  if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function copyText(text, label) {
+  var done = function () { showToast((label || '内容') + '已复制到剪贴板', 'success'); };
+  var legacy = function () {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) { showToast('复制失败，请手动复制', 'error'); }
+    document.body.removeChild(ta);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done, legacy);
+  } else legacy();
+}
+
+function copyKey(id) {
+  var k = findKeyById(id);
+  if (!k) return;
+  copyText(k.fullKey, 'Key「' + k.name + '」');
+}
+
+async function toggleKeyStatus(id) {
+  var k = findKeyById(id);
+  if (!k) return;
+  var toDisable = k.status === '启用';
+  var ok = await showConfirm(
+    toDisable ? '禁用 Key' : '启用 Key',
+    toDisable
+      ? '确定要禁用 Key「' + k.name + '」（' + k.prefix + '）吗？禁用后使用该 Key 的请求将立即失败。'
+      : '确定要重新启用 Key「' + k.name + '」（' + k.prefix + '）吗？启用后即可正常调用。'
+  );
+  if (!ok) return;
+  k.status = toDisable ? '禁用' : '启用';
+  keysMap[state.userId] = state.keys;
+  saveKeysMap();
+  renderKeyList();
+  showToast('Key「' + k.name + '」已' + (toDisable ? '禁用' : '启用'), 'success');
+}
+
+async function deleteKey(id) {
+  var k = findKeyById(id);
+  if (!k) return;
+  var ok = await showConfirm(
+    '删除 Key',
+    '确定要删除 Key「' + k.name + '」（' + k.prefix + '）吗？删除后该 Key 将立即失效，历史调用数据保留。'
+  );
+  if (!ok) return;
+  state.keys = state.keys.filter(function (x) { return x.id !== id; });
+  if (state.currentKeyId === id) state.currentKeyId = state.keys.length ? state.keys[0].id : null;
+  keysMap[state.userId] = state.keys;
+  saveKeysMap();
+  renderKeyList();
+  renderEnterpriseInfo();
+  if (state.currentKeyId) renderModelDetail();
+  else document.getElementById('model-detail-card').style.display = 'none';
+  showToast('Key「' + k.name + '」已删除', 'success');
+}
+
+/* ================================================================== */
+/*  分配 Key 弹窗                                                     */
+/* ================================================================== */
+function openAllocModal() {
+  var ownerName = state.user.isEnterprise ? state.user.company : state.user.name;
+  document.getElementById('alloc-modal-desc').textContent = '为「' + ownerName + '」创建新的 API Key，创建后完整 Key 仅展示一次。';
+  document.getElementById('new-key-name').value = '';
+  document.getElementById('new-key-perm').value = '读写';
+  document.getElementById('new-key-enabled').checked = true;
+  document.getElementById('new-key-enabled-text').textContent = '启用';
+  document.getElementById('alloc-key-overlay').classList.add('show');
+  setTimeout(function () { document.getElementById('new-key-name').focus(); }, 60);
+}
+
+function closeAllocModal() {
+  document.getElementById('alloc-key-overlay').classList.remove('show');
+}
+
+function saveNewKey() {
+  var name = document.getElementById('new-key-name').value.trim();
+  if (!name) { showToast('请输入 Key 名称', 'warning'); document.getElementById('new-key-name').focus(); return; }
+  var perm = document.getElementById('new-key-perm').value;
+  var enabled = document.getElementById('new-key-enabled').checked;
+  var fullKey = genFullKey();
+  var k = {
+    id: 'k_' + genId(),
+    name: name,
+    fullKey: fullKey,
+    prefix: prefixOf(fullKey),
+    perm: perm,
+    status: enabled ? '启用' : '禁用',
+    created: todayStr(),
+    last: '—',
+    tokens: 0,
+    calls: 0
+  };
+  state.keys.unshift(k);
+  state.currentKeyId = k.id;
+  keysMap[state.userId] = state.keys;
+  saveKeysMap();
+
+  closeAllocModal();
+  renderKeyList();
+  renderEnterpriseInfo();
+  renderModelDetail();
+
+  document.getElementById('new-key-result-name').textContent = k.name;
+  document.getElementById('new-key-result-company').textContent = state.user.isEnterprise ? state.user.company : state.user.name;
+  document.getElementById('new-key-result-value').textContent = k.fullKey;
+  document.getElementById('new-key-overlay').classList.add('show');
+}
+
+function closeNewKeyModal() {
+  document.getElementById('new-key-overlay').classList.remove('show');
+}
+
+function copyNewKey() {
+  copyText(document.getElementById('new-key-result-value').textContent, 'Key ');
+}
+
+/* ================================================================== */
+/*  新建企业账号                                                      */
+/* ================================================================== */
+function createEnterprise() {
+  var name = document.getElementById('ne-name').value.trim();
+  var contact = document.getElementById('ne-contact').value.trim();
+  var email = document.getElementById('ne-email').value.trim();
+  var phone = document.getElementById('ne-phone').value.trim();
+  var pwd = document.getElementById('ne-pwd').value;
+  var remark = document.getElementById('ne-remark').value.trim();
+  if (!name) { showToast('请填写企业名称', 'warning'); return; }
+  if (!contact) { showToast('请填写联系人', 'warning'); return; }
+  if (!email || !/^\S+@\S+\.\S+$/.test(email)) { showToast('请填写正确的企业邮箱', 'warning'); return; }
+  if (!pwd || pwd.length < 6) { showToast('密码至少 6 位', 'warning'); return; }
+  showToast('企业账号「' + name + '」创建成功（演示数据，未真实入库）', 'success');
+  setTimeout(function () { goTo('users.html'); }, 900);
+}
+
+/* ================================================================== */
+/*  页面渲染                                                          */
+/* ================================================================== */
+function renderPage() {
+  if (state.isNew) {
+    document.getElementById('page-title').textContent = '新建企业账号';
+    document.getElementById('page-subtitle').textContent = '创建新的企业账号，创建后可为其分配 API Key';
+    document.getElementById('page-actions').style.display = 'none';
+    document.getElementById('enterprise-card').style.display = 'none';
+    document.getElementById('keys-card').style.display = 'none';
+    document.getElementById('model-detail-card').style.display = 'none';
+    document.getElementById('new-enterprise-card').style.display = '';
+  } else {
+    var isEnt = !!state.user.isEnterprise;
+    var ownerName = isEnt ? state.user.company : state.user.name;
+    document.getElementById('page-title').textContent = isEnt ? '企业账号详情' : '用户详情';
+    document.getElementById('header-title').textContent = isEnt ? '企业账号详情' : '用户详情';
+    document.getElementById('page-subtitle').textContent = ownerName + ' · ' + (isEnt ? '企业账号概览与 API Key 管理' : '用户概览与 API Key 管理');
+    document.getElementById('page-actions').style.display = '';
+    document.getElementById('enterprise-card').style.display = '';
+    document.getElementById('keys-card').style.display = '';
+    document.getElementById('model-detail-card').style.display = '';
+    document.getElementById('new-enterprise-card').style.display = 'none';
+    renderEnterpriseInfo();
+    renderKeyList();
+    renderModelDetail();
+  }
+}
+
+/* ================================================================== */
+/*  初始化                                                            */
+/* ================================================================== */
+document.addEventListener('DOMContentLoaded', function () {
+  requireAdminLogin();
+  var admin = getAdmin();
+  if (admin) {
+    document.getElementById('admin-name').textContent = admin.name || '管理员';
+    document.getElementById('admin-avatar').textContent = (admin.name || 'A').charAt(0).toUpperCase();
+  }
+  /* 本页为用户管理的子页面：始终高亮「用户管理」导航 */
+  var navUsers = document.querySelector('.nav-item[data-page="users.html"]');
+  if (navUsers) navUsers.classList.add('active');
+
+  var params = new URLSearchParams(window.location.search);
+  var uid = params.get('user');
+  if (uid === 'new') {
+    state.isNew = true;
+  } else {
+    state.isNew = false;
+    if (!USER_PROFILES[uid]) uid = 'u_1002'; /* 未找到或无参数时默认 u_1002 */
+    state.userId = uid;
+    state.user = USER_PROFILES[uid];
+    state.keys = keysMap[uid] || [];
+    state.currentKeyId = state.keys.length ? state.keys[0].id : null;
+  }
+  renderPage();
+});
+</script>
+</body>
+</html>

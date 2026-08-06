@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>PrismMesh - AI 模型推理平台</title>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/components.css">
+  <style>
+    /* ========================================================================
+       PrismMesh Landing Page — Premium AI Platform Design
+       ======================================================================== */
+
+    .landing-page {
+      min-height: 100vh;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* -------------------------------------------------------------------- */
+    /*  HERO                                                               */
+    /* -------------------------------------------------------------------- */
+    .hero {
+      background: linear-gradient(135deg, #0F172A 0%, #1E3A8A 45%, #2563EB 100%);
+      padding: var(--space-16) var(--space-4) var(--space-12);
+      text-align: center;
+      color: white;
+      position: relative;
+      overflow: hidden;
+      isolation: isolate;
+    }
+
+    /* Subtle grid overlay */
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      z-index: 0;
+    }
+
+    /* Top-right glow accent */
+    .hero::after {
+      content: '';
+      position: absolute;
+      top: -200px;
+      right: -150px;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(96,165,250,0.12) 0%, transparent 65%);
+      border-radius: 50%;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .hero * {
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+      padding: var(--space-1) var(--space-4);
+      border-radius: var(--radius-full);
+      background: rgba(255,255,255,0.08);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.1);
+      font-size: var(--text-sm);
+      font-weight: var(--font-weight-medium);
+      color: rgba(255,255,255,0.85);
+      margin-bottom: var(--space-6);
+      letter-spacing: var(--tracking-wide);
+      transition: all var(--transition-normal);
+    }
+
+    .hero-badge:hover {
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(255,255,255,0.18);
+    }
+
+    .hero h1 {
+      font-size: var(--text-5xl);
+      font-weight: var(--font-weight-extrabold);
+      letter-spacing: var(--tracking-tight);
+      line-height: var(--leading-tight);
+      margin-bottom: var(--space-4);
+      max-width: 720px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .hero h1 .gradient-text {
+      background: linear-gradient(135deg, #93C5FD 0%, #DBEAFE 50%, #BFDBFE 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero p {
+      font-size: var(--text-lg);
+      color: rgba(255,255,255,0.65);
+      max-width: 520px;
+      margin: 0 auto var(--space-10);
+      line-height: var(--leading-relaxed);
+    }
+
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-3);
+      flex-wrap: wrap;
+      margin-bottom: var(--space-12);
+    }
+
+    .hero-actions .btn-primary {
+      background: white;
+      color: var(--primary-800);
+      border-color: white;
+      box-shadow: 0 4px 14px rgba(59,130,246,0.3);
+      font-weight: var(--font-weight-semibold);
+      padding: 12px 32px;
+    }
+
+    .hero-actions .btn-primary:hover {
+      background: rgba(255,255,255,0.9);
+      box-shadow: 0 6px 20px rgba(59,130,246,0.4);
+      transform: translateY(-1px);
+    }
+
+    .hero-actions .btn-outline-light {
+      background: transparent;
+      color: white;
+      border-color: rgba(255,255,255,0.25);
+      padding: 12px 32px;
+    }
+
+    .hero-actions .btn-outline-light:hover {
+      background: rgba(255,255,255,0.08);
+      border-color: rgba(255,255,255,0.4);
+    }
+
+    /* Hero stats bar */
+    .hero-stats {
+      display: flex;
+      justify-content: center;
+      gap: var(--space-12);
+      padding: var(--space-6) var(--space-8);
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: var(--radius-xl);
+      max-width: 600px;
+      margin: 0 auto;
+      backdrop-filter: blur(4px);
+    }
+
+    .hero-stat {
+      text-align: center;
+    }
+
+    .hero-stat .num {
+      font-size: var(--text-2xl);
+      font-weight: var(--font-weight-bold);
+      letter-spacing: var(--tracking-tight);
+      color: white;
+      line-height: var(--leading-tight);
+    }
+
+    .hero-stat .label {
+      font-size: var(--text-sm);
+      color: rgba(255,255,255,0.5);
+      margin-top: var(--space-1);
+    }
+
+    .hero-stat + .hero-stat {
+      position: relative;
+    }
+
+    .hero-stat + .hero-stat::before {
+      content: '';
+      position: absolute;
+      left: calc(-1 * var(--space-6));
+      top: 50%;
+      transform: translateY(-50%);
+      width: 1px;
+      height: 32px;
+      background: rgba(255,255,255,0.08);
+    }
+
+    /* -------------------------------------------------------------------- */
+    /*  FEATURES SECTION                                                    */
+    /* -------------------------------------------------------------------- */
+    .features-section {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: var(--space-16) var(--space-4);
+      width: 100%;
+    }
+
+    .features-section .section-label {
+      display: block;
+      text-align: center;
+      font-size: var(--text-sm);
+      font-weight: var(--font-weight-semibold);
+      color: var(--primary);
+      letter-spacing: var(--tracking-wider);
+      text-transform: uppercase;
+      margin-bottom: var(--space-2);
+    }
+
+    .features-section .section-title {
+      text-align: center;
+      font-size: var(--text-3xl);
+      font-weight: var(--font-weight-bold);
+      letter-spacing: var(--tracking-tight);
+      color: var(--text);
+      margin-bottom: var(--space-2);
+    }
+
+    .features-section .section-desc {
+      text-align: center;
+      font-size: var(--text-md);
+      color: var(--text-sub);
+      max-width: 560px;
+      margin: 0 auto var(--space-10);
+      line-height: var(--leading-relaxed);
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-6);
+    }
+
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-8) var(--space-6);
+      text-align: center;
+      transition: all var(--transition-normal);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--primary-400), var(--primary-600));
+      opacity: 0;
+      transition: opacity var(--transition-normal);
+    }
+
+    .feature-card:hover {
+      border-color: var(--primary-200);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-4px);
+    }
+
+    .feature-card:hover::before {
+      opacity: 1;
+    }
+
+    .feature-card .fc-icon {
+      width: 60px;
+      height: 60px;
+      border-radius: var(--radius-lg);
+      background: var(--primary-50);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto var(--space-5);
+      font-size: 28px;
+      transition: all var(--transition-normal);
+    }
+
+    .feature-card:hover .fc-icon {
+      background: var(--primary-100);
+      transform: scale(1.05);
+    }
+
+    .feature-card h3 {
+      font-size: var(--text-md);
+      font-weight: var(--font-weight-semibold);
+      color: var(--text);
+      margin-bottom: var(--space-2);
+      letter-spacing: var(--tracking-tight);
+    }
+
+    .feature-card p {
+      font-size: var(--text-sm);
+      color: var(--text-sub);
+      line-height: var(--leading-relaxed);
+    }
+
+    /* -------------------------------------------------------------------- */
+    /*  FOOTER                                                              */
+    /* -------------------------------------------------------------------- */
+    .landing-footer {
+      margin-top: auto;
+      text-align: center;
+      padding: var(--space-6) var(--space-4);
+      border-top: 1px solid var(--border);
+    }
+
+    .landing-footer .footer-inner {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: var(--space-4);
+    }
+
+    .landing-footer .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--text-sm);
+      font-weight: var(--font-weight-medium);
+      color: var(--text-sub);
+    }
+
+    .landing-footer .footer-brand .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--primary);
+    }
+
+    .landing-footer .footer-links {
+      display: flex;
+      gap: var(--space-5);
+      font-size: var(--text-sm);
+    }
+
+    .landing-footer .footer-links a {
+      color: var(--text-muted);
+      transition: color var(--transition-fast);
+    }
+
+    .landing-footer .footer-links a:hover {
+      color: var(--text-sub);
+    }
+
+    .landing-footer .footer-copy {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+    }
+
+    /* -------------------------------------------------------------------- */
+    /*  RESPONSIVE                                                          */
+    /* -------------------------------------------------------------------- */
+    @media (max-width: 768px) {
+      .hero {
+        padding: var(--space-12) var(--space-4) var(--space-10);
+      }
+
+      .hero h1 {
+        font-size: var(--text-3xl);
+      }
+
+      .hero p {
+        font-size: var(--text-base);
+      }
+
+      .hero-stats {
+        gap: var(--space-6);
+        padding: var(--space-4) var(--space-4);
+      }
+
+      .hero-stat + .hero-stat::before {
+        left: calc(-1 * var(--space-3));
+        height: 24px;
+      }
+
+      .hero-stat .num {
+        font-size: var(--text-xl);
+      }
+
+      .feature-grid {
+        grid-template-columns: 1fr;
+        gap: var(--space-4);
+      }
+
+      .feature-card {
+        padding: var(--space-6) var(--space-4);
+      }
+
+      .features-section {
+        padding: var(--space-10) var(--space-4);
+      }
+
+      .features-section .section-title {
+        font-size: var(--text-2xl);
+      }
+
+      .landing-footer .footer-inner {
+        flex-direction: column;
+        text-align: center;
+      }
+
+      .hero-actions .btn {
+        width: 100%;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .hero h1 {
+        font-size: var(--text-2xl);
+      }
+
+      .hero-stats {
+        flex-direction: column;
+        gap: var(--space-4);
+      }
+
+      .hero-stat + .hero-stat::before {
+        display: none;
+      }
+    }
+
+    /* -------------------------------------------------------------------- */
+    /*  ANIMATIONS                                                          */
+    /* -------------------------------------------------------------------- */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(16px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .hero > * {
+      animation: fadeInUp 0.6s ease forwards;
+    }
+
+    .hero > *:nth-child(2) { animation-delay: 0.05s; }
+    .hero > *:nth-child(3) { animation-delay: 0.10s; }
+    .hero > *:nth-child(4) { animation-delay: 0.15s; }
+    .hero > *:nth-child(5) { animation-delay: 0.20s; }
+
+    .feature-card:nth-child(1) { animation: fadeInUp 0.5s ease 0.1s both; }
+    .feature-card:nth-child(2) { animation: fadeInUp 0.5s ease 0.2s both; }
+    .feature-card:nth-child(3) { animation: fadeInUp 0.5s ease 0.3s both; }
+  </style>
+</head>
+<body>
+  <div class="landing-page">
+
+    <!-- ================================================================ -->
+    <!--  HEADER                                                          -->
+    <!-- ================================================================ -->
+    <header class="app-header" style="position:relative;border:none;background:transparent;backdrop-filter:none;">
+      <div class="brand">
+        <span class="logo-icon">P</span>
+        <span class="brand-name"><span class="highlight">Prism</span>Mesh</span>
+      </div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:var(--space-2);">
+        <button class="btn btn-primary btn-sm" onclick="openAuthModal()">登录 / 注册</button>
+        <button class="btn btn-ghost btn-sm" onclick="toggleTheme()" title="切换主题" style="color:var(--text-sub);">🌓</button>
+      </div>
+    </header>
+
+    <!-- ================================================================ -->
+    <!--  HERO                                                            -->
+    <!-- ================================================================ -->
+    <section class="hero">
+      <div class="hero-badge">✨ 新一代 AI 推理平台</div>
+      <h1>让 <span class="gradient-text">AI 模型</span> 触手可及</h1>
+      <p>一站式 AI 模型推理平台 · 高性能 API · 低成本调用 · 分钟级集成，为你的应用赋能</p>
+      <div class="hero-actions">
+        <button class="btn btn-primary btn-lg" onclick="openAuthModal()">
+          立即开始
+        </button>
+        <button class="btn btn-outline-light btn-lg" onclick="showToast('文档即将上线','info')">
+          查看文档
+        </button>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <div class="num">100+</div>
+          <div class="label">可用模型</div>
+        </div>
+        <div class="hero-stat">
+          <div class="num">99.9%</div>
+          <div class="label">服务可用性</div>
+        </div>
+        <div class="hero-stat">
+          <div class="num">&lt;50ms</div>
+          <div class="label">平均延迟</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================ -->
+    <!--  FEATURES                                                        -->
+    <!-- ================================================================ -->
+    <section class="features-section">
+      <span class="section-label">为什么选择 PrismMesh</span>
+      <h2 class="section-title">为 AI 开发者而生</h2>
+      <p class="section-desc">从模型接入到生产部署，提供开箱即用的 AI 推理基础设施</p>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="fc-icon">🧠</div>
+          <h3>丰富模型生态</h3>
+          <p>汇聚国内外主流开源与商业模型，涵盖语言、图像、语音、代码等多模态能力，满足各类 AI 应用场景。</p>
+        </div>
+        <div class="feature-card">
+          <div class="fc-icon">⚡</div>
+          <h3>高性能推理</h3>
+          <p>基于 GPU 集群弹性部署，智能路由调度，毫秒级响应，支持高并发调用，为生产环境保驾护航。</p>
+        </div>
+        <div class="feature-card">
+          <div class="fc-icon">🔐</div>
+          <h3>安全稳定</h3>
+          <p>企业级数据安全保障，API Key 鉴权隔离，全链路加密传输，实时用量监控与告警，让您用得放心。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================ -->
+    <!--  FOOTER                                                          -->
+    <!-- ================================================================ -->
+    <footer class="landing-footer">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <span class="logo-icon" style="width:22px;height:22px;font-size:11px;box-shadow:none;background:linear-gradient(135deg,var(--primary-600),var(--primary-400));">P</span>
+          PrismMesh
+          <span class="dot"></span>
+          <span style="color:var(--text-muted);font-weight:var(--font-weight-normal);">AI 推理平台</span>
+        </div>
+        <div class="footer-links">
+          <a onclick="showToast('文档即将上线','info')">文档</a>
+          <a onclick="showToast('API 参考即将上线','info')">API</a>
+          <a onclick="showToast('状态页面即将上线','info')">状态</a>
+        </div>
+        <div class="footer-copy">
+          &copy; 2026 PrismMesh. All rights reserved.
+        </div>
+      </div>
+    </footer>
+
+  </div>
+
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/login-modal.js"></script>
+</body>
+</html>

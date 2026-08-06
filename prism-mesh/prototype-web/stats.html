@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>PrismMesh - 使用统计</title>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/components.css">
+  <style>
+    /* 统计页面专用样式 */
+
+    .stats-page {
+      padding-top: calc(var(--header-height) + var(--spacing-md));
+      padding-bottom: calc(var(--tab-height) + var(--spacing-md));
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding-left: var(--spacing-md);
+      padding-right: var(--spacing-md);
+    }
+
+    /* 时间筛选按钮组 */
+    .time-filter {
+      display: flex;
+      gap: var(--spacing-sm);
+      margin-bottom: var(--spacing-lg);
+    }
+    .time-filter .time-btn {
+      padding: 6px 16px;
+      border-radius: 999px;
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-medium);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-sub);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .time-filter .time-btn:hover {
+      border-color: var(--primary-light);
+      color: var(--primary);
+      background: var(--primary-soft);
+    }
+    .time-filter .time-btn.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    /* 统计卡片增强 */
+    .stat-card .stat-sub {
+      font-size: var(--font-size-xs);
+      color: var(--text-muted);
+      margin-top: var(--spacing-xs);
+    }
+
+    /* 模型使用列表 */
+    .usage-item {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+      padding: var(--spacing-md);
+      border-bottom: 1px solid var(--border-light);
+      transition: background 0.15s;
+    }
+    .usage-item:last-child {
+      border-bottom: none;
+    }
+    .usage-item:hover {
+      background: var(--surface-hover);
+    }
+    .usage-item .usage-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .usage-item .usage-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .usage-item .usage-name {
+      font-size: var(--font-size);
+      font-weight: var(--font-weight-medium);
+    }
+    .usage-item .usage-detail {
+      font-size: var(--font-size-sm);
+      color: var(--text-sub);
+      margin-top: 2px;
+    }
+    .usage-item .usage-bar-wrap {
+      width: 100%;
+      height: 4px;
+      background: var(--border-light);
+      border-radius: 2px;
+      margin-top: var(--spacing-xs);
+      overflow: hidden;
+    }
+    .usage-item .usage-bar {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.6s ease;
+    }
+    .usage-item .usage-meta {
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .usage-item .usage-cost {
+      font-size: var(--font-size);
+      font-weight: var(--font-weight-semibold);
+      color: var(--text);
+    }
+    .usage-item .usage-pct {
+      font-size: var(--font-size-xs);
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* 条形图颜色 */
+    .bar-gpt { background: #3B82F6; }
+    .bar-claude { background: #8B5CF6; }
+    .bar-deepseek { background: #0EA5E9; }
+    .bar-qwen { background: #EC4899; }
+    .bar-gemini { background: #F59E0B; }
+    .bar-llama { background: #10B981; }
+
+    /* 每日趋势图 - CSS 条形图 */
+    .daily-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: var(--spacing-sm);
+      height: 160px;
+      padding: var(--spacing-md) 0;
+    }
+    .daily-chart .day-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--spacing-xs);
+      height: 100%;
+    }
+    .daily-chart .day-bar-wrap {
+      flex: 1;
+      width: 100%;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .daily-chart .day-bar {
+      width: 60%;
+      min-height: 4px;
+      border-radius: 3px 3px 0 0;
+      background: var(--primary);
+      opacity: 0.7;
+      transition: height 0.4s ease;
+      position: relative;
+    }
+    .daily-chart .day-bar:hover {
+      opacity: 1;
+    }
+    .daily-chart .day-bar .day-bar-tip {
+      position: absolute;
+      top: -20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 11px;
+      color: var(--text-sub);
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .daily-chart .day-bar:hover .day-bar-tip {
+      opacity: 1;
+    }
+    .daily-chart .day-label {
+      font-size: var(--font-size-xs);
+      color: var(--text-muted);
+      text-align: center;
+    }
+    .daily-chart .day-value {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    /* 饼图占位 - 改用堆叠色条更清晰 */
+    .dist-list {
+      padding: 0;
+    }
+    .dist-item {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-sm) 0;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .dist-item:last-child {
+      border-bottom: none;
+    }
+    .dist-item .dist-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .dist-item .dist-name {
+      flex: 1;
+      font-size: var(--font-size-sm);
+      color: var(--text);
+    }
+    .dist-item .dist-pct {
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-semibold);
+      color: var(--text);
+    }
+    .dist-item .dist-bar-bg {
+      width: 80px;
+      height: 6px;
+      background: var(--border-light);
+      border-radius: 3px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .dist-item .dist-bar {
+      height: 100%;
+      border-radius: 3px;
+    }
+
+    /* 模型图标颜色（复用 models.html） */
+    .icon-gpt { background: #DBEAFE; color: #1E40AF; }
+    .icon-claude { background: #EDE9FE; color: #7C3AED; }
+    .icon-gemini { background: #FEF3C7; color: #D97706; }
+    .icon-llama { background: #D1FAE5; color: #059669; }
+    .icon-qwen { background: #FCE7F3; color: #DB2777; }
+    .icon-embedding { background: #E0F2FE; color: #0284C7; }
+    .icon-vision { background: #F0F9FF; color: #0369A1; }
+    .icon-code { background: #F5F3FF; color: #6D28D9; }
+    .icon-deepseek { background: #E0F2FE; color: #0284C7; }
+
+    /* 响应式 */
+    @media (max-width: 480px) {
+      .daily-chart {
+        height: 120px;
+      }
+      .daily-chart .day-bar {
+        width: 80%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- 顶部导航 -->
+  <header class="app-header">
+    <div class="brand" onclick="goTo('home.html')" style="cursor:pointer;">
+      <span class="logo-icon">P</span>
+      <span>PrismMesh</span>
+    </div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:var(--spacing-sm);">
+      <button class="btn btn-ghost btn-sm" onclick="toggleTheme()" title="切换主题" style="color:var(--text-sub);font-size:16px;">🌓</button>
+      <span style="font-size:var(--font-size-sm);color:var(--text-sub);" id="user-name-display">用户</span>
+      <div class="avatar" onclick="goTo('me.html')" style="width:32px;height:32px;border-radius:50%;background:var(--primary);color:white;display:flex;align-items:center;justify-content:center;font-size:var(--font-size-sm);cursor:pointer;font-weight:var(--font-weight-semibold);" id="user-avatar-display">P</div>
+    </div>
+  </header>
+
+  <div class="stats-page">
+    <!-- 页面标题 -->
+    <div class="page-title">使用统计</div>
+
+    <!-- 时间范围筛选 -->
+    <div class="time-filter" id="time-filter">
+      <button class="time-btn active" data-range="today" onclick="switchTimeRange('today',this)">今日</button>
+      <button class="time-btn" data-range="week" onclick="switchTimeRange('week',this)">本周</button>
+      <button class="time-btn" data-range="month" onclick="switchTimeRange('month',this)">本月</button>
+      <button class="time-btn" data-range="all" onclick="switchTimeRange('all',this)">全部</button>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="stat-grid" id="stat-grid">
+      <div class="stat-card">
+        <div class="stat-icon">📡</div>
+        <div class="stat-value" id="stat-calls">124,583</div>
+        <div class="stat-label">总调用次数</div>
+        <div class="stat-change">↑ 8.3% 较上周期</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">💰</div>
+        <div class="stat-value" id="stat-spend">¥1,280.50</div>
+        <div class="stat-label">总消费</div>
+        <div class="stat-change">↑ 5.2% 较上周期</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">🧠</div>
+        <div class="stat-value" id="stat-tokens">85.2M</div>
+        <div class="stat-label">总 Token</div>
+        <div class="stat-change">↑ 12.1% 较上周期</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">⚡</div>
+        <div class="stat-value" id="stat-latency">320ms</div>
+        <div class="stat-label">平均响应</div>
+        <div class="stat-change" style="color:var(--success);">↓ 15ms 较上周期</div>
+      </div>
+    </div>
+
+    <!-- 每日使用趋势 -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">每日调用趋势</span>
+        <span style="font-size:var(--font-size-xs);color:var(--text-muted);">近 7 天</span>
+      </div>
+      <div class="daily-chart" id="daily-chart"></div>
+    </div>
+
+    <!-- 模型使用分布 -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">模型使用分布</span>
+        <span style="font-size:var(--font-size-xs);color:var(--text-muted);">按调用次数</span>
+      </div>
+      <div id="model-usage-list"></div>
+    </div>
+
+    <!-- 模型占比 -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">模型占比</span>
+        <span style="font-size:var(--font-size-xs);color:var(--text-muted);">按消费金额</span>
+      </div>
+      <div class="dist-list" id="dist-list"></div>
+    </div>
+  </div>
+
+  <!-- 底部 Tab 导航 -->
+  <nav class="tab-bar">
+    <button class="tab-item" data-href="home.html" onclick="goTo('home.html')">
+      <span class="tab-icon">🏠</span> 首页
+    </button>
+    <button class="tab-item" data-href="models.html" onclick="goTo('models.html')">
+      <span class="tab-icon">🧠</span> 模型
+    </button>
+    <button class="tab-item active" data-href="stats.html" onclick="goTo('stats.html')">
+      <span class="tab-icon">📊</span> 统计
+    </button>
+    <button class="tab-item" data-href="me.html" onclick="goTo('me.html')">
+      <span class="tab-icon">👤</span> 我的
+    </button>
+  </nav>
+
+  <script src="assets/js/common.js"></script>
+  <script>
+    // ===== 模型使用数据 =====
+    var modelUsageData = [
+      {
+        key: 'gpt',
+        name: 'GPT-4o',
+        icon: '🤖',
+        iconClass: 'icon-gpt',
+        barClass: 'bar-gpt',
+        calls: 45210,
+        tokens: 28500000,
+        cost: 582.40,
+        pct: 36.3
+      },
+      {
+        key: 'claude',
+        name: 'Claude 3.5 Sonnet',
+        icon: '🌙',
+        iconClass: 'icon-claude',
+        barClass: 'bar-claude',
+        calls: 28500,
+        tokens: 19200000,
+        cost: 325.80,
+        pct: 22.9
+      },
+      {
+        key: 'deepseek',
+        name: 'DeepSeek V3',
+        icon: '🌊',
+        iconClass: 'icon-deepseek',
+        barClass: 'bar-deepseek',
+        calls: 22150,
+        tokens: 15800000,
+        cost: 156.20,
+        pct: 17.8
+      },
+      {
+        key: 'qwen',
+        name: 'Qwen2.5 72B',
+        icon: '🐉',
+        iconClass: 'icon-qwen',
+        barClass: 'bar-qwen',
+        calls: 12800,
+        tokens: 9800000,
+        cost: 98.50,
+        pct: 10.3
+      },
+      {
+        key: 'gemini',
+        name: 'Gemini 1.5 Pro',
+        icon: '✨',
+        iconClass: 'icon-gemini',
+        barClass: 'bar-gemini',
+        calls: 8750,
+        tokens: 7200000,
+        cost: 72.60,
+        pct: 7.0
+      },
+      {
+        key: 'llama',
+        name: 'Llama 3.1 405B',
+        icon: '🦙',
+        iconClass: 'icon-llama',
+        barClass: 'bar-llama',
+        calls: 7173,
+        tokens: 4700000,
+        cost: 45.00,
+        pct: 5.7
+      }
+    ];
+
+    // 分布数据（按消费金额）
+    var distData = [
+      { name: 'GPT-4o', pct: 45.5, color: '#3B82F6' },
+      { name: 'Claude 3.5 Sonnet', pct: 25.4, color: '#8B5CF6' },
+      { name: 'DeepSeek V3', pct: 12.2, color: '#0EA5E9' },
+      { name: 'Qwen2.5 72B', pct: 7.7, color: '#EC4899' },
+      { name: 'Gemini 1.5 Pro', pct: 5.7, color: '#F59E0B' },
+      { name: '其他', pct: 3.5, color: '#94A3B8' }
+    ];
+
+    // 每日数据（近 7 天）
+    var dailyData = [
+      { label: '07/10', value: 18200 },
+      { label: '07/11', value: 15600 },
+      { label: '07/12', value: 20300 },
+      { label: '07/13', value: 12800 },
+      { label: '07/14', value: 14500 },
+      { label: '07/15', value: 22100 },
+      { label: '07/16', value: 17500 }
+    ];
+
+    // ===== 时间范围切换（仅更新统计卡片数值） =====
+    function switchTimeRange(range, btn) {
+      var btns = document.querySelectorAll('.time-btn');
+      for (var i = 0; i < btns.length; i++) {
+        btns[i].classList.remove('active');
+      }
+      btn.classList.add('active');
+
+      // 模拟不同时间范围的数据
+      var dataMap = {
+        today: { calls: '4,583', spend: '¥48.20', tokens: '3.2M', latency: '298ms' },
+        week: { calls: '32,150', spend: '¥356.80', tokens: '21.5M', latency: '315ms' },
+        month: { calls: '84,720', spend: '¥892.40', tokens: '58.3M', latency: '320ms' },
+        all: { calls: '124,583', spend: '¥1,280.50', tokens: '85.2M', latency: '320ms' }
+      };
+
+      var d = dataMap[range] || dataMap.all;
+      document.getElementById('stat-calls').textContent = d.calls;
+      document.getElementById('stat-spend').textContent = d.spend;
+      document.getElementById('stat-tokens').textContent = d.tokens;
+      document.getElementById('stat-latency').textContent = d.latency;
+    }
+
+    // ===== 渲染每日趋势图 =====
+    function renderDailyChart() {
+      var container = document.getElementById('daily-chart');
+      var maxVal = 0;
+      for (var i = 0; i < dailyData.length; i++) {
+        if (dailyData[i].value > maxVal) maxVal = dailyData[i].value;
+      }
+
+      var html = '';
+      for (var i = 0; i < dailyData.length; i++) {
+        var d = dailyData[i];
+        var heightPct = Math.max(4, (d.value / maxVal) * 100);
+        html +=
+          '<div class="day-col">' +
+            '<div class="day-bar-wrap">' +
+              '<div class="day-bar" style="height:' + heightPct + '%;">' +
+                '<span class="day-bar-tip">' + d.value.toLocaleString() + '</span>' +
+              '</div>' +
+            '</div>' +
+            '<div class="day-value">' + d.value.toLocaleString() + '</div>' +
+            '<div class="day-label">' + d.label + '</div>' +
+          '</div>';
+      }
+      container.innerHTML = html;
+    }
+
+    // ===== 渲染模型使用列表 =====
+    function renderModelUsage() {
+      var container = document.getElementById('model-usage-list');
+      var maxCalls = 0;
+      for (var i = 0; i < modelUsageData.length; i++) {
+        if (modelUsageData[i].calls > maxCalls) maxCalls = modelUsageData[i].calls;
+      }
+
+      var html = '';
+      for (var i = 0; i < modelUsageData.length; i++) {
+        var m = modelUsageData[i];
+        var barWidth = (m.calls / maxCalls) * 100;
+
+        html +=
+          '<div class="usage-item">' +
+            '<div class="usage-icon ' + m.iconClass + '">' + m.icon + '</div>' +
+            '<div class="usage-info">' +
+              '<div class="usage-name">' + m.name + '</div>' +
+              '<div class="usage-detail">' + m.calls.toLocaleString() + ' 次 · ' + m.tokens.toLocaleString() + ' tokens</div>' +
+              '<div class="usage-bar-wrap">' +
+                '<div class="usage-bar ' + m.barClass + '" style="width:' + barWidth + '%;"></div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="usage-meta">' +
+              '<div class="usage-cost">' + formatCurrency(m.cost) + '</div>' +
+              '<div class="usage-pct">' + m.pct + '%</div>' +
+            '</div>' +
+          '</div>';
+      }
+      container.innerHTML = html;
+    }
+
+    // ===== 渲染模型分布 =====
+    function renderDistribution() {
+      var container = document.getElementById('dist-list');
+      var html = '';
+      for (var i = 0; i < distData.length; i++) {
+        var d = distData[i];
+        html +=
+          '<div class="dist-item">' +
+            '<span class="dist-dot" style="background:' + d.color + ';"></span>' +
+            '<span class="dist-name">' + d.name + '</span>' +
+            '<div class="dist-bar-bg">' +
+              '<div class="dist-bar" style="width:' + d.pct + '%;background:' + d.color + ';"></div>' +
+            '</div>' +
+            '<span class="dist-pct">' + d.pct + '%</span>' +
+          '</div>';
+      }
+      container.innerHTML = html;
+    }
+
+    // ===== 页面初始化 =====
+    document.addEventListener('DOMContentLoaded', function() {
+      if (!checkAuth()) return;
+      var user = getUser();
+      if (user) {
+        document.getElementById('user-name-display').textContent = user.name || user.email;
+        document.getElementById('user-avatar-display').textContent = (user.name || user.email || 'P').charAt(0).toUpperCase();
+      }
+      renderDailyChart();
+      renderModelUsage();
+      renderDistribution();
+    });
+  </script>
+</body>
+</html>
