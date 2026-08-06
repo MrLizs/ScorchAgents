@@ -1,6 +1,6 @@
 ---
 name: "saapi-connect"
-description: "把 /safrontend 生成的前端代码接入到 /sabackend 实现的真实后端 API：替换 baseURL、注入 JWT、全局错误处理、替换 mock 认证、配置 Vite proxy 与后端 CORS。可由 /sabackend 末尾自动触发，也可手动调用。Invoke when 后端已实现完毕需要接通前后端，或用户输入 /saapi-connect。"
+description: "把 /safrontend 和 /saadmin 生成的前端代码接入到 /sabackend 实现的真实后端 API：替换 baseURL、注入 JWT、全局错误处理、替换 mock 认证、配置 Vite proxy 与后端 CORS。可由 /sabackend 末尾自动触发，也可手动调用。Invoke when 后端已实现完毕需要接通前后端及后台管理面板，或用户输入 /saapi-connect。"
 ---
 
 # /saapi-connect — 前后端接通
@@ -9,12 +9,13 @@ description: "把 /safrontend 生成的前端代码接入到 /sabackend 实现�
 
 ```
 /safrontend ──► 前端开发时用 localStorage mock 数据（没真实后端）
-/saapi      ──► 接口规范已定
+/saapi      ──► 接口规范已定（含 Admin API）
 /sabackend  ──► 后端实现完毕
+/saadmin    ──► 后台管理面板开发完毕
               ↓
          【前后端接通】← 本 skill 负责
               ↓
-   前端真实调用后端，JWT 鉴权，错误统一处理
+   主前端 + admin 后台 → 真实调用后端，JWT 鉴权，错误统一处理
 ```
 
 **问题场景**（不接通的痛点）：
@@ -1296,15 +1297,16 @@ curl -H "Authorization: Bearer invalid" http://localhost:3000/api/v1/users/me
 ## 与其他 skill 的关系
 
 ```
-/sainit-* ──► /safrontend ──► /saapi ──► /sabackend ──► /saapi-connect（本 skill） ──► ✅ 上线
-   原型         前端代码       接口规范     后端实现         前后端接通                完整应用
+/sainit-* ──► /safrontend ──► /saapi ──► /sabackend ──► /saadmin ──► /saapi-connect（本 skill）
+   原型         前端代码       接口规范     后端实现      后台管理面板     前后端全部接通
 ```
 
 | 上游 skill | 本 skill 依赖其产出 |
 |-----------|-------------------|
 | `/safrontend` | `frontend/` + API 客户端脚手架（client.ts / auth.ts / errorHandler.ts / .env.example） |
+| `/saadmin` | `admin/` 后台管理面板（React 18 + Ant Design） |
 | `/sabackend` | `backend/` + 真实 API 实现 + `config.yaml` 端口 |
-| `/saapi` | `api/openapi.yaml`（鉴权要求、路径前缀） |
+| `/saapi` | `api/openapi.yaml`（鉴权要求、路径前缀，含 Admin API） |
 
 ---
 

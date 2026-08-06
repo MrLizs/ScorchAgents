@@ -1,6 +1,6 @@
 ---
 name: "saapi"
-description: "为整个项目规划 API 接口：自动从 prototype 和 frontend 代码中发现需要哪些功能接口，生成 OpenAPI 3.0 规范和人类可读 Markdown 文档，支持 JWT 认证、/api/v1/ 路径规范。Invoke when 用户输入 /saapi 或要求规划/设计项目的 API。"
+description: "为整个项目规划 API 接口（含 Admin 管理端 API）：自动从 prototype 和 frontend 代码中发现需要哪些功能接口，生成 OpenAPI 3.0 规范和人类可读 Markdown 文档，支持 JWT 认证、/api/v1/ 路径规范。Invoke when 用户输入 /saapi 或要求规划/设计项目的 API。"
 ---
 
 # /saapi — API 接口设计
@@ -22,7 +22,7 @@ description: "为整个项目规划 API 接口：自动从 prototype 和 fronten
 
 ## 推荐执行顺序
 
-> ⛔ **强烈推荐顺序**：`/sainit-*` → **`/safrontend`** → **`/saapi`** → `/sabackend` → `/saapi-connect`
+> ⛔ **强烈推荐顺序**：`/sainit-*` → **`/safrontend`** → **`/saapi`**(含Admin API) → `/sabackend` → `/saadmin` → `/saapi-connect`
 >
 > 📌 虽然本 skill 自描述「可与 safrontend 并行」，但**只有按推荐顺序跑**才能保证接口发现完整 + 前后端零返工。
 
@@ -915,5 +915,6 @@ fi
 - `sainit-*` — 前置（生成 prototype + 写入 STEPS.md「项目元信息」节）
 - `safrontend` — 可并行（已生成的代码会作为接口发现来源；STEPS.md 由 safrontend 创建）
 - `sabackend` — 后续（基于 OpenAPI 生成后端业务代码；**读取本 skill 写入的「后端技术栈偏好」「SDK 清单」「后台模块清单」作为默认推荐**）
-- `saadmin` — 后续（基于 admin API 生成后台管理界面）
-- `sadeploy` — 后续部署（含 API mock 服务）
+- `saadmin` — 后续（读取 Admin API 接口，生成 React 18 + Ant Design 后台管理面板）
+- `saapi-connect` — 后续（接通主前端 + admin 后台，注入 JWT、全局错误处理）
+- `sadeploy` — 后续全栈部署（Web 项目部署脚本）

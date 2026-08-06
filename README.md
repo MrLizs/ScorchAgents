@@ -4,22 +4,23 @@
 
 ## 核心链路
 
-从零到完整 Web 应用，只需 5 步：
+从零到完整 Web 应用，只需 6 步：
 
 ```
-/sainit-*  ──►  /safrontend  ──►  /saapi  ──►  /sabackend  ──►  /saapi-connect
-  原型            Web 前端         API 设计        后端实现         前后端接通
+/sainit-*  ──►  /safrontend  ──►  /saapi(含Admin API)  ──►  /sabackend  ──►  /saadmin  ──►  /saapi-connect
+  原型            Web 前端           API 设计                 后端实现       后台管理面板     前后端全部接通
 ```
 
 | 步骤 | Skill | 功能 | 产出 |
 |------|-------|------|------|
 | 1 | `/sainit-*` | 生成可交互的 HTML 原型，确定 UI 风格、功能清单、页面结构 | `prototype/` + `STEPS.md` |
 | 2 | `/safrontend` | 原型转为 Vue 3 / React 18 前端项目，含路由、状态管理、API 脚手架 | `frontend/` |
-| 3 | `/saapi` | 扫描前端代码 + 原型反推接口，生成 OpenAPI 3.0 规范 | `api/openapi.yaml` + `api/API.md` |
-| 4 | `/sabackend` | 按 OpenAPI 规范实现后端服务，含数据库建表、业务逻辑 | `backend/` + `sql/init.sql` |
-| 5 | `/saapi-connect` | 替换 mock 认证为真实后端调用，注入 JWT、全局错误处理、Vite proxy + CORS | 修改 `frontend/src/api/`、`frontend/.env` |
+| 3 | `/saapi` | 扫描前端代码 + 原型反推接口，**含 Admin 管理端 API**，生成 OpenAPI 3.0 规范 | `api/openapi.yaml` + `api/API.md` |
+| 4 | `/sabackend` | 按 OpenAPI 规范实现后端服务，含数据库建表、业务逻辑、Admin 接口 | `backend/` + `sql/init.sql` |
+| 5 | `/saadmin` | 基于 Admin API 接口，直接生成 React 18 + TypeScript + Ant Design 后台管理面板 | `admin/` |
+| 6 | `/saapi-connect` | 替换 mock 认证，**接通主前端 + admin 后台**，注入 JWT、全局错误处理、Vite proxy + CORS | 修改 `frontend/`、`admin/`、`backend/` |
 
-> 核心链路跑完 = 一个完整的 Web 应用（前端 + 后端 + 数据库），可直接部署上线。
+> 核心链路跑完 = 一个完整的 Web 应用（前端 + 后台 + 后端 + 数据库），可直接部署上线。
 
 ### 初始化类型
 
@@ -59,36 +60,77 @@
 ### 跨平台交付
 
 ```
-/sacrossplatform  ──►  /sanative-bridge
-  iOS + Android         原生能力封装
+/sacrossplatform  ──►  /sadeploy-mobile
+  iOS + Android         打包 .apk / .ipa
 
-/sadesktop  ──►  /sanative-bridge
-  Win + Mac + Linux     原生能力封装
+/sadesktop  ──►  /sadeploy-desktop
+  Win + Mac + Linux     打包 .exe / .dmg / .deb
 ```
 
 - `/sacrossplatform` — Web 前端 → React Native / Expo / uni-app / Taro 移动 App
+- `/sadeploy-mobile` — 移动 App 打包构建脚本
 - `/sadesktop` — Web 前端 → Electron / Tauri 桌面应用
-- `/sanative-bridge` — 相机、推送、定位、文件系统、生物识别等原生能力封装
+- `/sadeploy-desktop` — 桌面应用打包构建脚本
+
+### 部署
+
+```
+/saapi-connect 完成后
+       │
+       ├──► /sacrossplatform  ──►  /sadeploy-mobile
+       ├──► /sadesktop  ──►  /sadeploy-desktop
+       └──► /sadeploy（Web 项目直接部署）
+```
+
+- `/sadeploy` — 全栈一键部署：支持 Ubuntu/Debian/CentOS/macOS/Windows，原生部署 + Docker 容器，宝塔/1Panel 面板集成，Nginx + SSL 自动配置
 
 ## 完整全景图
 
 ```
                     ┌─ frontend-design ──────┐
                     ├─ color-font-skill ─────┤
-/sainit-* ──Step 7─►├─ ui-ux-pro-max ────────┼──► /safrontend ──► /saapi ──► /sabackend ──► /saapi-connect
-  原型              ├─ frontend-dev ─────────┤     Web 前端       API 设计    后端实现      前后端接通
+/sainit-* ──Step 7─►├─ ui-ux-pro-max ────────┼──► /safrontend ──► /saapi(含Admin API) ──► /sabackend
+  原型              ├─ frontend-dev ─────────┤     Web 前端           API 设计                 后端实现
                     ├─ design-style-skill ───┘
                     └─ F. 直接进 safrontend ─┘
-                                                               │
-                                    ┌──────────────────────────┼──────────────────────────┐
-                                    ▼                          ▼                          ▼
-                            /saapi-platform              /sacrossplatform             /sadesktop
-                            平台级 API                   移动 App (iOS+Android)      桌面应用 (Win+Mac+Linux)
-                                    │                          │                          │
-                                    ▼                          ▼                          ▼
-                            /sainference                /sanative-bridge           /sanative-bridge
-                            AI 模型集成                  原生能力封装                 原生能力封装
+                                                                              │
+                                                                              ▼
+                                                                         /saadmin
+                                                                     React 18 + Ant Design
+                                                                          后台管理面板
+                                                                              │
+                                                                              ▼
+                                                                       /saapi-connect
+                                                                    接通主前端 + admin
+                                                                              │
+                                                 ┌────────────────────────────┼────────────────────────────┐
+                                                 ▼                            ▼                            ▼
+                                          /sacrossplatform               /sadesktop                   /sadeploy
+                                          iOS + Android                Win + Mac + Linux            全栈 Web 部署
+                                                 │                            │
+                                                 ▼                            ▼
+                                          /sadeploy-mobile             /sadeploy-desktop
+                                          打包 .apk/.ipa              打包 .exe/.dmg/.deb
 ```
+
+## 全量 Skill 清单
+
+| 类别 | Skill | 功能 |
+|------|-------|------|
+| 初始化 | `sainit` / `sainit-dating` / `sainit-shop` / `sainit-blog` / `sainit-tool` / `sainit-saas` / `sainit-other` | 项目原型生成 |
+| 前端 | `safrontend` | Vue 3 / React 18 前端开发 |
+| API | `saapi` | API 接口设计（含 Admin API） |
+| 后端 | `sabackend` | 后端服务实现 |
+| 后台 | `saadmin` | React 18 + Ant Design 后台管理面板 |
+| 接通 | `saapi-connect` | 前后端接通（主前端 + admin） |
+| 部署 | `sadeploy` | 全栈 Web 部署 |
+| 平台 | `saapi-platform` | API 平台级设计 |
+| AI | `sainference` | AI 模型推理集成 |
+| 跨平台 | `sacrossplatform` | 移动 App 开发 |
+| 桌面 | `sadesktop` | 桌面应用开发 |
+| 桥接 | `sanative-bridge` | 原生能力封装 |
+| 打包 | `sadeploy-mobile` | 移动 App 打包 |
+| 打包 | `sadeploy-desktop` | 桌面应用打包 |
 
 ## 项目目录结构
 
@@ -98,6 +140,7 @@
 ├── STEPS.md                 # 步骤追踪（所有 skill 共用）
 ├── prototype/               # 原型设计（/sainit-* 产出）
 ├── frontend/                # 前端代码（/safrontend 产出）
+├── admin/                   # 后台管理面板（/saadmin 产出）
 ├── api/                     # API 规范（/saapi 产出）
 │   ├── openapi.yaml
 │   └── API.md
@@ -105,6 +148,14 @@
 │   ├── sql/
 │   │   └── init.sql
 │   └── src/
+├── deploy/                  # 部署脚本（/sadeploy 产出）
+│   ├── ubuntu/
+│   │   ├── deploy.sh
+│   │   ├── update.sh
+│   │   ├── rollback.sh
+│   │   ├── nginx.conf
+│   │   └── docker-compose.yml
+│   └── README.md
 ├── mobile/                  # 移动 App（/sacrossplatform 产出，可选）
 ├── desktop/                 # 桌面应用（/sadesktop 产出，可选）
 └── inference/               # AI 推理集成（/sainference 产出，可选）
@@ -114,7 +165,12 @@
 
 1. 克隆本仓库
 2. 在对话中输入 `/sainit <项目描述>` 开始
-3. 按上述核心链路逐步执行
+3. 按上述核心链路逐步执行：
+   - `/sainit-*` → `/safrontend` → `/saapi` → `/sabackend` → `/saadmin` → `/saapi-connect`
+4. 核心链路完成后，选择部署方式：
+   - Web 项目 → `/sadeploy`
+   - 移动端 → `/sacrossplatform` → `/sadeploy-mobile`
+   - 桌面端 → `/sadesktop` → `/sadeploy-desktop`
 
 ## 参与贡献
 
